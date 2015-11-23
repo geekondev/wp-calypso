@@ -152,6 +152,13 @@ const flows = {
 	'jetpack': {
 		steps: [ 'jetpack-user' ],
 		destination: '/'
+	},
+
+	mlb: {
+		steps: [ 'mlb-themes', 'mlb-domains', 'user' ],
+		destination: '/me/next?welcome',
+		description: 'Major League Baseball Blogs Signup flow',
+		lastModified: '2015-11-22'
 	}
 };
 
