@@ -304,6 +304,7 @@ function wpcomPlugin( editor ) {
 		}
 
 		each( {
+			a: 'WP_Link',
 			c: 'JustifyCenter',
 			r: 'JustifyRight',
 			l: 'JustifyLeft',
