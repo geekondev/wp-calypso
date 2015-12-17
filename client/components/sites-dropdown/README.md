@@ -19,6 +19,7 @@ render() {
 
 #### Props
 
+(All optional)
 * `selected` (`number|string`) — Index or slug of the initial selection
 * `showAllSites` (`bool`) — `true` to display the _All My Sites_ option
 * `indicator` (`bool`) — `true` to show the status indicator badge against each site
