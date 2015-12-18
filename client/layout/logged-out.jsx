@@ -39,10 +39,7 @@ LoggedOutLayout = React.createClass( {
 
 export default connect(
 	( state ) => {
-		return {
-			isLoading: state.ui.isLoading,
-			section: state.ui.section,
-			hasSidebar: state.ui.hasSidebar
-		};
+		const { section, hasSidebar } = state.ui;
+		return { section, hasSidebar };
 	}
 )( LoggedOutLayout );
