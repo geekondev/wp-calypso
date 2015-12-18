@@ -48,6 +48,7 @@ import SelectDropdown from 'components/select-dropdown';
 import DropdownItem from 'components/select-dropdown/item';
 import DropdownSeparator from 'components/select-dropdown/separator';
 import BulkSelect from 'components/bulk-select';
+import PluginsListHeader from './plugin-list-header';
 
 /**
  * Module variables
