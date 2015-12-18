@@ -37,6 +37,10 @@ const PlanStatusProgress = React.createClass( {
 		const { plan } = this.props;
 
 		if ( isInGracePeriod( plan ) ) {
+			if ( getDaysUntilExpiry( plan ) === 0 ) {
+				return this.translate( 'Plan features will be removed momentarily' );
+			}
+
 			return this.translate(
 				'Plan features will be removed in %(daysUntilExpiry)s day',
 				'Plan features will be removed in %(daysUntilExpiry)s days',

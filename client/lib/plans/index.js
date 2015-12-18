@@ -26,7 +26,7 @@ export function getDaysUntilExpiry( plan ) {
 };
 
 export function isInGracePeriod( plan ) {
-	if ( getDaysUntilUserFacingExpiry( plan ) <= 0 && getDaysUntilExpiry( plan ) > 0 ) {
+	if ( getDaysUntilUserFacingExpiry( plan ) <= 0 && getDaysUntilExpiry( plan ) >= 0 ) {
 		return true;
 	}
 
