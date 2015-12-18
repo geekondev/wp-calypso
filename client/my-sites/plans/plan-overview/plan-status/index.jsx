@@ -59,7 +59,8 @@ const PlanStatus = React.createClass( {
 
 					<Button
 						className="plan-status__button"
-						onClick={ this.purchasePlan }>
+						onClick={ this.purchasePlan }
+						primary>
 						{ this.translate( 'Purchase Now' ) }
 					</Button>
 				</CompactCard>
