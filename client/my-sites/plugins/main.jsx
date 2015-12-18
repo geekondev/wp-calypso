@@ -472,6 +472,12 @@ export default React.createClass( {
 
 		return (
 			<span key={ 'plugins__header-' + slug }>
+				<PluginsListHeader bulkManagement={ this.state.bulkManagement }
+					sites={ this.props.sites }
+					plugins={ this.state.plugins }
+					selected={ this.getSelected() }
+					onToggle={ this.unselectOrSelectAll }
+					pluginUpdateCount={ this.state.pluginUpdateCount }/>
 				{ headerMarkup }
 				<div className={ itemListClasses }>{ this.formatPlugins( plugins ) }</div>
 			</span>

@@ -2,11 +2,21 @@
  * External dependencies
  */
 import React from 'react';
+import some from 'lodash/collection/some';
+import property from 'lodash/utility/property';
+import config from 'config';
 
 /**
  * Internal dependencies
  */
 import SectionHeader from 'components/section-header';
+import ButtonGroup from 'components/button-group';
+import Button from 'components/button';
+import Gridicon from 'components/gridicon';
+import SelectDropdown from 'components/select-dropdown';
+import DropdownItem from 'components/select-dropdown/item';
+import DropdownSeparator from 'components/select-dropdown/separator';
+import BulkSelect from 'components/bulk-select';
 
 export default React.createClass( {
 
@@ -14,10 +24,32 @@ export default React.createClass( {
 
 	propTypes: {
 		bulkManagement: React.PropTypes.bool,
-		site: React.PropTypes.object.isRequired,
+		sites: React.PropTypes.object.isRequired,
 		plugins: React.PropTypes.array.isRequired,
 		selected: React.PropTypes.array.isRequired,
-		onToggle: React.PropTypes.function
+		isWpCom: React.PropTypes.bool,
+		pluginUpdateCount: React.PropTypes.number
+	},
+
+	canAddNewPlugins() {
+		if ( config.isEnabled( 'manage/plugins/browser' ) ) {
+			return this.hasJetpackSelectedSites();
+		}
+		return false;
+	},
+
+	canUpdatePlugins() {
+		return this.state.plugins
+			.filter( plugin => plugin.selected )
+			.some( plugin => plugin.sites.some( site => site.canUpdateFiles ) );
+	},
+
+	hasJetpackSelectedSites() {
+		const selectedSite = this.props.sites.getSelectedSite();
+		if ( selectedSite ) {
+			return !! selectedSite.jetpack;
+		}
+		return this.props.sites.getJetpack().length > 0;
 	},
 
 	renderCurrentActionButtons( isWpCom ) {
@@ -31,7 +63,7 @@ export default React.createClass( {
 		const isJetpackSelected = this.props.plugins.some( plugin => plugin.selected && 'jetpack' === plugin.slug );
 		const needsRemoveButton = this.props.selected.length && ! hasWpcomPlugins && this.canUpdatePlugins() && ! isJetpackSelected;
 		if ( ! this.props.bulkManagement ) {
-			if ( ! isWpCom && 0 < this.state.pluginUpdateCount ) {
+			if ( ! isWpCom && 0 < this.props.pluginUpdateCount ) {
 				rightSideButtons.push(
 					<ButtonGroup key="plugins__buttons-update-all">
 						<Button compact primary onClick={ this.updateAllPlugins } >
@@ -118,18 +150,22 @@ export default React.createClass( {
 
 	render() {
 		return (
-			<SectionHeader label={ header } className={ headerClasses } key={ 'plugins__section-header-' + slug } >
-				{
-					! this.props.bulkManagement
-						? null
-						: <BulkSelect key="plugins__bulk-select"
-							totalElements={ this.props.plugins.length }
-							selectedElements={ this.props.length }
-							onToggle={ this.props.onToggle } />
-				}
-				{ this.renderCurrentActionDropdown() }
-				{ this.renderCurrentActionButtons( isWpCom ) }
-			</SectionHeader>
+			<div>
+				<SectionHeader label={ this.props.header }>
+					<div>
+						{
+							! this.props.bulkManagement
+								? null
+								: <BulkSelect key="plugins__bulk-select"
+									totalElements={ this.props.plugins.length }
+									selectedElements={ this.props.length }
+									onToggle={ this.props.onToggle } />
+						}
+						{ this.renderCurrentActionDropdown() }
+						{ this.renderCurrentActionButtons( this.props.isWpCom ) }
+					</div>
+				</SectionHeader>
+			</div>
 		);
 
 	}
