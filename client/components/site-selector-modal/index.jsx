@@ -38,13 +38,10 @@ var SiteSelectorModal = React.createClass( {
 
 	getInitialState: function() {
 		const primarySite = sitesList.getPrimary();
-		let filteredSites = sitesList.get();
+		let filteredSites = sitesList.getVisible();
 
 		if ( this.props.filter ) {
-			// TODO: Change the filter argument to use `conj` once lodash 4 is out
-			filteredSites = filteredSites.filter( ( site ) => (
-				this.props.filter( site ) && site.visible
-			) );
+			filteredSites = filteredSites.filter( this.props.filter );
 		}
 
 		return {
