@@ -39,7 +39,7 @@ module.exports = {
 		allowAnyLocale: true
 	},
 	plansPageBusinessAATest: {
-		datestamp: '20151104',
+		datestamp: '20151221',
 		variations: {
 			originalA: 50,
 			originalB: 50
@@ -60,15 +60,6 @@ module.exports = {
 			main: 15,
 			dss: 15,
 			notTested: 70
-		},
-		defaultVariation: 'main'
-	},
-	nuxTrampoline: {
-		datestamp: '20151210',
-		variations: {
-			main: 25,
-			trampoline: 25,
-			notTested: 50
 		},
 		defaultVariation: 'main'
 	},

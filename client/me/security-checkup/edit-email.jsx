@@ -3,6 +3,7 @@
  */
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
+	LinkedStateMixin = require( 'react-addons-linked-state-mixin' ),
 	emailValidator = require( 'email-validator' );
 
 /**
@@ -17,7 +18,7 @@ var FormFieldset = require( 'components/forms/form-fieldset' ),
 module.exports = React.createClass( {
 	displayName: 'SecurityCheckupRecoveryEmailEdit',
 
-	mixins: [ React.addons.LinkedStateMixin ],
+	mixins: [ LinkedStateMixin ],
 
 	propTypes: {
 		storedEmail: React.PropTypes.string,

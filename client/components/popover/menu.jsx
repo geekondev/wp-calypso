@@ -58,7 +58,7 @@ var PopoverMenu = React.createClass( {
 			onClick = child.props.onClick.bind( null, boundOnClose );
 		}
 
-		return React.addons.cloneWithProps( child, {
+		return React.cloneElement( child, {
 			onClick: onClick
 		} );
 	},

@@ -5,7 +5,7 @@ A module for managing site plans data.
 
 ## Actions
 
-Used incombination with the Redux store instance `dispatch` function, actions can be used in manipulating the current global state.
+Used in combination with the Redux store instance `dispatch` function, actions can be used in manipulating the current global state.
 
 ### `fetchSitePlans( siteId: Number )`
 
@@ -41,7 +41,7 @@ state.sites.plans = {
 			rawDiscount: Number,
 			rawPrice: Number,
 			subscribedDate: String,
-			subscribedMoment: Moment,
+			subscribedDayMoment: Moment,
 			userFacingExpiry: String,
 			userFacingExpiryMoment: Moment
 		},

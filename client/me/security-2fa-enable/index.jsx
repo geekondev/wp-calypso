@@ -2,6 +2,7 @@
  * External dependencies
  */
 var React = require( 'react' ),
+	LinkedStateMixin = require( 'react-addons-linked-state-mixin' ),
 	debug = require( 'debug' )( 'calypso:me:security:2fa-enable' ),
 	QRCode = require( 'qrcode.react' ),
 	classNames = require( 'classnames' );
@@ -24,7 +25,7 @@ module.exports = React.createClass( {
 
 	displayName: 'Security2faEnable',
 
-	mixins: [ React.addons.LinkedStateMixin ],
+	mixins: [ LinkedStateMixin ],
 
 	codeRequestTimer: false,
 
@@ -203,7 +204,7 @@ module.exports = React.createClass( {
 				<p className="security-2fa-enable__qr-instruction">
 					{
 						this.translate(
-							"Scan this QR code with your mobile app. {{toggleMethodLink}}Can't scan the barcode?{{/toggleMethodLink}}", {
+							"Scan this QR code with your mobile app. {{toggleMethodLink}}Can't scan the code?{{/toggleMethodLink}}", {
 								components: {
 									toggleMethodLink: this.getToggleLink()
 								}
@@ -226,7 +227,7 @@ module.exports = React.createClass( {
 				<p className="security-2fa-enable__time-instruction">
 					{
 						this.translate(
-							'Enter this time code into your mobile app. {{toggleMethodLink}}Prefer to scan the barcode?{{/toggleMethodLink}}', {
+							'Enter this time code into your mobile app. {{toggleMethodLink}}Prefer to scan the code?{{/toggleMethodLink}}', {
 								components: {
 									toggleMethodLink: this.getToggleLink()
 								}

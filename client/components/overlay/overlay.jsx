@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-var React = require( 'react/addons' ),
+var React = require( 'react' ),
 	debug = require( 'debug' )( 'calypso:overlay' ),
 	classes = require( 'component-classes' );
 
@@ -9,7 +9,7 @@ var React = require( 'react/addons' ),
  * Internal dependencies
  */
 var Toolbar = require( './toolbar' ),
-	NoticesList = require( 'notices/notices-list' ),
+	GlobalNotices = require( 'components/global-notices' ),
 	notices = require( 'notices' ),
 	page = require( 'page' ),
 	TitleData = require( 'components/data/screen-title' );
@@ -100,7 +100,7 @@ module.exports = React.createClass({
 				</TitleData>
 
 				<div className="wp-content" ref="overlayInnerContent">
-					<NoticesList id="overlay-notices" notices={ notices.list }/>
+					<GlobalNotices id="overlay-notices" notices={ notices.list }/>
 					{ this.props.children }
 				</div>
 			</section>

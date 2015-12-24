@@ -11,8 +11,10 @@ import page from 'page';
 import Button from 'components/button';
 import { cartItems } from 'lib/cart-values';
 import CompactCard from 'components/card/compact';
-import { getDaysUntilUserFacingExpiry } from 'lib/plans';
-import PlanStatusProgress from './progress';
+import Gridicon from 'components/gridicon';
+import { getDaysUntilUserFacingExpiry, isInGracePeriod } from 'lib/plans';
+import Notice from 'components/notice';
+import PlanProgress from '../plan-progress';
 import { isPremium, isBusiness } from 'lib/products-values';
 import * as upgradesActions from 'lib/upgrades/actions';
 
@@ -31,6 +33,33 @@ const PlanStatus = React.createClass( {
 		page( `/checkout/${ this.props.selectedSite.slug }` );
 	},
 
+	renderNotice() {
+		const { plan } = this.props;
+
+		if ( isInGracePeriod( plan ) ) {
+			const daysAfterUserFacingExpiry = Math.abs( getDaysUntilUserFacingExpiry( plan ) );
+			let noticeText;
+
+			if ( daysAfterUserFacingExpiry === 0 ) {
+				noticeText = this.translate( 'Expired today' );
+			} else {
+				noticeText = this.translate(
+					'Expired %(days)d day ago',
+					'Expired %(days)d days ago', {
+						args: { days: daysAfterUserFacingExpiry },
+						count: daysAfterUserFacingExpiry
+					}
+				);
+			}
+
+			return (
+				<Notice isCompact status="is-error">
+					{ noticeText }
+				</Notice>
+			);
+		}
+	},
+
 	render() {
 		const { plan } = this.props,
 			iconClasses = classNames( 'plan-status__icon', {
@@ -41,7 +70,9 @@ const PlanStatus = React.createClass( {
 		return (
 			<div className="plan-status">
 				<CompactCard className="plan-status__info">
-					<div className={ iconClasses } />
+					<div className={ iconClasses }>
+						{ isInGracePeriod( plan ) && <Gridicon icon="notice" /> }
+					</div>
 
 					<div className="plan-status__header">
 						<span className="plan-status__text">
@@ -55,17 +86,19 @@ const PlanStatus = React.createClass( {
 								} )
 							}
 						</h1>
+						{ this.renderNotice() }
 					</div>
 
 					<Button
 						primary={ getDaysUntilUserFacingExpiry( this.props.plan ) < 6 }
 						className="plan-status__button"
-						onClick={ this.purchasePlan }>
+						onClick={ this.purchasePlan }
+						primary>
 						{ this.translate( 'Purchase Now' ) }
 					</Button>
 				</CompactCard>
 
-				<PlanStatusProgress plan={ plan } />
+				{ ! isInGracePeriod( plan ) && <PlanProgress plan={ plan } /> }
 			</div>
 		);
 	}

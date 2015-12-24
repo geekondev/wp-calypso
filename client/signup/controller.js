@@ -3,6 +3,7 @@
  */
 import ReactDom from 'react-dom';
 import React from 'react';
+import { Provider as ReduxProvider } from 'react-redux';
 import page from 'page';
 import qs from 'qs';
 import isEmpty from 'lodash/lang/isEmpty';
@@ -19,6 +20,7 @@ import SignupComponent from './main';
 import utils from './utils';
 import userModule from 'lib/user';
 import titleActions from 'lib/screen-title/actions';
+import { setSection } from 'state/ui/actions';
 const user = userModule();
 
 /**
@@ -87,21 +89,22 @@ export default {
 
 		titleActions.setTitle( i18n.translate( 'Create an account' ) );
 
-		context.layout.setState( {
-			section: 'signup',
-			noSidebar: true
-		} );
+		context.store.dispatch( setSection( 'signup', {
+			hasSidebar: false
+		} ) );
 
 		ReactDom.render(
-			React.createElement( SignupComponent, {
-				path: context.path,
-				refParameter,
-				queryObject,
-				locale: utils.getLocale( context.params ),
-				flowName: flowName,
-				stepName: stepName,
-				stepSectionName: stepSectionName
-			} ),
+			React.createElement( ReduxProvider, { store: context.store },
+				React.createElement( SignupComponent, {
+					path: context.path,
+					refParameter,
+					queryObject,
+					locale: utils.getLocale( context.params ),
+					flowName: flowName,
+					stepName: stepName,
+					stepSectionName: stepSectionName
+				} )
+			),
 			document.getElementById( 'primary' )
 		);
 	},

@@ -2,6 +2,8 @@
  * External dependencies
  */
 import React from 'react';
+import LinkedStateMixin from 'react-addons-linked-state-mixin';
+import PureRenderMixin from 'react-pure-render/mixin';
 import isEqual from 'lodash/lang/isEqual';
 
 /**
@@ -26,7 +28,7 @@ const sites = siteList();
 module.exports = React.createClass( {
 	displayName: 'HelpContactForm',
 
-	mixins: [ React.addons.LinkedStateMixin, React.addons.PureRenderMixin ],
+	mixins: [ LinkedStateMixin, PureRenderMixin ],
 
 	propTypes: {
 		formDescription: React.PropTypes.node,

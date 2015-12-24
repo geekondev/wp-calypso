@@ -43,7 +43,6 @@
 @import 'components/input-chrono/style';
 @import 'components/logged-out-form/style';
 @import 'components/like-button/style';
-@import 'components/loading-placeholder/style';
 @import 'components/main/style';
 @import 'components/mobile-back-to-sidebar/style';
 @import 'components/notice/style';
@@ -113,7 +112,7 @@
 @import 'components/vertical-nav/style';
 @import 'components/vertical-nav/item/style';
 @import 'layout/community-translator/style';
-@import 'layout/masterbar-new-post';
+@import 'layout/masterbar/style';
 @import 'lib/accept/style';
 @import 'me/account-password/style';
 @import 'me/account/style';
@@ -145,6 +144,7 @@
 @import 'me/profile-links/style';
 @import 'me/purchases/cancel-private-registration/style';
 @import 'me/purchases/cancel-purchase/style';
+@import 'me/purchases/components/loading-placeholder/style';
 @import 'me/purchases/confirm-cancel-purchase/style';
 @import 'me/purchases/list/item/style';
 @import 'me/purchases/list/site/style';
@@ -189,6 +189,7 @@
 @import 'my-sites/plans/style';
 @import 'my-sites/plans/plan-overview/style';
 @import 'my-sites/plans/plan-overview/plan-feature/style';
+@import 'my-sites/plans/plan-overview/plan-progress/style';
 @import 'my-sites/plans/plan-overview/plan-status/style';
 @import 'my-sites/post/post-image/style';
 @import 'my-sites/post-selector/style';
@@ -201,6 +202,7 @@
 @import 'my-sites/plugins/plugin-icon/style';
 @import 'my-sites/plugins/plugin-information/style';
 @import 'my-sites/plugins/plugin-item/style';
+@import 'my-sites/plugins/plugin-list-header/style';
 @import 'my-sites/plugins/plugin-meta/style';
 @import 'my-sites/plugins/plugin-ratings/style';
 @import 'my-sites/plugins/plugin-sections/style';
@@ -305,7 +307,7 @@
 @import 'signup/steps/survey/style';
 @import 'signup/steps/design-type/style';
 @import 'signup/steps/plans/style';
-@import 'signup/steps/site-creation/style';
+@import 'signup/steps/site/style';
 @import 'signup/validation-fieldset/style';
 @import 'vip/vip-logs/style';
 @import 'signup/steps/dss/style';

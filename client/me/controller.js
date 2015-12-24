@@ -19,6 +19,8 @@ import purchasesController from './purchases/controller';
 import userFactory from 'lib/user';
 import userSettings from 'lib/user-settings';
 import titleActions from 'lib/screen-title/actions';
+import { Provider } from 'react-redux';
+import { setSection } from 'state/ui/actions';
 
 const ANALYTICS_PAGE_TITLE = 'Me',
 	devices = devicesFactory(),
@@ -37,10 +39,7 @@ export default {
 			document.getElementById( 'secondary' )
 		);
 
-		context.layout.setState( {
-			section: 'me',
-			noSidebar: false
-		} );
+		context.store.dispatch( setSection( 'me' ) );
 
 		next();
 	},
@@ -193,14 +192,14 @@ export default {
 		analytics.pageView.record( basePath, ANALYTICS_PAGE_TITLE + ' > Notifications' );
 
 		ReactDom.render(
-			React.createElement( NotificationsComponent,
-				{
+			React.createElement( Provider, { store: context.store },
+				React.createElement( NotificationsComponent, {
 					user: user,
 					userSettings: userSettings,
 					blogs: sites,
 					devices: devices,
 					path: context.path
-				}
+				} )
 			),
 			document.getElementById( 'primary' )
 		);
@@ -283,7 +282,9 @@ export default {
 			analytics.pageView.record( basePath + '/receipt', ANALYTICS_PAGE_TITLE + ' > Billing History > Receipt' );
 
 			ReactDom.render(
-				React.createElement( ViewReceiptModal, { transaction: billingData.getTransaction( transactionId ) } ),
+				React.createElement( Provider, { store: context.store },
+					React.createElement( ViewReceiptModal, { transaction: billingData.getTransaction( transactionId ) } )
+				),
 				document.getElementById( 'tertiary' )
 			);
 		} else {
@@ -303,7 +304,7 @@ export default {
 
 		if ( isWelcome ) {
 			ReactDom.unmountComponentAtNode( document.getElementById( 'secondary' ) );
-			context.layout.setState( { noSidebar: true } );
+			context.store.dispatch( setSection( null, { hasSidebar: false } ) );
 		}
 
 		analytics.tracks.recordEvent( 'calypso_me_next_view', { is_welcome: isWelcome } );

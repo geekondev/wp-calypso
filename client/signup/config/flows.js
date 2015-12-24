@@ -19,11 +19,6 @@ function getCheckoutDestination( dependencies ) {
 		return '/checkout/' + dependencies.siteSlug;
 	}
 
-	/* NUX Trampoline A/B */
-	if ( 'trampoline' === getABTestVariation( 'nuxTrampoline' ) ) {
-		return 'https://' + dependencies.siteSlug;
-	}
-
 	return '/me/next?welcome';
 }
 
@@ -135,7 +130,7 @@ const flows = {
 		lastModified: '2015-11-13'
 	},
 
-	'layout': {
+	layout: {
 		steps: [ 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getCheckoutDestination,
 		description: 'Theme trifurcation flow',
@@ -149,9 +144,16 @@ const flows = {
 		lastModified: '2015-11-23'
 	},
 
-	'jetpack': {
+	jetpack: {
 		steps: [ 'jetpack-user' ],
 		destination: '/'
+	},
+
+	'free-trial': {
+		steps: [ 'themes', 'site', 'plans', 'user' ],
+		destination: getCheckoutDestination,
+		description: 'Signup flow for free trials',
+		lastModified: '2015-12-18'
 	}
 };
 

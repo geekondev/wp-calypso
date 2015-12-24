@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import React from 'react/addons'
+import React from 'react'
 import debugModule from 'debug';
 import page from 'page';
 import classNames from 'classnames';
@@ -24,6 +24,7 @@ import PluginsDataStore from 'lib/plugins/wporg-data/store';
 import PluginsActions from 'lib/plugins/actions';
 import PluginNotices from 'lib/plugins/notices';
 import MainComponent from 'components/main';
+import SidebarNavigation from 'my-sites/sidebar-navigation';
 import JetpackManageErrorPage from 'my-sites/jetpack-manage-error-page';
 import PluginSections from 'my-sites/plugins/plugin-sections';
 import pluginsAccessControl from 'my-sites/plugins/access-control';
@@ -146,11 +147,12 @@ export default React.createClass( {
 	},
 
 	displayHeader() {
+		const recordEvent = this.recordEvent.bind( this, 'Clicked Header Plugin Back Arrow' );
 		return (
 			<HeaderCake
 				isCompact={ true }
 				onClick={ this.goBack }
-				onBackArrowClick={ this.recordEvent.bind( this, 'Clicked Header Plugin Back Arrow' ) } />
+				onBackArrowClick={ recordEvent } />
 		);
 	},
 
@@ -229,10 +231,12 @@ export default React.createClass( {
 	renderPluginPlaceholder( classes ) {
 		return (
 			<MainComponent>
+				<SidebarNavigation />
 				<div className={ classes }>
 					{ this.displayHeader() }
 					<PluginMeta
 						isPlaceholder
+						isWpcomPlugin={ this.props.isWpcomPlugin }
 						notices={ this.state.notices }
 						plugin={ this.state.plugin }
 						siteUrl={ this.props.siteUrl }
@@ -249,7 +253,7 @@ export default React.createClass( {
 			canUpdateFiles: true,
 			name: 'Not a real site',
 			options: {
-				software_version: 1
+				software_version: '1'
 			}
 		}
 		return (
@@ -258,6 +262,7 @@ export default React.createClass( {
 					{ this.displayHeader() }
 					<PluginMeta
 						notices={ {} }
+						isWpcomPlugin={ this.props.isWpcomPlugin }
 						plugin={ this.state.plugin }
 						siteUrl={ 'no-real-url' }
 						sites={ [ selectedSite ] }
@@ -275,11 +280,11 @@ export default React.createClass( {
 		if ( ! this.props.isWpcomPlugin && selectedSite && ! selectedSite.jetpack ) {
 			return (
 				<MainComponent>
+					<SidebarNavigation />
 					<EmptyContent
 						title={ this.translate( 'Oops! Not supported' ) }
 						line={ this.translate( 'This site doesn\'t support installing plugins. Switch to a self-hosted site to install and manage plugins' ) }
-						illustration={ '/calypso/images/drake/drake-whoops.svg' }
-						fullWidth={ true } />
+						illustration={ '/calypso/images/drake/drake-whoops.svg' } />
 				</MainComponent>
 			);
 		}
@@ -287,6 +292,7 @@ export default React.createClass( {
 		if ( this.state.accessError ) {
 			return (
 				<MainComponent>
+					<SidebarNavigation />
 					<EmptyContent { ...this.state.accessError } />
 					{ this.state.accessError.featureExample ? <FeatureExample>{ this.state.accessError.featureExample }</FeatureExample> : null }
 				</MainComponent>
@@ -304,6 +310,7 @@ export default React.createClass( {
 		if ( selectedSite && selectedSite.jetpack && ! selectedSite.canManage() ) {
 			return (
 				<MainComponent>
+					<SidebarNavigation />
 					<JetpackManageErrorPage
 						template="optInManage"
 						title={ this.translate( 'Looking to manage this site\'s plugins?' ) }
@@ -318,9 +325,11 @@ export default React.createClass( {
 
 		return (
 			<MainComponent>
+				<SidebarNavigation />
 				<div className={ classes }>
 					{ this.displayHeader() }
 					<PluginMeta
+						isWpcomPlugin={ this.props.isWpcomPlugin }
 						notices={ this.state.notices }
 						plugin={ this.state.plugin }
 						siteUrl={ this.props.siteUrl }

@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-import React from 'react';
+import React from 'react/addons';
+import LinkedStateMixin from 'react-addons-linked-state-mixin';
 import i18n from 'lib/mixins/i18n';
 import Debug from 'debug';
 import emailValidator from 'email-validator';
@@ -58,7 +59,7 @@ module.exports = React.createClass( {
 
 	mixins: [
 		formBase,
-		React.addons.LinkedStateMixin,
+		LinkedStateMixin,
 		protectForm.mixin,
 		observe( 'userSettings', 'username' ),
 		eventRecorder
