@@ -16,15 +16,6 @@ module.exports = {
 		},
 		defaultVariation: 'singlePurchaseFlow'
 	},
-	verticalSurvey: {
-		datestamp: '20151210',
-		variations: {
-			noSurvey: 12,
-			oneStep: 44,
-			twoStep: 44
-		},
-		defaultVariation: 'noSurvey'
-	},
 	translatorInvitation: {
 		datestamp: '20150910',
 		variations: {
@@ -53,15 +44,6 @@ module.exports = {
 			nudge: 50
 		},
 		defaultVariation: 'drake'
-	},
-	dss: {
-		datestamp: '20151210',
-		variations: {
-			main: 15,
-			dss: 15,
-			notTested: 70
-		},
-		defaultVariation: 'main'
 	},
 	triforce: {
 		datestamp: '20151216',
