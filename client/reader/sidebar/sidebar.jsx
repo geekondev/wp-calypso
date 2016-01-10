@@ -121,7 +121,9 @@ module.exports = React.createClass( {
 			TagActions.follow( tag );
 			stats.recordAction( 'followed_topic' );
 			stats.recordGaEvent( 'Clicked Follow Topic', tag );
-			stats.recordTrack( 'calypso_reader_reader_tag_followed' )
+			stats.recordTrack( 'calypso_reader_reader_tag_followed', {
+				tag: tag
+			} );
 		}
 	},
 
@@ -131,6 +133,9 @@ module.exports = React.createClass( {
 		if ( node && node.dataset.tagSlug ) {
 			stats.recordAction( 'unfollowed_topic' );
 			stats.recordGaEvent( 'Clicked Unfollow Topic', node.dataset.tagSlug );
+			stats.recordTrack( 'calypso_reader_reader_tag_unfollowed', {
+				tag: node.dataset.tagSlug
+			} );
 			TagActions.unfollow( { slug: node.dataset.tagSlug } );
 		}
 	},
@@ -194,7 +199,7 @@ module.exports = React.createClass( {
 			];
 
 			const lastPathSegment = last( this.props.path.split( '/' ) );
-			const isCurrentList = lastPathSegment && lastPathSegment.toLowerCase() === list.slug.toLowerCase();
+			const isCurrentList = lastPathSegment && lastPathSegment.toLowerCase() === list.slug.toLowerCase() && this.pathStartsWithOneOf( [ listRelativeUrl ] );
 			const isActionButtonSelected = this.pathStartsWithOneOf( listManagementUrls );
 
 			const classes = classnames(

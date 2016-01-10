@@ -25,7 +25,8 @@ var TokenField = React.createClass( {
 		suggestions: React.PropTypes.array,
 		maxSuggestions: React.PropTypes.number,
 		value: React.PropTypes.array,
-		valueTransform: React.PropTypes.func,
+		displayTransform: React.PropTypes.func,
+		saveTransform: React.PropTypes.func,
 		onChange: React.PropTypes.func
 	},
 
@@ -34,7 +35,10 @@ var TokenField = React.createClass( {
 			suggestions: Object.freeze( [] ),
 			maxSuggestions: 100,
 			value: Object.freeze( [] ),
-			valueTransform: identity,
+			displayTransform: identity,
+			saveTransform: function( token ) {
+				return token.trim();
+			},
 			onChange: function() {}
 		};
 	},
@@ -69,19 +73,30 @@ var TokenField = React.createClass( {
 		} );
 
 		return (
-			<div className={ classes } tabIndex="-1" onKeyDown={ this._onKeyDown } onBlur={ this._onBlur } onFocus={ this._onFocus }>
-				<div ref="tokensAndInput" className="token-field__input-container" onClick={ this._onClick } tabIndex="-1">
+			<div ref="main"
+				className={ classes }
+				tabIndex="-1"
+				onKeyDown={ this._onKeyDown }
+				onBlur={ this._onBlur }
+				onFocus={ this._onFocus }
+			>
+				<div ref="tokensAndInput"
+					className="token-field__input-container"
+					onClick={ this._onClick }
+					tabIndex="-1"
+				>
 					{ this._renderTokensAndInput() }
 				</div>
 				<SuggestionsList
-					match={ this.state.incompleteTokenValue }
-					valueTransform={ this.props.valueTransform }
+					match={ this.props.saveTransform( this.state.incompleteTokenValue ) }
+					displayTransform={ this.props.displayTransform }
 					suggestions={ this._getMatchingSuggestions() }
 					selectedIndex={ this.state.selectedSuggestionIndex }
 					scrollIntoView={ this.state.selectedSuggestionScroll }
 					isExpanded={ this.state.isActive }
 					onHover={ this._onSuggestionHovered }
-					onSelect={ this._onSuggestionSelected } />
+					onSelect={ this._onSuggestionSelected }
+				/>
 			</div>
 		);
 	},
@@ -99,7 +114,7 @@ var TokenField = React.createClass( {
 			<Token
 				key={ 'token-' + token }
 				value={ token }
-				valueTransform={ this.props.valueTransform }
+				displayTransform={ this.props.displayTransform }
 				onClickRemove={ this._onTokenClickRemove }
 			/>
 		);
@@ -127,7 +142,11 @@ var TokenField = React.createClass( {
 	},
 
 	_onBlur: function( event ) {
-		var stillActive = event.target.contains( event.relatedTarget );
+		var blurSource = event.relatedTarget ||
+			event.nativeEvent.explicitOriginalTarget || // FF
+			document.activeElement; // IE11
+
+		var stillActive = this.refs.main.contains( blurSource );
 
 		if ( stillActive ) {
 			debug( '_onBlur but component still active; not doing anything' );
@@ -269,7 +288,7 @@ var TokenField = React.createClass( {
 
 	_getMatchingSuggestions: function() {
 		var suggestions = this.props.suggestions,
-			match = this.state.incompleteTokenValue,
+			match = this.props.saveTransform( this.state.incompleteTokenValue ),
 			startsWithMatch = [],
 			containsMatch = [];
 
@@ -419,6 +438,8 @@ var TokenField = React.createClass( {
 
 	_addNewToken: function( token ) {
 		var newValue;
+
+		token = this.props.saveTransform( token );
 
 		if ( ! contains( this.props.value, token ) ) {
 			newValue = clone( this.props.value );

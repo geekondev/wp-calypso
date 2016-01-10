@@ -17,6 +17,7 @@ module.exports = assign( keyMirror( {
 	ACTIVATE_THEME: null,
 	ACTIVATED_THEME: null,
 	CLEAR_ACTIVATED_THEME: null,
+	SIGNUP_WITH_THEME: null,
 	THEME_DETAILS: null,
 	THEME_SUPPORT: null,
 	THEME_CUSTOMIZE: null
@@ -25,6 +26,5 @@ module.exports = assign( keyMirror( {
 
 	// Misc. shared values
 	PER_PAGE: 20,
-	THEME_COMPONENT_HEIGHT: 300
 
 } );

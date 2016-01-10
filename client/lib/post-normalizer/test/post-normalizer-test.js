@@ -280,6 +280,34 @@ describe( 'post-normalizer', function() {
 		} );
 	} );
 
+	describe( 'content.disableAutoPlayOnMediaShortcodes', function() {
+		it( 'should strip autoplay attributes from video', function( done ) {
+			normalizer(
+				{
+					content: '<video autoplay="1"></video>'
+				},
+				[ normalizer.withContentDOM( [ normalizer.content.disableAutoPlayOnMedia ] ) ],
+				function( err, normalized ) {
+					assert.deepEqual( normalized, { content: '<video></video>' } );
+					done( err );
+				}
+			)
+		} );
+
+		it( 'should strip autoplay attributes from audio', function( done ) {
+			normalizer(
+				{
+					content: '<audio autoplay="1"></audio>'
+				},
+				[ normalizer.withContentDOM( [ normalizer.content.disableAutoPlayOnMedia ] ) ],
+				function( err, normalized ) {
+					assert.deepEqual( normalized, { content: '<audio></audio>' } );
+					done( err );
+				}
+			)
+		} );
+	} );
+
 	describe( 'the content normalizer (withContentDOM)', function() {
 		it( 'should not call nested transforms if content is blank', function( done ) {
 			var post = {
@@ -408,6 +436,18 @@ describe( 'post-normalizer', function() {
 				},
 				[ normalizer.withContentDOM( [ normalizer.content.safeContentImages() ] ) ], function( err, normalized ) {
 					assert.equal( normalized.content, '<img src="http://example.com/example.jpg-SAFE">' );
+					done( err );
+				}
+			);
+		} );
+
+		it( 'fixes up srcsets', function( done ) {
+			normalizer(
+				{
+					content: '<img src="http://example.com/example.jpg" srcset="http://example.com/example-100.jpg 100w, http://example.com/example-600.jpg 600w">'
+				},
+				[ normalizer.withContentDOM( [ normalizer.content.safeContentImages() ] ) ], function( err, normalized ) {
+					assert.equal( normalized.content, '<img src="http://example.com/example.jpg-SAFE" srcset="http://example.com/example-100.jpg-SAFE 100w, http://example.com/example-600.jpg-SAFE 600w">' );
 					done( err );
 				}
 			);

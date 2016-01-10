@@ -11,13 +11,18 @@ var React = require( 'react' ),
  */
 var PopoverMenu = require( 'components/popover/menu' ),
 	PopoverMenuItem = require( 'components/popover/menu-item' ),
-	isOutsideCalypso = require( 'lib/url' ).isOutsideCalypso;
+	isOutsideCalypso = require( 'lib/url' ).isOutsideCalypso,
+	getSignupUrl = require( 'lib/themes/helpers' ).getSignupUrl;
 
 /**
  * Component
  */
 var ThemeMoreButton = React.createClass( {
 	propTypes: {
+		// Theme ID (theme-slug)
+		id: React.PropTypes.string.isRequired,
+		// Index of theme in results list
+		index: React.PropTypes.number.isRequired,
 		// Options to populate the popover menu with
 		options: React.PropTypes.arrayOf(
 			React.PropTypes.shape( {
@@ -36,12 +41,16 @@ var ThemeMoreButton = React.createClass( {
 
 	togglePopover: function() {
 		this.setState( { showPopover: ! this.state.showPopover } );
-		! this.state.showPopover && this.props.onClick();
+		! this.state.showPopover && this.props.onClick( this.props.id, this.props.index );
 	},
 
 	closePopover: function( action ) {
 		this.setState( { showPopover: false } );
 		isFunction( action ) && action();
+	},
+
+	focus: function( event ) {
+		event.target.focus();
 	},
 
 	render: function() {
@@ -69,12 +78,15 @@ var ThemeMoreButton = React.createClass( {
 						if ( option.url ) {
 							return (
 								<a className="theme__more-button-menu-item popover__menu-item"
-									onMouseOver={ event => {
-										event.target.focus();
-									} }
+									onMouseOver={ this.focus }
 									key={ option.label }
 									href={ option.url }
-									target={ isOutsideCalypso( option.url ) ? '_blank' : null }>
+									target={ ( isOutsideCalypso( option.url ) &&
+										// We don't want to open a new tab for the signup flow
+										// TODO: Remove this hack once we can just hand over
+										// to Calypso's signup flow with a theme selected.
+										option.url !== getSignupUrl( { id: this.props.id } ) )
+										? '_blank' : null }>
 									{ option.label }
 								</a>
 							);
@@ -84,7 +96,7 @@ var ThemeMoreButton = React.createClass( {
 								{ option.label }
 							</PopoverMenuItem>
 						);
-					} ) }
+					}, this ) }
 
 				</PopoverMenu>
 			</span>

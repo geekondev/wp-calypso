@@ -2,24 +2,26 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	times = require( 'lodash/utility/times' );
+	times = require( 'lodash/utility/times' ),
+	isEqual = require( 'lodash/lang/isEqual' );
 
 /**
  * Internal dependencies
  */
 var Theme = require( 'components/theme' ),
 	EmptyContent = require( 'components/empty-content' ),
-	InfiniteList = require( 'components/infinite-list' ),
-	ITEM_HEIGHT = require( 'lib/themes/constants' ).THEME_COMPONENT_HEIGHT,
+	InfiniteScroll = require( 'lib/mixins/infinite-scroll' ),
 	PER_PAGE = require( 'lib/themes/constants' ).PER_PAGE;
 
 /**
  * Component
  */
 var ThemesList = React.createClass( {
+
+	mixins: [ InfiniteScroll( 'fetchNextPage' ) ],
+
 	propTypes: {
 		themes: React.PropTypes.array.isRequired,
-		lastPage: React.PropTypes.bool.isRequired,
 		emptyContent: React.PropTypes.element,
 		loading: React.PropTypes.bool.isRequired,
 		fetchNextPage: React.PropTypes.func.isRequired,
@@ -28,10 +30,13 @@ var ThemesList = React.createClass( {
 		onMoreButtonClick: React.PropTypes.func,
 	},
 
+	fetchNextPage: function( options ) {
+		this.props.fetchNextPage( options );
+	},
+
 	getDefaultProps: function() {
 		return {
 			loading: false,
-			lastPage: false,
 			themes: [],
 			fetchNextPage: function() {},
 			optionsGenerator: function() {
@@ -40,18 +45,18 @@ var ThemesList = React.createClass( {
 		};
 	},
 
-	getThemeRef: function( theme ) {
-		return 'theme-' + theme.id;
+	shouldComponentUpdate: function( nextProps ) {
+		return this.props.loading !== nextProps.loading ||
+			! isEqual( this.props.themes, nextProps.themes );
 	},
 
 	renderTheme: function( theme, index ) {
-		var key = this.getThemeRef( theme );
-		return <Theme ref={ key }
-			key={ key }
+		return <Theme
+			key={ 'theme-' + theme.id }
 			buttonContents={ this.props.getButtonOptions( theme ) }
 			screenshotClickUrl={ this.props.getScreenshotUrl && this.props.getScreenshotUrl( theme ) }
-			onScreenshotClick={ this.props.onScreenshotClick && this.props.onScreenshotClick.bind( null, theme, index ) }
-			onMoreButtonClick={ this.props.onMoreButtonClick.bind( null, theme, index ) }
+			onScreenshotClick={ this.props.onScreenshotClick }
+			onMoreButtonClick={ this.props.onMoreButtonClick }
 			index={ index }
 			{ ...theme } />;
 	},
@@ -83,21 +88,18 @@ var ThemesList = React.createClass( {
 			return this.renderEmpty();
 		}
 
+		let themes = this.props.themes.map( this.renderTheme );
+
+		if ( this.props.loading ) {
+			themes.push( this.renderLoadingPlaceholders() );
+		}
+
+		themes.push( this.renderTrailingItems() );
+
 		return (
-			<InfiniteList
-				key={ 'list' + this.props.search }
-				className="themes-list"
-				items={ this.props.themes }
-				lastPage={ this.props.lastPage }
-				fetchingNextPage={ this.props.loading }
-				guessedItemHeight={ ITEM_HEIGHT }
-				fetchNextPage={ this.props.fetchNextPage }
-				getItemRef={ this.getThemeRef }
-				renderItem={ this.renderTheme }
-				renderLoadingPlaceholders={ this.renderLoadingPlaceholders }
-				renderTrailingItems={ this.renderTrailingItems }
-				itemsPerRow={ 2 }
-			/>
+			<div className="themes-list">
+				{ themes }
+			</div>
 		);
 	}
 } );

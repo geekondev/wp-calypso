@@ -2,15 +2,13 @@
  * External dependencies
  */
 var assign = require( 'lodash/object/assign' ),
-	reject = require( 'lodash/collection/reject' ),
-	page = require( 'page' );
+	reject = require( 'lodash/collection/reject' );
 
 /**
 * Internal dependencies
 */
 var config = require( 'config' ),
 	stepConfig = require( './steps' ),
-	abtest = require( 'lib/abtest' ).abtest,
 	user = require( 'lib/user' )();
 
 function getCheckoutDestination( dependencies ) {
@@ -73,13 +71,6 @@ const flows = {
 		lastModified: '2015-12-10'
 	},
 
-	headstart: {
-		steps: [ 'theme-headstart', 'domains-with-theme', 'plans', 'user' ],
-		destination: getCheckoutDestination,
-		description: 'Show users their site after signup, with prepopulated content',
-		lastModified: '2015-10-01'
-	},
-
 	'delta-discover': {
 		steps: [ 'user' ],
 		destination: '/',
@@ -122,13 +113,6 @@ const flows = {
 		lastModified: '2015-11-05'
 	},
 
-	dss: {
-		steps: [ 'theme-dss', 'domains-with-theme', 'plans', 'user' ],
-		destination: getCheckoutDestination,
-		description: 'Dynamic Screenshots and Headstart flow',
-		lastModified: '2015-11-13'
-	},
-
 	layout: {
 		steps: [ 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getCheckoutDestination,
@@ -166,17 +150,13 @@ function removeUserStepFromFlow( flow ) {
 	} );
 }
 
-function getCurrentFlowNameFromTest( currentURL ) {
-	// Consider remaining homepage users for the Triforce AB test.
-	if ( '/start/en?ref=homepage' === currentURL && 'triforce' === abtest( 'triforce' ) ) {
-		return 'layout';
-	}
-
+function getCurrentFlowNameFromTest() {
+	// No tests currently running
 	return 'main';
 }
 
 module.exports = {
-	currentFlowName: getCurrentFlowNameFromTest( page.current ),
+	currentFlowName: getCurrentFlowNameFromTest(),
 
 	defaultFlowName: 'main',
 

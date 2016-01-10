@@ -24,8 +24,8 @@ var config = require( 'config' ),
 	user = require( 'lib/user' )(),
 	sites = require( 'lib/sites-list' )(),
 	superProps = require( 'analytics/super-props' ),
-	config = require( 'config' ),
 	i18n = require( 'lib/mixins/i18n' ),
+	perfmon = require( 'lib/perfmon' ),
 	translatorJumpstart = require( 'lib/translator-jumpstart' ),
 	translatorInvitation = require( 'layout/community-translator/invitation-utils' ),
 	layoutFocus = require( 'lib/layout-focus' ),
@@ -35,6 +35,7 @@ var config = require( 'config' ),
 	detectHistoryNavigation = require( 'lib/detect-history-navigation' ),
 	sections = require( 'sections' ),
 	touchDetect = require( 'lib/touch-detect' ),
+	setRouteAction = require( 'state/notices/actions' ).setRoute,
 	accessibleFocus = require( 'lib/accessible-focus' ),
 	TitleStore = require( 'lib/screen-title/store' ),
 	createReduxStore = require( 'state' ).createReduxStore,
@@ -175,11 +176,18 @@ function boot() {
 
 		if ( config.isEnabled( 'oauth' ) ) {
 			LoggedOutLayout = require( 'layout/logged-out-oauth' );
+		} else if ( startsWith( window.location.pathname, '/design' ) ) {
+			LoggedOutLayout = require( 'layout/logged-out-design' );
 		} else {
 			LoggedOutLayout = require( 'layout/logged-out' );
 		}
 
 		layoutElement = React.createElement( LoggedOutLayout );
+	}
+
+	if ( config.isEnabled( 'perfmon' ) ) {
+		// Record time spent watching slowly-flashing divs
+		perfmon();
 	}
 
 	layout = renderWithReduxStore(
@@ -254,8 +262,10 @@ function boot() {
 		next();
 	} );
 
-	// clear notices
-	page( '*', require( 'notices' ).clearNoticesOnNavigation );
+	page( '*', function( context, next ) {
+		context.store.dispatch( setRouteAction( context.pathname ) );
+		next();
+	} );
 
 	if ( config.isEnabled( 'oauth' ) ) {
 		// Forces OAuth users to the /login page if no token is present
@@ -304,6 +314,10 @@ function boot() {
 	} );
 
 	require( 'my-sites' )();
+
+	// clear notices
+	//TODO: remove this one when notices are reduxified - it is for old notices
+	page( '*', require( 'notices' ).clearNoticesOnNavigation );
 
 	if ( config.isEnabled( 'olark' ) ) {
 		require( 'lib/olark' );

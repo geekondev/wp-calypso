@@ -8,6 +8,7 @@ import Debug from 'debug';
 import Dispatcher from 'dispatcher';
 import wpcom from 'lib/wp';
 import { action as ActionTypes } from 'lib/invites/constants';
+import analytics from 'analytics';
 
 /**
  * Module variables
@@ -45,6 +46,10 @@ export function fetchInvite( siteId, inviteKey ) {
 			type: error ? ActionTypes.RECEIVE_INVITE_ERROR : ActionTypes.RECEIVE_INVITE,
 			siteId, inviteKey, data, error
 		} );
+
+		if ( error ) {
+			analytics.tracks.recordEvent( 'calypso_invite_validation_failure' );
+		}
 	} );
 }
 
@@ -54,6 +59,12 @@ export function createAccount( userData, callback ) {
 		( error, response ) => {
 			const bearerToken = response && response.bearer_token;
 			callback( error, bearerToken );
+
+			if ( error ) {
+				analytics.tracks.recordEvent( 'calypso_invite_account_creation_failed' );
+			} else {
+				analytics.tracks.recordEvent( 'calypso_invite_account_created' );
+			}
 		}
 	);
 }
@@ -61,17 +72,24 @@ export function createAccount( userData, callback ) {
 export function acceptInvite( invite ) {
 	Dispatcher.handleViewAction( {
 		type: ActionTypes.INVITE_ACCEPTED,
-		invite
+		invite,
+		displayOnNextPage: true
 	} );
 	wpcom.undocumented().acceptInvite(
 		invite,
 		( error, data ) => {
 			Dispatcher.handleViewAction( {
-				type: error ? ActionTypes.INVITE_ACCEPTED_ERROR : ActionTypes.INVITE_ACCEPTED_SUCCESFUL,
+				type: error ? ActionTypes.INVITE_ACCEPTED_ERROR : ActionTypes.INVITE_ACCEPTED_SUCCESS,
 				error,
 				invite,
 				data
 			} );
+
+			if ( error ) {
+				analytics.tracks.recordEvent( 'calypso_invite_accept_failed' );
+			} else {
+				analytics.tracks.recordEvent( 'calypso_invite_accepted' );
+			}
 		}
 	);
 }
@@ -83,20 +101,8 @@ export function displayInviteAccepted( invite ) {
 	} );
 }
 
-export function dismissInviteAccepted() {
-	Dispatcher.handleViewAction( {
-		type: ActionTypes.DISMISS_INVITE_ACCEPTED_NOTICE
-	} );
-}
-
 export function displayInviteDeclined() {
 	Dispatcher.handleViewAction( {
 		type: ActionTypes.DISPLAY_INVITE_DECLINED_NOTICE
-	} );
-}
-
-export function dismissInviteDeclined() {
-	Dispatcher.handleViewAction( {
-		type: ActionTypes.DISMISS_INVITE_DECLINED_NOTICE
 	} );
 }

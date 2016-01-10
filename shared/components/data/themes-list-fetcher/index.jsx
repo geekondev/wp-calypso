@@ -85,9 +85,6 @@ const ThemesListFetcher = React.createClass( {
 	},
 
 	fetchNextPage: function( options ) {
-		// FIXME: While this function is passed on by `ThemesList` to `InfiniteList`,
-		// which has a `shouldLoadNextPage()` check (in scroll-helper.js), we can't
-		// rely on that; fetching would break without the following check.
 		if ( this.props.loading || this.props.lastPage ) {
 			return;
 		}
@@ -99,9 +96,8 @@ const ThemesListFetcher = React.createClass( {
 
 		if ( options.triggeredByScroll ) {
 			onRealScroll();
+			this.props.fetchNextPage( site );
 		}
-
-		this.props.fetchNextPage( site );
 	},
 
 	render: function() {

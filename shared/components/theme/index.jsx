@@ -4,15 +4,15 @@
 var React = require( 'react' ),
 	PureRenderMixin = require( 'react-pure-render/mixin' ),
 	classNames = require( 'classnames' ),
-	noop = require( 'lodash/utility/noop' );
+	noop = require( 'lodash/utility/noop' ),
+	pick = require( 'lodash/object/pick' );
 
 /**
  * Internal dependencies
  */
 var Card = require( 'components/card' ),
 	ThemeMoreButton = require( './more-button' ),
-	Gridicon = require( 'components/gridicon' ),
-	isExternal = require( 'lib/url' ).isExternal;
+	Gridicon = require( 'components/gridicon' );
 
 /**
  * Component
@@ -48,6 +48,7 @@ var Theme = React.createClass( {
 				action: React.PropTypes.func,
 			} )
 		),
+		// Index of theme in results list
 		index: React.PropTypes.number,
 		// Label to show on screenshot hover.
 		actionLabel: React.PropTypes.string
@@ -62,6 +63,11 @@ var Theme = React.createClass( {
 		} );
 	},
 
+	onScreenshotClick: function() {
+		const theme = [ 'author', 'author_uri', 'demo_uri', 'id', 'name', 'screenshot', 'stylesheet' ];
+		this.props.onScreenshotClick( pick( this.props, theme ), this.props.index );
+	},
+
 	renderPlaceholder: function() {
 		return (
 			<Card className="theme is-placeholder">
@@ -72,12 +78,12 @@ var Theme = React.createClass( {
 
 	renderHover: function() {
 		var actionLabel = this.translate( 'Preview', {
-			context: 'appears on hovering a single theme thumbnail, opens the theme demo site preview'
+			comment: 'appears on hovering a single theme thumbnail, opens the theme demo site preview'
 		} );
 
 		if ( this.props.active ) {
 			actionLabel = this.translate( 'Customize', {
-				context: 'appears on hovering the active single theme thumbnail, opens the customizer'
+				comment: 'appears on hovering the active single theme thumbnail, opens the customizer'
 			} );
 		} else {
 			actionLabel = this.props.actionLabel || actionLabel;
@@ -86,7 +92,7 @@ var Theme = React.createClass( {
 		if ( this.props.screenshotClickUrl || this.props.onScreenshotClick ) {
 			return (
 				<a className="theme__active-focus"
-					onClick={ this.props.onScreenshotClick }>
+					onClick={ this.onScreenshotClick }>
 					<span>
 						{ actionLabel }
 					</span>
@@ -96,7 +102,7 @@ var Theme = React.createClass( {
 	},
 
 	render: function() {
-		var themeClass = classNames( 'theme', {
+		const themeClass = classNames( 'theme', {
 			'is-active': this.props.active,
 			'is-actionable': !! ( this.props.screenshotClickUrl || this.props.onScreenshotClick )
 		} );
@@ -115,12 +121,12 @@ var Theme = React.createClass( {
 				<div className="theme__content">
 					{ this.renderHover() }
 					<a href={ this.props.screenshotClickUrl }>
-						{ this.props.screenshot ?
-							<img className="theme__img"
+						{ this.props.screenshot
+							? <img className="theme__img"
 								src={ this.props.screenshot + '?w=' + screenshotWidth }
-								onClick={ this.props.onScreenshotClick }
-								id={ screenshotID }/> :
-							<div className="theme__no-screenshot" >
+								onClick={ this.onScreenshotClick }
+								id={ screenshotID }/>
+							: <div className="theme__no-screenshot" >
 								<Gridicon icon="themes" size={ 48 } />
 							</div>
 						}
@@ -139,6 +145,7 @@ var Theme = React.createClass( {
 							<span className="price">{ this.translate( 'Purchased' ) }</span>
 						}
 						{ this.props.buttonContents.length ? <ThemeMoreButton id={ this.props.id }
+							index={ this.props.index }
 							onClick={ this.props.onMoreButtonClick }
 							price={ this.props.price }
 							purchased={ this.props.purchased }
