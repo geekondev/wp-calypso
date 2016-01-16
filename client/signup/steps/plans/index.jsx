@@ -9,6 +9,7 @@ var React = require( 'react' ),
  * Internal dependencies
  */
 var productsList = require( 'lib/products-list' )(),
+	getABTestVariation = require( 'lib/abtest' ).getABTestVariation,
 	analytics = require( 'analytics' ),
 	featuresList = require( 'lib/features-list' )(),
 	plansList = require( 'lib/plans-list' )(),
@@ -106,12 +107,21 @@ module.exports = React.createClass( {
 
 	plansSelection: function() {
 		let headerText = this.translate( 'Pick a plan that\'s right for you.' ),
+			subHeaderText;
+
+		if ( this.isFreeTrialFlow() && getABTestVariation( 'freeTrials' ) === 'offered' ) {
 			subHeaderText = this.translate(
-				'Not sure which plan to choose? Take a look at our {{a}}plan comparison chart{{/a}}.',
-				{ components: { a: <a
-					href={ this.comparePlansUrl() }
-					onClick={ this.handleComparePlansLinkClick.bind( null, 'header' ) } /> } }
+				'Try WordPress.com Premium or Business free for 14 days, no credit card required.'
 			);
+		} else {
+			subHeaderText = this.translate(
+				'Not sure which plan to choose? Take a look at our {{a}}plan comparison chart{{/a}}.', {
+					components: { a: <a
+						href={ this.comparePlansUrl() }
+						onClick={ this.handleComparePlansLinkClick.bind( null, 'header' ) } /> }
+				}
+			);
+		}
 
 		return (
 			<StepWrapper

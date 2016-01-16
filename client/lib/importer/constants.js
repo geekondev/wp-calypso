@@ -1,4 +1,5 @@
 export const appStates = Object.freeze( {
+	CANCEL_PENDING: 'importer-canceling',
 	DEFUNCT: 'importer-defunct',
 	DISABLED: 'importer-disabled',
 	IMPORT_FAILURE: 'importer-import-failure',
@@ -24,6 +25,9 @@ export const actionTypes = Object.freeze( {
 	API_FAILURE: 'importer-api-failure',
 	API_SUCCESS: 'importer-api-success',
 
+	LOCK_IMPORT: 'importer-lock-import',
+	UNLOCK_IMPORT: 'importer-unlock-import',
+
 	RECEIVE_IMPORT_STATUS: 'importer-receive-import-status',
 
 	CANCEL_IMPORT: 'importer-cancel',
@@ -39,5 +43,6 @@ export const actionTypes = Object.freeze( {
 
 	START_IMPORTING: 'importer-start-importing',
 
-	DEV_SET_STATE: 'dev-set-state'
+	DEV_SET_STATE: 'dev-set-state',
+	RESET_STORE: 'dev-reset-store'
 } );

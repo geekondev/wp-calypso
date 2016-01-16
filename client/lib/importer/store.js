@@ -2,34 +2,55 @@
  * External dependencies
  */
 import Immutable from 'immutable';
+import partial from 'lodash/function/partial';
 
 /**
  * Internal dependencies
  */
-import { fromApi } from './common';
 import { actionTypes, appStates } from './constants';
 import { createReducerStore } from 'lib/store';
 
 /**
  * Module variables
  */
-const initialState = {
+const initialState = Immutable.fromJS( {
 	count: 0,
-	importers: new Immutable.Map,
+	importers: {},
+	importerLocks: {},
 	api: {
 		isHydrated: false,
 		isFetching: false,
 		retryCount: 0
 	}
-};
+} );
 
+const equals = ( a, b ) => a === b;
 const increment = a => a + 1;
+
+const removableStates = [ appStates.CANCEL_PENDING, appStates.DEFUNCT ];
+const shouldRemove = importer => removableStates.some( partial( equals, importer.get( 'importerState' ) ) );
+
+const adjustImporterLock = ( state, { action } ) => {
+	switch ( action.type ) {
+		case actionTypes.LOCK_IMPORT:
+			return state.setIn( [ 'importerLocks', action.importerId ], true );
+
+		case actionTypes.UNLOCK_IMPORT:
+			return state.setIn( [ 'importerLocks', action.importerId ], false );
+
+		default:
+			return state;
+	}
+}
 
 const ImporterStore = createReducerStore( function( state, payload ) {
 	let { action } = payload,
 		newState;
 
 	switch ( action.type ) {
+		case actionTypes.RESET_STORE:
+			return initialState;
+
 		case actionTypes.DEV_SET_STATE:
 			// Convert the importer list into an object
 			action.newState.importers = action.newState.importers
@@ -52,6 +73,7 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 		case actionTypes.API_SUCCESS:
 			newState = state
 				.setIn( [ 'api', 'isFetching' ], false )
+				.setIn( [ 'api', 'isHydrated' ], true )
 				.setIn( [ 'api', 'retryCount' ], 0 );
 			break;
 
@@ -59,7 +81,7 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 		case actionTypes.RESET_IMPORT:
 			// Remove the specified importer from the list of current importers
 			newState = state.update( 'importers', importers => {
-				return importers.filterNot( importer => importer.get( 'id' ) === action.importerId );
+				return importers.filterNot( importer => importer.get( 'importerId' ) === action.importerId );
 			} );
 			break;
 
@@ -72,7 +94,7 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 		case actionTypes.FINISH_UPLOAD:
 			newState = state
 				.deleteIn( [ 'importers' ], action.importerId )
-				.setIn( [ 'importers', fromApi( action.importerStatus ).importerId ], Immutable.fromJS( fromApi( action.importerStatus ) ) );
+				.setIn( [ 'importers', action.importerStatus.importerId ], Immutable.fromJS( action.importerStatus ) );
 			break;
 
 		case actionTypes.START_MAPPING_AUTHORS:
@@ -94,12 +116,17 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 		case actionTypes.RECEIVE_IMPORT_STATUS:
 			newState = state.setIn( [ 'api', 'isHydrated' ], true );
 
+			if ( newState.getIn( [ 'importerLocks', action.importerStatus.importerId ], false ) ) {
+				break;
+			}
+
 			if ( action.importerStatus.importerState === appStates.DEFUNCT ) {
 				break;
 			}
 
 			newState = newState
-				.setIn( [ 'importers', action.importerStatus.importerId ], Immutable.fromJS( action.importerStatus ) );
+				.setIn( [ 'importers', action.importerStatus.importerId ], Immutable.fromJS( action.importerStatus ) )
+				.update( 'importers', importers => importers.filterNot( shouldRemove ) );
 			break;
 
 		case actionTypes.SET_UPLOAD_PROGRESS:
@@ -110,7 +137,7 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 
 		case actionTypes.START_IMPORT:
 			const newImporter = Immutable.fromJS( {
-				id: action.importerId,
+				importerId: action.importerId,
 				type: action.importerType,
 				importerState: appStates.READY_FOR_UPLOAD,
 				site: { ID: action.siteId }
@@ -137,8 +164,10 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 			break;
 	}
 
+	newState = adjustImporterLock( newState, payload );
+
 	return newState;
-}, Immutable.fromJS( initialState ) );
+}, initialState );
 
 export function getState() {
 	return ImporterStore.get().toJS();

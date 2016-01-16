@@ -10,7 +10,8 @@ var React = require( 'react' ),
  * Internal dependencies
  */
 var AllSites = require( 'my-sites/all-sites' ),
-	AddNewButton = require( 'components/add-new-button' ),
+	Button = require( 'components/button' ),
+	Gridicon = require( 'components/gridicon' ),
 	Site = require( 'my-sites/site' ),
 	SitePlaceholder = require( 'my-sites/site/placeholder' ),
 	Search = require( 'components/search' ),
@@ -52,10 +53,6 @@ module.exports = React.createClass( {
 		};
 	},
 
-	getCount: function() {
-		return user.get().visible_site_count;
-	},
-
 	onSearch: function( terms ) {
 		this.setState( { search: terms } );
 	},
@@ -77,12 +74,11 @@ module.exports = React.createClass( {
 
 	addNewSite: function() {
 		return (
-			<AddNewButton
-				isCompact={ true }
-				href={ config( 'signup_url' ) + '?ref=calypso-selector' }
-			>
-				{ this.translate( 'Add New WordPress' ) }
-			</AddNewButton>
+			<span className="site-selector__add-new-site">
+				<Button compact borderless href={ config( 'signup_url' ) + '?ref=calypso-selector' }>
+					<Gridicon icon="add-outline" /> { this.translate( 'Add New WordPress' ) }
+				</Button>
+			</span>
 		);
 	},
 
@@ -173,8 +169,8 @@ module.exports = React.createClass( {
 	},
 
 	render: function() {
-		var isLarge = this.getCount() > 6,
-			hasOneSite = this.getCount() === 1,
+		var isLarge = user.get().site_count > 6,
+			hasOneSite = user.get().visible_site_count === 1,
 			sitesInitialized = this.props.sites.initialized,
 			siteElements, selectorClass;
 

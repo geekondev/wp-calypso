@@ -16,7 +16,12 @@ var debug = require( 'debug' )( 'calypso:perfmon' );
 const PLACEHOLDER_CLASSES = [
 	'placeholder',
 	'pulsing-dot is-active',
-	'is-loading'
+	'is-loading',
+	'is-processing'
+];
+
+const EXCLUDE_PLACEHOLDER_CLASSES = [
+	'editor-drawer-well__placeholder' // used in featured image in editor
 ];
 
 const PLACEHOLDER_MATCHER = PLACEHOLDER_CLASSES.map(function(clazz) { return `[class*='${clazz}']`; }).join(', ');
@@ -81,15 +86,15 @@ function checkForVisiblePlaceholders( trigger ) {
 	// record event and reset timer if all placeholders are loaded OR user has just navigated
 	if ( placeholdersVisibleStart && ( visibleCount === 0 || trigger === 'navigate' ) ) {
 		// tell tracks to record duration
-		var duration = Date.now() - placeholdersVisibleStart;
+		var duration = parseInt(performance.now() - placeholdersVisibleStart, 10);
 		debug(`Recording placeholder wait. Duration: ${duration}, Trigger: ${trigger}`);
 		analytics.timing.record( `placeholder-wait`, duration, trigger );
-		placeholdersVisibleStart = visibleCount === 0 ? null : Date.now();
+		placeholdersVisibleStart = visibleCount === 0 ? null : performance.now();
 	}
 
 	// if we can see placeholders, placeholdersVisibleStart is falsy, start the clock
 	if ( visibleCount > 0 && !placeholdersVisibleStart ) {
-		placeholdersVisibleStart = Date.now(); // TODO: performance.now()?
+		placeholdersVisibleStart = performance.now(); // TODO: performance.now()?
 	}
 
 	// if there are placeholders hanging around, print some useful stats
@@ -101,9 +106,13 @@ function checkForVisiblePlaceholders( trigger ) {
 
 function isPlaceholder( node ) {
 	var className = node.className;
-	return className && className.indexOf && PLACEHOLDER_CLASSES.some( function( clazz ) { 
-		return (className.indexOf( clazz ) >= 0); 
-	} );
+	return className && className.indexOf 
+		&& PLACEHOLDER_CLASSES.some( function( clazz ) { 
+			return (className.indexOf( clazz ) >= 0); 
+		} )
+		&& !EXCLUDE_PLACEHOLDER_CLASSES.some( function( clazz ) {
+			return (className.indexOf( clazz ) >= 0); 
+		} );
 }
 
 // adapted from http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport/7557433#7557433
@@ -164,7 +173,7 @@ module.exports = function() {
 	if ( !initialized ) {
 		var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
 
-		if ( MutationObserver ) {
+		if ( MutationObserver && window.performance ) {
 			observeDomChanges( MutationObserver );
 		}
 

@@ -1,12 +1,4 @@
 module.exports = {
-	statsDefaultFilter: {
-		datestamp: '20150601',
-		variations: {
-			day: 90,
-			insights: 10
-		},
-		defaultVariation: 'day'
-	},
 	multiDomainRegistrationV1: {
 		datestamp: '20200721',
 		variations: {
@@ -44,5 +36,21 @@ module.exports = {
 			nudge: 50
 		},
 		defaultVariation: 'drake'
-	}
+	},
+	domainsAddButton: {
+		datestamp: '20160113',
+		variations: {
+			original: 50,
+			button: 50
+		},
+		defaultVariation: 'original'
+	},
+	freeTrials: {
+		datestamp: '20160112',
+		variations: {
+			notOffered: 90,
+			offered: 10
+		},
+		defaultVariation: 'notOffered'
+	},
 };

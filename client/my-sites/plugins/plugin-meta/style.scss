@@ -64,6 +64,7 @@
 
 .plugin-meta__detail {
 	position: relative;
+	width: 100%;
 	flex-grow: 1;
 
 	@include breakpoint( '>480px' ) {
@@ -139,25 +140,5 @@
 
 	@include breakpoint ( ">480px" ) {
 		margin-top: -15px;
-	}
-}
-
-a.plugin-meta__settings-link {
-	color: $gray;
-	display: block;
-	font-size: 11px;
-	line-height: 16px;
-	margin: 16px 9px 0 0;
-	text-transform: uppercase;
-
-	@include breakpoint( '>480px' ) {
-		display: inline-block;
-	}
-
-	.gridicon {
-		float: right;
-		position: relative;
-			left: 7px;
-			top: -3px;
 	}
 }

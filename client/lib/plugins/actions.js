@@ -68,7 +68,7 @@ function recordEvent( eventType, plugin, site, error ) {
 	if ( error ) {
 		analytics.tracks.recordEvent( eventType + '_error', {
 			site: site.ID,
-			pluginSlug: plugin.slug,
+			plugin: plugin.slug,
 			error: error.error
 		} );
 		analytics.mc.bumpStat( eventType, 'failed' );
@@ -76,7 +76,7 @@ function recordEvent( eventType, plugin, site, error ) {
 	}
 	analytics.tracks.recordEvent( eventType + '_success', {
 		site: site.ID,
-		pluginSlug: plugin.slug
+		plugin: plugin.slug
 	} );
 	analytics.mc.bumpStat( eventType, 'succeeded' );
 }
@@ -103,7 +103,7 @@ function autoupdatePlugin( site, plugin ) {
 
 	analytics.tracks.recordEvent( 'calypso_plugin_update_automatic', {
 		site: site.ID,
-		pluginSlug: plugin.slug
+		plugin: plugin.slug
 	} );
 	analytics.mc.bumpStat( 'calypso_plugin_update_automatic' );
 
@@ -291,22 +291,6 @@ PluginsActions = {
 			.catch( error => dispatchMessage( 'RECEIVE_REMOVE_PLUGIN', null, error ) );
 	},
 
-	togglePluginSelection: function( plugin ) {
-		Dispatcher.handleViewAction( {
-			type: 'TOGGLE_PLUGIN_SELECTION',
-			plugin: plugin
-		} );
-	},
-
-	selectPlugins: function( sites, filter, options ) {
-		Dispatcher.handleViewAction( {
-			type: 'SELECT_FILTER_PLUGINS',
-			sites: sites,
-			filter: filter,
-			options: options
-		} );
-	},
-
 	activatePlugin: function( site, plugin ) {
 		var endpoint = site.jetpack ? wpcom.pluginsActivate : wpcom.activateWpcomPlugin,
 			pluginId = site.jetpack ? plugin.id : plugin.slug;
@@ -335,7 +319,7 @@ PluginsActions = {
 				analytics.tracks.recordEvent( 'calypso_plugin_activated_error', {
 					error: error && error.error ? error.error : 'Undefined activation error',
 					site: site.ID,
-					pluginSlug: plugin.slug
+					plugin: plugin.slug
 				} );
 
 				return;
@@ -343,7 +327,7 @@ PluginsActions = {
 			analytics.mc.bumpStat( 'calypso_plugin_activated', 'succeeded' );
 			analytics.tracks.recordEvent( 'calypso_plugin_activated_success', {
 				site: site.ID,
-				pluginSlug: plugin.slug
+				plugin: plugin.slug
 			} );
 		} );
 	},
@@ -376,7 +360,7 @@ PluginsActions = {
 				analytics.tracks.recordEvent( 'calypso_plugin_deactivated_error', {
 					error: error.error ? error.error : 'Undefined deactivation error',
 					site: site.ID,
-					pluginSlug: plugin.slug
+					plugin: plugin.slug
 				} );
 
 				return;
@@ -384,7 +368,7 @@ PluginsActions = {
 			analytics.mc.bumpStat( 'calypso_plugin_deactivated', 'succeeded' );
 			analytics.tracks.recordEvent( 'calypso_plugin_deactivated_success', {
 				site: site.ID,
-				pluginSlug: plugin.slug
+				plugin: plugin.slug
 			} );
 		} );
 	},
