@@ -8,8 +8,7 @@ import { combineReducers } from 'redux';
  */
 import {
 	SELECTED_SITE_SET,
-	SET_SECTION,
-	CURRENT_USER_ID_SET
+	SET_SECTION
 } from 'state/action-types';
 import editor from './editor/reducer';
 
@@ -31,16 +30,19 @@ export function selectedSiteId( state = null, action ) {
 }
 
 /**
- * Tracks the current user ID.
+ * Tracks the four most recently selected site IDs.
  *
  * @param  {Object} state  Current state
  * @param  {Object} action Action payload
  * @return {Object}        Updated state
  */
-export function currentUserId( state = null, action ) {
+export function recentlySelectedSiteIds( state = [], action ) {
 	switch ( action.type ) {
-		case CURRENT_USER_ID_SET:
-			state = action.userId;
+		case SELECTED_SITE_SET:
+			state = [ action.siteId, ...state ];
+			if ( state.length === 3 ) {
+				state.pop();
+			}
 			break;
 	}
 
@@ -68,11 +70,19 @@ export function isLoading( state = false, action ) {
 	return state;
 }
 
+export function chunkName( state = false, action ) {
+	if ( action.type === SET_SECTION && action.chunkName !== undefined ) {
+		state = action.chunkName;
+	}
+	return state;
+}
+
 export default combineReducers( {
 	section,
 	isLoading,
 	hasSidebar,
+	chunkName,
 	selectedSiteId,
-	currentUserId,
+	recentlySelectedSiteIds,
 	editor
 } );

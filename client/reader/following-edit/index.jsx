@@ -26,7 +26,7 @@ import MobileBackToSidebar from 'components/mobile-back-to-sidebar';
 import smartSetState from 'lib/react-smart-set-state';
 import escapeRegexp from 'escape-string-regexp';
 import FollowingEditSortControls from './sort-controls';
-import FollowingEditHelper from 'reader/following-edit/helper';
+import FeedDisplayHelper from 'reader/lib/feed-display-helper';
 import SectionHeader from 'components/section-header';
 import Button from 'components/button';
 const stats = require( 'reader/stats' );
@@ -104,7 +104,7 @@ const FollowingEdit = React.createClass( {
 			const feed = FeedStore.get( item.get( 'feed_ID' ) ),
 				site = SiteStore.get( item.get( 'blog_ID' ) ),
 				phraseRe = new RegExp( escapeRegexp( phrase ), 'i' );
-			return item.get( 'URL' ).indexOf( phraseRe ) !== -1 ||
+			return item.get( 'URL' ).search( phraseRe ) !== -1 ||
 				( site && ( site.get( 'name' ) || '' ).search( phraseRe ) !== -1 ) ||
 				( site && ( site.get( 'URL' ) || '' ).search( phraseRe ) !== -1 ) ||
 				( feed && ( feed.name || '' ).search( phraseRe ) !== -1 ) ||
@@ -122,8 +122,8 @@ const FollowingEdit = React.createClass( {
 			return subscriptions.sortBy( function( subscription ) {
 				const feed = FeedStore.get( subscription.get( 'feed_ID' ) ),
 					site = SiteStore.get( subscription.get( 'blog_ID' ) ),
-					displayUrl = FollowingEditHelper.formatUrlForDisplay( subscription.get( 'URL' ) );
-				return trimLeft( FollowingEditHelper.getFeedTitle( site, feed, displayUrl ).toLowerCase() );
+					displayUrl = FeedDisplayHelper.formatUrlForDisplay( subscription.get( 'URL' ) );
+				return trimLeft( FeedDisplayHelper.getFeedTitle( site, feed, displayUrl ).toLowerCase() );
 			} );
 		}
 
@@ -257,9 +257,10 @@ const FollowingEdit = React.createClass( {
 		}
 	},
 
-	handleFollow: function() {
+	handleFollow: function( newUrl ) {
 		this.toggleAddSite();
 		this.setState( { isAttemptingFollow: true } );
+		stats.recordFollow( newUrl );
 	},
 
 	renderUnfollowError: function() {
@@ -379,7 +380,7 @@ const FollowingEdit = React.createClass( {
 					delaySearch={ true }
 					ref="url-search" />
 				{ this.state.isAttemptingFollow && ! this.state.lastError ? <SubscriptionPlaceholder key={ 'placeholder-add-feed' } /> : null }
-				{ subscriptionsToDisplay.length === 0 && this.props.search ?
+				{ subscriptionsToDisplay.length === 0 && this.props.search && ! this.state.isLoading ?
 					<NoResults text={ this.translate( 'No subscriptions match that search.' ) } /> :
 
 				<InfiniteList className="following-edit__sites"

@@ -12,10 +12,12 @@ var toggle = require( '../mixin-toggle' ),
 	StatsList = require( '../stats-list' ),
 	observe = require( 'lib/mixins/data-observe' ),
 	skeleton = require( '../mixin-skeleton' ),
-	DownloadCsv = require( '../download-csv' ),
+	DownloadCsv = require( '../stats-download-csv' ),
 	DatePicker = require( '../stats-date-picker' ),
 	ErrorPanel = require( '../stats-error' ),
 	Card = require( 'components/card' ),
+	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
+	StatsListLegend = require( '../stats-list/legend' ),
 	Gridicon = require( 'components/gridicon' );
 
 module.exports = React.createClass( {
@@ -49,6 +51,7 @@ module.exports = React.createClass( {
 			hasError = this.props.dataList.isError(),
 			noData = this.props.dataList.isEmpty(),
 			infoIcon = this.state.showInfo ? 'info' : 'info-outline',
+			isLoading = this.props.dataList.isLoading(),
 			moduleHeaderTitle,
 			summaryPageLink,
 			viewSummary,
@@ -62,7 +65,7 @@ module.exports = React.createClass( {
 			{
 				'is-expanded': this.state.showModule,
 				summary: this.props.summary,
-				'is-loading': this.props.dataList.isLoading(),
+				'is-loading': isLoading,
 				'is-showing-info': this.state.showInfo,
 				'has-no-data': noData,
 				'is-showing-error': hasError || noData
@@ -127,21 +130,10 @@ module.exports = React.createClass( {
 						{ ( noData && ! hasError ) ? <ErrorPanel className="is-empty-message" message={ this.translate( 'No countries recorded' ) } /> : null }
 
 						{ geochart }
-						<div className="module-placeholder module-placeholder-block"></div>
-						<div className="stats-async-metabox-wrapper">
-							<ul className="module-content-list module-content-list-legend">
-								<li className="module-content-list-item">
-									<span className="module-content-list-item-wrapper">
-										<span className="module-content-list-item-right">
-											<span className="module-content-list-item-value">{ this.translate( 'Views' ) }</span>
-										</span>
-										<span className="module-content-list-item-label">{ this.translate( 'Country' ) }</span>
-									</span>
-								</li>
-							</ul>
-							<div className="module-placeholder is-void"></div>
-							{ countries }
-						</div>
+						<StatsModulePlaceholder className="is-block" isLoading={ isLoading } />
+						<StatsListLegend value={ this.translate( 'Views' ) } label={ this.translate( 'Country' ) } />
+						<StatsModulePlaceholder isLoading={ isLoading } />
+						{ countries }
 						{ this.props.summary
 							? <DownloadCsv period={ this.props.period } path={ this.props.path } site={ this.props.site } dataList={ this.props.dataList } />
 							: null }

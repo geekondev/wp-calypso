@@ -127,6 +127,7 @@ module.exports = {
 		// If the path fragment does not resemble a site, set all sites to visible
 		if ( ! siteID ) {
 			sites.selectAll();
+			context.store.dispatch( uiActions.setAllSitesSelected() );
 			return next();
 		}
 
@@ -135,6 +136,7 @@ module.exports = {
 			siteStatsStickyTabActions.saveFilterAndSlug( false, selectedSite.slug );
 			context.store.dispatch( sitesActions.receiveSite( selectedSite ) );
 			context.store.dispatch( uiActions.setSelectedSiteId( selectedSite.ID ) );
+			sites.setRecentlySelectedSite( selectedSite.ID );
 		}
 
 		// If there's a valid site from the url path

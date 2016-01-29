@@ -295,6 +295,15 @@ Undocumented.prototype.acceptInvite = function( invite, fn ) {
 	}, fn );
 };
 
+Undocumented.prototype.sendInvites = function( siteId, usernamesOrEmails, role, message, fn ) {
+	debug( '/sites/:site_id:/invites/new query' );
+	this.wpcom.req.post( '/sites/' + siteId + '/invites/new', {}, {
+		invitees: usernamesOrEmails,
+		role: role,
+		message: message
+	}, fn );
+};
+
 /**
  * GET/POST site settings
  *
@@ -1146,11 +1155,11 @@ Undocumented.prototype.readListTags = function( query, fn ) {
 	this.wpcom.req.get( '/read/lists/' + encodeURIComponent( query.owner ) + '/' + encodeURIComponent( query.slug ) + '/tags', params, fn );
 };
 
-Undocumented.prototype.readListFeeds = function( query, fn ) {
+Undocumented.prototype.readListItems = function( query, fn ) {
 	var params = omit( query, [ 'owner', 'slug' ] );
-	debug( '/read/lists/:owner/:list/feeds' );
+	debug( '/read/lists/:owner/:list/items' );
 	params.apiVersion = '1.2';
-	this.wpcom.req.get( '/read/lists/' + encodeURIComponent( query.owner ) + '/' + encodeURIComponent( query.slug ) + '/feeds', params, fn );
+	this.wpcom.req.get( '/read/lists/' + encodeURIComponent( query.owner ) + '/' + encodeURIComponent( query.slug ) + '/items', params, fn );
 };
 
 Undocumented.prototype.followReaderFeed = function( query, fn ) {
@@ -1173,9 +1182,10 @@ Undocumented.prototype.readSite = function( query, fn ) {
 	this.wpcom.req.get( '/read/sites/' + query.site, params, fn );
 };
 
-Undocumented.prototype.readSiteFeatured = function( siteId, fn ) {
+Undocumented.prototype.readSiteFeatured = function( siteId, query, fn ) {
+	var params = omit( query, [ 'before', 'after' ] );
 	debug( '/read/sites/:site/featured' );
-	this.wpcom.req.get( '/read/sites/' + siteId + '/featured', null, fn );
+	this.wpcom.req.get( '/read/sites/' + siteId + '/featured', params, fn );
 };
 
 Undocumented.prototype.readSitePosts = function( query, fn ) {
@@ -1780,6 +1790,14 @@ Undocumented.prototype.cancelPrivateRegistration = function( purchaseId, fn ) {
 	this.wpcom.req.post( {
 		path: `/upgrades/${purchaseId}/cancel-privacy-protection`,
 		apiVersion: '1.1'
+	}, fn );
+};
+
+Undocumented.prototype.cancelPlanTrial = function( planId, fn ) {
+	debug( '/upgrades/{planId}/cancel-plan-trial' );
+
+	this.wpcom.req.post( {
+		path: `/upgrades/${planId}/cancel-plan-trial`
 	}, fn );
 };
 

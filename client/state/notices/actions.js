@@ -17,28 +17,20 @@ export function removeNotice( noticeId ) {
 }
 
 function createNotice( status, text, options = {} ) {
-	return ( dispatch ) => {
-		const notice = {
-			noticeId: uniqueId(),
-			duration: options.duration,
-			showDismiss: ( typeof options.showDismiss === 'boolean' ? options.showDismiss : true ),
-			isPersistent: options.isPersistent || false,
-			displayOnNextPage: options.displayOnNextPage || false,
-			status: status,
-			text: text
-		};
+	const notice = {
+		noticeId: options.id || uniqueId(),
+		duration: options.duration,
+		showDismiss: ( typeof options.showDismiss === 'boolean' ? options.showDismiss : true ),
+		isPersistent: options.isPersistent || false,
+		displayOnNextPage: options.displayOnNextPage || false,
+		status: status,
+		text: text
+	};
 
-		if ( notice.duration > 0 ) {
-			setTimeout( () => {
-				dispatch( removeNotice( notice.noticeId ) );
-			}, notice.duration );
-		}
-
-		dispatch( {
-			type: NEW_NOTICE,
-			notice: notice
-		} );
-	}
+	return {
+		type: NEW_NOTICE,
+		notice: notice
+	};
 }
 
 export function setRoute( path ) {
@@ -51,3 +43,4 @@ export function setRoute( path ) {
 export const successNotice = createNotice.bind( null, 'is-success' );
 export const errorNotice = createNotice.bind( null, 'is-error' );
 export const infoNotice = createNotice.bind( null, 'is-info' );
+export const warningNotice = createNotice.bind( null, 'is-warning' );

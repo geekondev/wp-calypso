@@ -9,7 +9,9 @@ var React = require( 'react' ),
  * Internal dependencies
  */
 var toggle = require( '../mixin-toggle' ),
-	SelectDropdown = require( 'components/select-dropdown' ),
+	StatsListLegend = require( '../stats-list/legend' ),
+	StatsModuleSelectDropdown = require( '../stats-module/select-dropdown' ),
+	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
 	StatsList = require( '../stats-list' ),
 	observe = require( 'lib/mixins/data-observe' ),
 	ErrorPanel = require( '../stats-error' ),
@@ -80,11 +82,7 @@ module.exports = React.createClass( {
 			];
 
 		if ( ( ! this.props.wpcomFollowersList.isEmpty( 'subscribers' ) ) && ( ! this.props.emailFollowersList.isEmpty( 'subscribers' ) ) ) {
-			selectFilter = (
-				<div className="select-dropdown__wrapper">
-					<SelectDropdown options={ options } onSelect={ this.changeFilter } />
-				</div>
-			);
+			selectFilter = <StatsModuleSelectDropdown options={ options } onSelect={ this.changeFilter } />;
 		}
 
 		return selectFilter;
@@ -98,6 +96,7 @@ module.exports = React.createClass( {
 			noData = this.props.wpcomFollowersList.isEmpty( 'subscribers' ) && this.props.emailFollowersList.isEmpty( 'subscribers' ),
 			hasError = ( this.props.wpcomFollowersList.isError() || this.props.emailFollowersList.isError() ),
 			infoIcon = this.state.showInfo ? 'info' : 'info-outline',
+			isLoading = this.props.wpcomFollowersList.isLoading() || this.props.emailFollowersList.isLoading(),
 			wpcomFollowers,
 			emailFollowers,
 			wpcomTotalFollowers,
@@ -123,7 +122,7 @@ module.exports = React.createClass( {
 			activeFilterClass,
 			{
 				'is-expanded': this.state.showModule,
-				'is-loading': this.props.wpcomFollowersList.isLoading() || this.props.emailFollowersList.isLoading(),
+				'is-loading': isLoading,
 				'is-showing-info': this.state.showInfo,
 				'has-no-data': noData,
 				'is-showing-error': hasError || noData
@@ -205,17 +204,7 @@ module.exports = React.createClass( {
 							<div className="module-content-text module-content-text-stat">
 								{ wpcomTotalFollowers }
 							</div>
-
-							<ul className="module-content-list module-content-list-legend">
-								<li className="module-content-list-item">
-									<span className="module-content-list-item-wrapper">
-										<span className="module-content-list-item-right">
-											<span className="module-content-list-item-value">{ this.translate( 'Since' ) }</span>
-										</span>
-										<span className="module-content-list-item-label">{ this.translate( 'Follower' ) }</span>
-									</span>
-								</li>
-							</ul>
+							<StatsListLegend value={ this.translate( 'Since' ) } label={ this.translate( 'Follower' ) } />
 							{ wpcomFollowers }
 							{ this.props.wpcomFollowersList.isError() ? <ErrorPanel className="is-error" /> : null }
 						</div>
@@ -225,21 +214,12 @@ module.exports = React.createClass( {
 								{ emailTotalFollowers }
 							</div>
 
-							<ul className="module-content-list module-content-list-legend">
-								<li className="module-content-list-item">
-									<span className="module-content-list-item-wrapper">
-										<span className="module-content-list-item-right">
-											<span className="module-content-list-item-value">{ this.translate( 'Since' ) }</span>
-										</span>
-										<span className="module-content-list-item-label">{ this.translate( 'Follower' ) }</span>
-									</span>
-								</li>
-							</ul>
+							<StatsListLegend value={ this.translate( 'Since' ) } label={ this.translate( 'Follower' ) } />
 							{ emailFollowers }
 							{ this.props.emailFollowersList.isError() ? <ErrorPanel className={ 'network-error' } /> : null }
 						</div>
 
-						<div className="module-placeholder is-void"></div>
+						<StatsModulePlaceholder isLoading={ isLoading } />
 					</div>
 					{ viewSummary }
 				</div>

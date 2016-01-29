@@ -9,7 +9,8 @@ var ReactDom = require( 'react-dom' ),
 	debug = require( 'debug' )( 'calypso:reader-full-post' ), //eslint-disable-line no-unused-vars
 	moment = require( 'moment' ),
 	omit = require( 'lodash/object/omit' ),
-	twemoji = require( 'twemoji' );
+	twemoji = require( 'twemoji' ),
+	page = require( 'page' );
 
 /**
  * Internal Dependencies
@@ -28,19 +29,20 @@ var analytics = require( 'analytics' ),
 	PostErrors = require( 'reader/post-errors' ),
 	PostStore = require( 'lib/feed-post-store' ),
 	PostStoreActions = require( 'lib/feed-post-store/actions' ),
-	SiteIcon = require( 'components/site-icon' ),
-	SiteLink = require( 'reader/site-link' ),
+	Site = require( 'my-sites/site' ),
 	SiteState = require( 'lib/reader-site-store/constants' ).state,
 	SiteStore = require( 'lib/reader-site-store' ),
 	SiteStoreActions = require( 'lib/reader-site-store/actions' ),
+	FollowButton = require( 'reader/follow-button' ),
 	utils = require( 'reader/utils' ),
 	LikeHelper = require( 'reader/like-helper' ),
-	CommentStore = require( 'lib/comment-store/comment-store' ),
 	stats = require( 'reader/stats' ),
 	PostExcerptLink = require( 'reader/post-excerpt-link' ),
 	ShareButton = require( 'reader/share' ),
+	ShareHelper = require( 'reader/share/helper' ),
 	DiscoverHelper = require( 'reader/discover/helper' ),
-	DiscoverVisitLink = require( 'reader/discover/visit-link' );
+	DiscoverVisitLink = require( 'reader/discover/visit-link' ),
+	readerRoute = require( 'reader/route' );
 
 var loadingPost = {
 		URL: '',
@@ -102,7 +104,7 @@ FullPostView = React.createClass( {
 
 	// if comments updated and we have not scrolled to the anchor yet, then scroll
 	checkForCommentAnchor: function() {
-		const hash = window.location.hash.substr(1);
+		const hash = window.location.hash.substr( 1 );
 		if ( this.refs.commentList && hash.indexOf( 'comments' ) > -1 && ! this.hasScrolledToAnchor ) {
 			this.scrollToComments();
 		}
@@ -123,13 +125,28 @@ FullPostView = React.createClass( {
 		stats.recordPermalinkClick( 'full_post_title' );
 	},
 
+	pickSite: function( event ) {
+		if ( utils.isSpecialClick( event ) ) {
+			return;
+		}
+
+		const url = readerRoute.getStreamUrlFromPost( this.props.post );
+		page.show( url );
+	},
+
+	handleSiteClick: function( event ) {
+		if ( ! utils.isSpecialClick( event ) ) {
+			event.preventDefault();
+		}
+	},
+
 	render: function() {
 		var post = this.props.post,
 			site = this.props.site,
+			siteish = utils.siteishFromSiteAndPost( site, post ),
 			hasFeaturedImage = post &&
-				! ( post.display_type & DISPLAY_TYPES.CANONICAL_IN_CONTENT ) &&
 				post.canonical_image &&
-				this.props.post.canonical_image.width > 620,
+				! ( post.display_type & DISPLAY_TYPES.CANONICAL_IN_CONTENT ),
 			articleClasses = [ 'reader__full-post' ],
 			postContent,
 			shouldShowExcerptOnly = ( post.use_excerpt ? post.use_excerpt : false ),
@@ -152,6 +169,13 @@ FullPostView = React.createClass( {
 			} else {
 				post = errorPost;
 			}
+		} else {
+			if ( post.site_ID ) {
+				articleClasses.push( 'blog-' + post.site_ID );
+			}
+			if ( post.feed_ID ) {
+				articleClasses.push( 'feed-' + post.feed_ID );
+			}
 		}
 
 		if ( hasFeaturedImage ) {
@@ -166,14 +190,24 @@ FullPostView = React.createClass( {
 			postContent = post.content;
 		}
 
+		/*eslint-disable react/no-danger*/
 		return (
 			<div>
 				<article className={ articleClasses } id="modal-full-post" ref="article">
 
 					<PostErrors post={ post } />
 
+					<div className="full-post__header">
+						<Site site={ siteish }
+							href={ post.site_URL }
+							onSelect={ this.pickSite }
+							onClick={ this.handleSiteClick } />
+
+						<FollowButton siteUrl={ post.site_URL } />
+					</div>
+
 					{ hasFeaturedImage
-						? <div className="full-post__featured-image test">
+						? <div className="full-post__featured-image">
 								<img src={ this.props.post.canonical_image.uri } height={ this.props.post.canonical_image.height } width={ 	this.props.post.canonical_image.width } />
 							</div>
 						: null }
@@ -190,6 +224,7 @@ FullPostView = React.createClass( {
 				</article>
 			</div>
 		);
+		/*eslint-enable react/no-danger*/
 	},
 
 	_generateButtonClickHandler: function( clickHandler ) {
@@ -263,30 +298,19 @@ FullPostDialog = React.createClass( {
 			site = this.props.site,
 			shouldShowComments = false,
 			shouldShowLikes = false,
+			shouldShowShare = false,
 			buttons = [
 				{
 					label: this.translate( 'Back', { context: 'Go back in browser history' } ),
 					action: 'close',
 					isPrimary: true
 				}
-			], siteName, siteLink;
-
-		siteName = utils.siteNameFromSiteAndPost( site, post );
-
-		siteLink = this.props.suppressSiteNameLink
-			? siteName
-			: ( <SiteLink post={ post }>{ siteName }</SiteLink> );
+			];
 
 		if ( post && ! post._state ) {
 			shouldShowComments = PostCommentHelper.shouldShowComments( post );
 			shouldShowLikes = LikeHelper.shouldShowLikes( post );
-
-			buttons.push(
-				<div className="full-post__site" key="site-name">
-					<SiteIcon site={ site && site.toJS() } size={ 24 } />
-					<span className="full-post__site-name">{ siteLink }</span>
-				</div>
-			);
+			shouldShowShare = ShareHelper.shouldShowShare( post );
 
 			buttons.push( <PostOptions key="post-options" post={ post } site={ site } onBlock={ this.props.onClose } /> );
 
@@ -298,7 +322,9 @@ FullPostDialog = React.createClass( {
 				buttons.push( <CommentButton key="comment-button" commentCount={ this.props.commentCount } onClick={ this.handleCommentButtonClick } tagName="div" /> );
 			}
 
-			buttons.push( <ShareButton post={ post } position="bottom left" tagName="div" /> );
+			if ( shouldShowShare ) {
+				buttons.push( <ShareButton post={ post } position="bottom left" tagName="div" /> );
+			}
 		}
 
 		buttons = buttons.map( function( button ) {

@@ -5,13 +5,16 @@ var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	page = require( 'page' ),
 	debug = require( 'debug' )( 'calypso:reader:controller' ),
-	trim = require( 'lodash/string/trim' );
+	trim = require( 'lodash/string/trim' ),
+	startsWith = require( 'lodash/string/startsWith' ),
+	moment = require( 'moment' );
 
 /**
  * Internal Dependencies
  */
 var i18n = require( 'lib/mixins/i18n' ),
 	route = require( 'lib/route' ),
+	pageNotifier = require( 'lib/route/page-notifier' ),
 	analytics = require( 'analytics' ),
 	config = require( 'config' ),
 	feedStreamFactory = require( 'lib/feed-stream-store' ),
@@ -54,22 +57,46 @@ function trackScrollPage( path, title, category, readerView, pageNum ) {
 	} );
 }
 
+// Listen for route changes and remove the full post dialog when we navigate away from it
+pageNotifier( function removeFullPostOnLeave( newContext, oldContext ) {
+	if ( ! oldContext ) {
+		return;
+	}
+
+	const fullPostViewPrefix = '/read/post/';
+
+	if ( startsWith( oldContext.path, fullPostViewPrefix ) &&
+		! startsWith( newContext.path, fullPostViewPrefix ) &&
+		__fullPostInstance ) {
+		__fullPostInstance.setState( { isVisible: false } );
+		__fullPostInstance = false;
+	}
+} );
+
 function removeFullPostDialog() {
 	ReactDom.unmountComponentAtNode( document.getElementById( 'tertiary' ) );
 	__fullPostInstance = null;
 }
 
-function ensureStoreLoading( store ) {
+function userHasHistory( context ) {
+	return !! context.lastRoute;
+}
+
+function ensureStoreLoading( store, context ) {
 	if ( store.getPage() === 1 ) {
+		if ( context.query.at ) {
+			const startDate = moment( context.query.at );
+			if ( startDate.isValid() ) {
+				store.startDate = startDate.format();
+			}
+		}
 		FeedStreamStoreActions.fetchNextPage( store.id );
 	}
 	return store;
 }
 
-function pageTitleSetter() {
-	return function( title ) {
-		titleActions.setTitle( i18n.translate( '%s ‹ Reader', { args: title } ) );
-	};
+function setPageTitle( title ) {
+	titleActions.setTitle( i18n.translate( '%s ‹ Reader', { args: title } ) );
 }
 
 module.exports = {
@@ -117,11 +144,11 @@ module.exports = {
 			followingStore = feedStreamFactory( 'following' ),
 			mcKey = 'following';
 
-		ensureStoreLoading( followingStore );
+		ensureStoreLoading( followingStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
-		pageTitleSetter()( i18n.translate( 'Following' ) );
+		setPageTitle( i18n.translate( 'Following' ) );
 
 		ReactDom.render(
 			React.createElement( FollowingComponent, {
@@ -143,13 +170,12 @@ module.exports = {
 
 	feedListing: function( context ) {
 		var FeedStream = require( 'reader/feed-stream' ),
-			basePath = route.sectionify( context.path ),
+			basePath = '/read/blog/feed/:feed_id',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > Feed > ' + context.params.feed_id,
 			feedStore = feedStreamFactory( 'feed:' + context.params.feed_id ),
-			setPageTitle = pageTitleSetter( context ),
 			mcKey = 'blog';
 
-		ensureStoreLoading( feedStore );
+		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 		analytics.tracks.recordEvent( 'calypso_reader_blog_preview', {
@@ -170,7 +196,8 @@ module.exports = {
 					mcKey
 				),
 				onUpdatesShown: trackUpdatesLoaded.bind( null, mcKey ),
-				suppressSiteNameLink: true
+				suppressSiteNameLink: true,
+				showBack: userHasHistory( context )
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -178,13 +205,12 @@ module.exports = {
 
 	blogListing: function( context ) {
 		var SiteStream = require( 'reader/site-stream' ),
-			basePath = route.sectionify( context.path ),
+			basePath = '/read/blog/id/:blog_id',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > Site > ' + context.params.blog_id,
 			feedStore = feedStreamFactory( 'site:' + context.params.blog_id ),
-			setPageTitle = pageTitleSetter( context ),
 			mcKey = 'blog';
 
-		ensureStoreLoading( feedStore );
+		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 		analytics.tracks.recordEvent( 'calypso_reader_blog_preview', {
@@ -205,7 +231,8 @@ module.exports = {
 					mcKey
 				),
 				onUpdatesShown: trackUpdatesLoaded.bind( null, mcKey ),
-				suppressSiteNameLink: true
+				suppressSiteNameLink: true,
+				showBack: userHasHistory( context )
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -215,9 +242,8 @@ module.exports = {
 		var FullPostDialog = require( 'reader/full-post' ),
 			feedId = context.params.feed,
 			postId = context.params.post,
-			basePath = route.sectionify( context.path ),
-			fullPageTitle = analyticsPageTitle + ' > Feed Post > ' + feedId + ' > ' + postId,
-			setPageTitle = pageTitleSetter( context );
+			basePath = '/read/post/feed/:feed_id/:feed_item_id',
+			fullPageTitle = analyticsPageTitle + ' > Feed Post > ' + feedId + ' > ' + postId;
 
 		__lastTitle = TitleStore.getState().title;
 
@@ -252,9 +278,8 @@ module.exports = {
 		var FullPostDialog = require( 'reader/full-post' ),
 			blogId = context.params.blog,
 			postId = context.params.post,
-			basePath = route.sectionify( context.path ),
-			fullPageTitle = analyticsPageTitle + ' > Blog Post > ' + blogId + ' > ' + postId,
-			setPageTitle = pageTitleSetter( context );
+			basePath = '/read/post/id/:blog_id/:post_id',
+			fullPageTitle = analyticsPageTitle + ' > Blog Post > ' + blogId + ' > ' + postId;
 
 		__lastTitle = TitleStore.getState().title;
 
@@ -289,7 +314,7 @@ module.exports = {
 
 	tagListing: function( context ) {
 		var TagStream = require( 'reader/tag-stream' ),
-			basePath = route.sectionify( context.path ),
+			basePath = '/tag/:slug',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > Tag > ' + context.params.tag,
 			tagSlug = trim( context.params.tag )
 				.toLowerCase()
@@ -297,10 +322,9 @@ module.exports = {
 				.replace( /-{2,}/g, '-' ),
 			encodedTag = encodeURIComponent( tagSlug ).toLowerCase(),
 			tagStore = feedStreamFactory( 'tag:' + tagSlug ),
-			setPageTitle = pageTitleSetter( context ),
 			mcKey = 'topic';
 
-		ensureStoreLoading( tagStore );
+		ensureStoreLoading( tagStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 		analytics.tracks.recordEvent( 'calypso_reader_tag_loaded', {
@@ -320,7 +344,8 @@ module.exports = {
 					analyticsPageTitle,
 					mcKey
 				),
-				onUpdatesShown: trackUpdatesLoaded.bind( null, mcKey )
+				onUpdatesShown: trackUpdatesLoaded.bind( null, mcKey ),
+				showBack: userHasHistory( context )
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -328,13 +353,12 @@ module.exports = {
 
 	listListing: function( context ) {
 		var ListStream = require( 'reader/list-stream' ),
-			basePath = route.sectionify( context.path ),
+			basePath = '/read/list/:owner/:slug',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > List > ' + context.params.user + ' - ' + context.params.list,
 			listStore = feedStreamFactory( 'list:' + context.params.user + '-' + context.params.list ),
-			setPageTitle = pageTitleSetter( context ),
 			mcKey = 'list';
 
-		ensureStoreLoading( listStore );
+		ensureStoreLoading( listStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 		analytics.tracks.recordEvent( 'calypso_reader_list_loaded', {
@@ -371,15 +395,16 @@ module.exports = {
 			feedStore = feedStreamFactory( 'a8c' ),
 			mcKey = 'a8c';
 
-		ensureStoreLoading( feedStore );
+		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
-		pageTitleSetter( context )( 'Automattic' );
+		setPageTitle( 'Automattic' );
 
 		ReactDom.render(
 			React.createElement( FollowingComponent, {
 				key: 'read-a8c',
+				className: 'is-a8c',
 				listName: 'Automattic',
 				store: feedStore,
 				trackScrollPage: trackScrollPage.bind(
@@ -400,10 +425,9 @@ module.exports = {
 			basePath = route.sectionify( context.path ),
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > My Likes',
 			likedPostsStore = feedStreamFactory( 'likes' ),
-			setPageTitle = pageTitleSetter( context ),
 			mcKey = 'postlike';
 
-		ensureStoreLoading( likedPostsStore );
+		ensureStoreLoading( likedPostsStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
@@ -432,7 +456,7 @@ module.exports = {
 			mcKey = 'following_edit',
 			search = context.query.s;
 
-		pageTitleSetter( context )( i18n.translate( 'Manage Followed Sites' ) );
+		setPageTitle( i18n.translate( 'Manage Followed Sites' ) );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
@@ -447,7 +471,7 @@ module.exports = {
 		);
 	},
 
-	recommendedForYou: function( context ) {
+	recommendedForYou: function() {
 		const RecommendedForYou = require( 'reader/recommendations/for-you' ),
 			basePath = '/recommendations',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > Recommended Sites For You',
@@ -467,16 +491,16 @@ module.exports = {
 		);
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
-		pageTitleSetter( context )( i18n.translate( 'Recommended Sites For You' ) );
+		setPageTitle( i18n.translate( 'Recommended Sites For You' ) );
 	},
 
 	listManagementSites: function( context ) {
 		const listManagement = require( 'reader/list-management' ),
-			basePath = route.sectionify( context.path ),
-			fullAnalyticsPageTitle = analyticsPageTitle + ' > Manage List',
+			basePath = '/read/list/:owner/:slug/sites',
+			fullAnalyticsPageTitle = analyticsPageTitle + ' > Manage List > Sites',
 			mcKey = 'list_sites';
 
-		pageTitleSetter( context )( i18n.translate( 'Manage List' ) );
+		setPageTitle( i18n.translate( 'Manage List' ) );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
@@ -487,7 +511,14 @@ module.exports = {
 					owner: context.params.user,
 					slug: context.params.list
 				},
-				tab: 'sites'
+				tab: 'sites',
+				trackScrollPage: trackScrollPage.bind(
+					null,
+					basePath,
+					fullAnalyticsPageTitle,
+					analyticsPageTitle,
+					mcKey
+				)
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -495,11 +526,11 @@ module.exports = {
 
 	listManagementTags: function( context ) {
 		const listManagement = require( 'reader/list-management' ),
-			basePath = route.sectionify( context.path ),
-			fullAnalyticsPageTitle = analyticsPageTitle + ' > Manage List',
+			basePath = '/read/list/:owner/:slug/tags',
+			fullAnalyticsPageTitle = analyticsPageTitle + ' > Manage List > Tags',
 			mcKey = 'list_tags';
 
-		pageTitleSetter( context )( i18n.translate( 'Manage List' ) );
+		setPageTitle( i18n.translate( 'Manage List' ) );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
@@ -510,7 +541,14 @@ module.exports = {
 					owner: context.params.user,
 					slug: context.params.list
 				},
-				tab: 'tags'
+				tab: 'tags',
+				trackScrollPage: trackScrollPage.bind(
+					null,
+					basePath,
+					fullAnalyticsPageTitle,
+					analyticsPageTitle,
+					mcKey
+				)
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -518,11 +556,11 @@ module.exports = {
 
 	listManagementDescriptionEdit: function( context ) {
 		const listManagement = require( 'reader/list-management' ),
-			basePath = route.sectionify( context.path ),
-			fullAnalyticsPageTitle = analyticsPageTitle + ' > Manage List Description',
+			basePath = '/read/list/:owner/:slug/edit',
+			fullAnalyticsPageTitle = analyticsPageTitle + ' > Manage List > Description',
 			mcKey = 'list_edit';
 
-		pageTitleSetter( context )( i18n.translate( 'Manage List Description' ) );
+		setPageTitle( i18n.translate( 'Manage List Description' ) );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 
@@ -549,7 +587,7 @@ module.exports = {
 
 		titleActions.setTitle( 'Discover' );
 
-		ensureStoreLoading( feedStore );
+		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
 		analytics.tracks.recordEvent( 'calypso_reader_discover_viewed' );

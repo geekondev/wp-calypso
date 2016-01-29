@@ -11,6 +11,8 @@ import observe from 'lib/mixins/data-observe';
 import toggle from '../mixin-toggle';
 import Card from 'components/card';
 import Gridicon from 'components/gridicon';
+import StatsModulePlaceholder from '../stats-module/placeholder';
+import StatsModuleContent from '../stats-module/content-text';
 
 export default React.createClass( {
 	displayName: 'StatsPostDetailWeeks',
@@ -38,20 +40,23 @@ export default React.createClass( {
 
 	render() {
 		const data = this.props.postViewsList.response;
+		const post = data.post;
 		const { showInfo, noData } = this.state;
 		const infoIcon = this.state.showInfo ? 'info' : 'info-outline';
+		const isLoading = this.props.postViewsList.isLoading();
 		let tableHeader,
 			tableRows,
 			tableBody,
 			highest;
 
 		const classes = {
-			'is-loading': this.props.postViewsList.isLoading(),
+			'is-loading': isLoading,
 			'is-showing-info': showInfo,
 			'has-no-data': noData
 		};
 
 		if ( data && data.weeks ) {
+			const publishDate = post.post_date ? this.moment( post.post_date ) : null;
 			highest = data.highest_week_average;
 			tableHeader = (
 				<thead>
@@ -68,11 +73,18 @@ export default React.createClass( {
 						<th>{ this.translate( 'Change', { context: 'Stats: noun - change over a period in weekly numbers' } ) }</th>
 					</tr>
 				</thead>
-				);
+			);
 
 			tableRows = data.weeks.map( function( week, index ) {
-				let cells = [],
-					iconType;
+				let cells = [];
+				let iconType;
+				let lastDay = week.days[ week.days.length - 1 ];
+				let lastDayOfWeek = lastDay.day ? this.moment( lastDay.day, 'YYYY-MM-DD' ) : null;
+
+				// If the end of this week is before post_date, return
+				if ( 7 === week.days.length && publishDate && lastDayOfWeek && lastDayOfWeek.isBefore( publishDate ) ) {
+					return null;
+				}
 
 				// If there are fewer than 7 days in the first week, prepend blank days
 				if ( week.days.length < 7 && 0 === index ) {
@@ -158,26 +170,23 @@ export default React.createClass( {
 						</li>
 					</ul>
 				</div>
-				<div className="module-content">
-					<div className="module-content-text module-content-text-info">
-						<p className="message">{ this.translate( 'No views yet' ) }</p>
-						<p>{ this.translate( 'This panel gives you an overview of how many views your website is getting recently.' ) }</p>
-						<p className="legend achievement">{
-							this.translate(
-								'%(value)s = The highest recent value.',
-								{ args: { value: ( this.numberFormat( highest ) ) },
-								context: 'Legend for post stats page in Stats' }
-							)
-						}</p>
-					</div>
-					<div className="module-placeholder is-void"></div>
-					<div className="module-content-table">
-						<div className="module-content-table-scroll">
-							<table cellPadding="0" cellSpacing="0">
-								{ tableHeader }
-								{ tableBody }
-							</table>
-						</div>
+				<StatsModuleContent className="module-content-text-info">
+					<p>{ this.translate( 'This table gives you an overview of how many views your post or page has received in the recent weeks.' ) }</p>
+					<span className="legend achievement">{
+						this.translate(
+							'%(value)s = The highest recent value',
+							{ args: { value: ( this.numberFormat( highest ) ) },
+							context: 'Legend for post stats page in Stats' }
+						)
+					}</span>
+				</StatsModuleContent>
+				<StatsModulePlaceholder isLoading={ isLoading } />
+				<div className="module-content-table">
+					<div className="module-content-table-scroll">
+						<table cellPadding="0" cellSpacing="0">
+							{ tableHeader }
+							{ tableBody }
+						</table>
 					</div>
 				</div>
 			</Card>

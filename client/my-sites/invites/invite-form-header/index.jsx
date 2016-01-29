@@ -37,8 +37,11 @@ export default React.createClass( {
 
 	getLoggedOutTitleForInvite() {
 		let title = '';
+		const { role, forceMatchingEmail, knownUser } = this.props;
 
-		const { role } = this.props;
+		if ( forceMatchingEmail && knownUser ) {
+			return this.translate( 'Sign in to continue:' );
+		}
 
 		switch ( role ) {
 			case 'administrator':
@@ -80,6 +83,15 @@ export default React.createClass( {
 			case 'subscriber':
 				title = this.translate(
 					'Sign up to start your subscription to {{siteLink/}}.', {
+						components: {
+							siteLink: this.getSiteLink()
+						}
+					}
+				);
+				break;
+			case 'viewer':
+				title = this.translate(
+					'Sign up to begin viewing {{siteLink/}}.', {
 						components: {
 							siteLink: this.getSiteLink()
 						}
@@ -163,6 +175,15 @@ export default React.createClass( {
 					}
 				);
 				break;
+			case 'viewer':
+				title = this.translate(
+					'Would you like to be able to view {{siteLink/}}?', {
+						components: {
+							siteLink: this.getSiteLink()
+						}
+					}
+				);
+				break;
 			case 'follower':
 				title = this.translate(
 					'Would you like to become a follower of {{siteLink/}}?', {
@@ -219,7 +240,16 @@ export default React.createClass( {
 				break;
 			case 'subscriber':
 				explanation = this.translate(
-					'As a subscriber, you will be able to manage your profile on %(siteName)s', {
+					'As a subscriber, you will be able to manage your profile on %(siteName)s.', {
+						args: {
+							siteName: this.getSiteName()
+						}
+					}
+				);
+				break;
+			case 'viewer':
+				explanation = this.translate(
+					'As a viewer, you will be able to view the private site %(siteName)s.', {
 						args: {
 							siteName: this.getSiteName()
 						}
@@ -228,7 +258,7 @@ export default React.createClass( {
 				break;
 			case 'follower':
 				explanation = this.translate(
-					'As a follower, you will receive updates every time there is a new post on %(siteName)s', {
+					'As a follower, you will receive updates every time there is a new post on %(siteName)s.', {
 						args: {
 							siteName: this.getSiteName()
 						}

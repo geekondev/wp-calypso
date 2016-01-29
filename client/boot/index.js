@@ -23,7 +23,7 @@ var config = require( 'config' ),
 	route = require( 'lib/route' ),
 	user = require( 'lib/user' )(),
 	receiveUser = require( 'state/users/actions' ).receiveUser,
-	setCurrentUserId = require( 'state/ui/actions' ).setCurrentUserId,
+	setCurrentUserId = require( 'state/current-user/actions' ).setCurrentUserId,
 	sites = require( 'lib/sites-list' )(),
 	superProps = require( 'analytics/super-props' ),
 	i18n = require( 'lib/mixins/i18n' ),
@@ -154,6 +154,11 @@ function boot() {
 		i18n.setLocaleSlug( user.get().localeSlug );
 	} );
 
+	// Temporary support for development of the Support User feature
+	if ( config.isEnabled( 'support-user' ) ) {
+		require( 'lib/user/dev-support-user' )( user );
+	}
+
 	translatorJumpstart.init();
 
 	reduxStore = createReduxStore();
@@ -194,6 +199,10 @@ function boot() {
 	if ( config.isEnabled( 'perfmon' ) ) {
 		// Record time spent watching slowly-flashing divs
 		perfmon();
+	}
+
+	if ( config.isEnabled( 'network-connection' ) ) {
+		require( 'lib/network-connection' ).init( reduxStore );
 	}
 
 	layout = renderWithReduxStore(
@@ -332,10 +341,6 @@ function boot() {
 
 	if ( config.isEnabled( 'keyboard-shortcuts' ) ) {
 		require( 'lib/keyboard-shortcuts/global' )( sites );
-	}
-
-	if ( config.isEnabled( 'network-connection' ) ) {
-		require( 'lib/network-connection' ).init();
 	}
 
 	if ( config.isEnabled( 'desktop' ) ) {

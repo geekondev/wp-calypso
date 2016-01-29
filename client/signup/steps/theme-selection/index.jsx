@@ -74,8 +74,7 @@ module.exports = React.createClass( {
 				return {
 					id: theme.slug,
 					name: theme.name,
-					screenshot: 'https://i1.wp.com/s0.wp.com/wp-content/themes/pub/' + theme.slug + '/screenshot.png?w=660',
-					actionLabel: actionLabel
+					screenshot: 'https://i1.wp.com/s0.wp.com/wp-content/themes/pub/' + theme.slug + '/screenshot.png?w=660'
 				}
 			} );
 		return (
@@ -83,6 +82,9 @@ module.exports = React.createClass( {
 				getButtonOptions= { noop }
 				onScreenshotClick= { this.handleScreenshotClick }
 				onMoreButtonClick= { noop }
+				getActionLabel={ function() {
+					return actionLabel;
+				} }
 				{ ...this.props }
 				themes= { themes } />
 		);
@@ -93,8 +95,8 @@ module.exports = React.createClass( {
 		return (
 			<StepWrapper
 				fallbackHeaderText={ this.translate( 'Choose a theme.' ) }
-				fallbackSubHeaderText={ this.translate( 'No need to overthink it. You can always switch to a different theme\u00a0later.' ) }
-				subHeaderText={ this.translate( 'Choose a theme. You can always switch to a different theme\u00a0later.' ) }
+				fallbackSubHeaderText={ this.translate( 'No need to overthink it. You can always switch to a different theme later.' ) }
+				subHeaderText={ this.translate( 'Choose a theme. You can always switch to a different theme later.' ) }
 				stepContent={ this.renderThemesList() }
 				defaultDependencies={ defaultDependencies }
 				{ ...this.props } />

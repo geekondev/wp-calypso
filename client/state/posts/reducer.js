@@ -13,6 +13,11 @@ import {
 	POSTS_REQUEST_SUCCESS,
 	POSTS_REQUEST_FAILURE
 } from 'state/action-types';
+import {
+	getSerializedPostsQuery,
+	getSerializedPostsQueryWithoutPage
+} from './utils';
+import { DEFAULT_POST_QUERY } from './constants';
 
 /**
  * Tracks all known post objects, indexed by post global ID.
@@ -70,7 +75,7 @@ export function siteQueries( state = {}, action ) {
 		case POSTS_REQUEST_SUCCESS:
 		case POSTS_REQUEST_FAILURE:
 			const { type, siteId, posts } = action;
-			const query = JSON.stringify( action.query );
+			const query = getSerializedPostsQuery( action.query );
 
 			// Clone state and ensure that site is tracked
 			state = Object.assign( {}, state );
@@ -78,11 +83,13 @@ export function siteQueries( state = {}, action ) {
 				state[ siteId ] = {};
 			}
 
+			if ( ! state[ siteId ][ query ] ) {
+				state[ siteId ][ query ] = {};
+			}
+
 			// Only the initial request should be tracked as fetching. Success
 			// or failure types imply that fetching has completed.
-			state[ siteId ][ query ] = {
-				fetching: POSTS_REQUEST === type
-			};
+			state[ siteId ][ query ].fetching = ( POSTS_REQUEST === type );
 
 			// When a request succeeds, map the received posts to state.
 			if ( POSTS_REQUEST_SUCCESS === type ) {
@@ -94,8 +101,37 @@ export function siteQueries( state = {}, action ) {
 	return state;
 }
 
+/**
+ * Returns the updated post query last page state after an action has been
+ * dispatched. The state reflects a mapping of site ID to last page for a posts
+ * query.
+ *
+ * @param  {Object} state  Current state
+ * @param  {Object} action Action payload
+ * @return {Object}        Updated state
+ */
+export function siteQueriesLastPage( state = {}, action ) {
+	switch ( action.type ) {
+		case POSTS_REQUEST_SUCCESS:
+			const { siteId, found } = action;
+
+			state = Object.assign( {}, state );
+			if ( ! state[ siteId ] ) {
+				state[ siteId ] = {};
+			}
+
+			const serializedQuery = getSerializedPostsQueryWithoutPage( action.query );
+			const lastPage = Math.ceil( found / ( action.query.number || DEFAULT_POST_QUERY.number ) );
+			state[ siteId ][ serializedQuery ] = Math.max( lastPage, 1 );
+			break;
+	}
+
+	return state;
+}
+
 export default combineReducers( {
 	items,
 	sitePosts,
-	siteQueries
+	siteQueries,
+	siteQueriesLastPage
 } );

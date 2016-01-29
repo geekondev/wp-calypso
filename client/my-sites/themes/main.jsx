@@ -3,8 +3,8 @@
  */
 var React = require( 'react' ),
 	bindActionCreators = require( 'redux' ).bindActionCreators,
-	partialRight = require( 'lodash/function/partialRight' ),
-	connect = require( 'react-redux' ).connect;
+	connect = require( 'react-redux' ).connect,
+	pick = require( 'lodash/object/pick' );
 
 /**
  * Internal dependencies
@@ -12,7 +12,7 @@ var React = require( 'react' ),
 var Main = require( 'components/main' ),
 	CurrentThemeData = require( 'components/data/current-theme' ),
 	ActivatingTheme = require( 'components/data/activating-theme' ),
-	Action = require( 'lib/themes/actions' ),
+	Action = require( 'state/themes/actions' ),
 	WebPreview = require( 'components/web-preview' ),
 	Button = require( 'components/button' ),
 	CurrentTheme = require( 'my-sites/themes/current-theme' ),
@@ -20,23 +20,26 @@ var Main = require( 'components/main' ),
 	ThanksModal = require( 'my-sites/themes/thanks-modal' ),
 	config = require( 'config' ),
 	EmptyContent = require( 'components/empty-content' ),
-	observe = require( 'lib/mixins/data-observe' ),
 	JetpackUpgradeMessage = require( './jetpack-upgrade-message' ),
 	JetpackManageDisabledMessage = require( './jetpack-manage-disabled-message' ),
 	ThemesSiteSelectorModal = require( './themes-site-selector-modal' ),
 	ThemesSelection = require( './themes-selection' ),
 	ThemeHelpers = require( 'lib/themes/helpers' ),
 	getButtonOptions = require( './theme-options' ).getButtonOptions,
+	addTracking = require( './theme-options' ).addTracking,
 	actionLabels = require( './action-labels' ),
-	ThemesListSelectors = require( 'lib/themes/selectors/themes-list' ),
-	user = require( 'lib/user' )();
+	ThemesListSelectors = require( 'state/themes/themes-list/selectors' ),
+	getCurrentUser = require( 'state/current-user/selectors' ).getCurrentUser,
+	getSelectedSite = require( 'state/ui/selectors' ).getSelectedSite;
 
 var Themes = React.createClass( {
-	mixins: [ observe( 'sites' ) ],
-
 	propTypes: {
 		siteId: React.PropTypes.string,
-		sites: React.PropTypes.object.isRequired
+		selectedSite: React.PropTypes.oneOfType( [
+			React.PropTypes.object,
+			React.PropTypes.bool
+		] ).isRequired,
+		isLoggedOut: React.PropTypes.bool.isRequired
 	},
 
 	getInitialState: function() {
@@ -47,7 +50,7 @@ var Themes = React.createClass( {
 	},
 
 	renderCurrentTheme: function() {
-		var site = this.props.sites.getSelectedSite();
+		var site = this.props.selectedSite;
 		return (
 			<CurrentThemeData site={ site }>
 				<CurrentTheme
@@ -59,20 +62,20 @@ var Themes = React.createClass( {
 
 	renderThankYou: function() {
 		return (
-			<ActivatingTheme siteId={ this.props.sites.getSelectedSite().ID } >
+			<ActivatingTheme siteId={ this.props.selectedSite.ID } >
 				<ThanksModal
-					site={ this.props.sites.getSelectedSite() }
+					site={ this.props.selectedSite }
 					clearActivated={ bindActionCreators( Action.clearActivated, this.props.dispatch ) } />
 			</ActivatingTheme>
 		);
 	},
 
-	setSelectedTheme: function( action, theme ) {
+	showSiteSelectorModal: function( action, theme ) {
 		this.setState( { selectedTheme: theme, selectedAction: action } );
 	},
 
 	togglePreview: function( theme ) {
-		const site = this.props.sites.getSelectedSite();
+		const site = this.props.selectedSite;
 		if ( site.jetpack ) {
 			this.props.dispatch( Action.customize( theme, site ) );
 		} else {
@@ -82,7 +85,7 @@ var Themes = React.createClass( {
 	},
 
 	hideSiteSelectorModal: function() {
-		this.setSelectedTheme( null, null );
+		this.showSiteSelectorModal( null, null );
 	},
 
 	isThemeOrActionSet: function() {
@@ -93,12 +96,8 @@ var Themes = React.createClass( {
 		return ! this.props.siteId; // Not the same as `! site` !
 	},
 
-	isLoggedOut: function() {
-		return ! user.get();
-	},
-
 	renderJetpackMessage: function() {
-		var site = this.props.sites.getSelectedSite();
+		var site = this.props.selectedSite;
 		return (
 			<EmptyContent title={ this.translate( 'Changing Themes?' ) }
 				line={ this.translate( 'Use your site theme browser to manage themes.' ) }
@@ -110,10 +109,20 @@ var Themes = React.createClass( {
 	},
 
 	render: function() {
-		var site = this.props.sites.getSelectedSite(),
+		var site = this.props.selectedSite,
 			isJetpack = site.jetpack,
 			jetpackEnabled = config.isEnabled( 'manage/themes-jetpack' ),
-			dispatch = this.props.dispatch;
+			dispatch = this.props.dispatch,
+			buttonOptions = getButtonOptions(
+				site,
+				this.props.isLoggedOut,
+				bindActionCreators( Action, dispatch ),
+				this.showSiteSelectorModal,
+				this.togglePreview
+			),
+			getScreenshotAction = function( theme ) {
+				return buttonOptions[ ( site && theme.active ) ? 'customize' : 'preview' ];
+			};
 
 		if ( isJetpack && jetpackEnabled && ! site.hasJetpackThemes ) {
 			return <JetpackUpgradeMessage site={ site } />;
@@ -123,7 +132,7 @@ var Themes = React.createClass( {
 			return <JetpackManageDisabledMessage site={ site } />;
 		}
 
-		const webPreviewButtonText = this.isLoggedOut()
+		const webPreviewButtonText = this.props.isLoggedOut
 			? this.translate( 'Choose this design', {
 				comment: 'when signing up for a WordPress.com account with a selected theme'
 			} )
@@ -133,19 +142,17 @@ var Themes = React.createClass( {
 
 		return (
 			<Main className="themes">
-				<SidebarNavigation />
+				{ this.props.isLoggedOut ? null : <SidebarNavigation /> }
 				{ this.state.showPreview &&
 					<WebPreview showPreview={ this.state.showPreview }
 						onClose={ this.togglePreview }
 						previewUrl={ this.state.previewUrl } >
 						<Button primary onClick={ this.setState.bind( this, { showPreview: false },
 							() => {
-								if ( this.isLoggedOut() ) {
+								if ( this.props.isLoggedOut ) {
 									dispatch( Action.signup( this.state.previewingTheme ) );
-								} else if ( site ) {
-									dispatch( Action.customize( this.state.previewingTheme, site ) );
 								} else {
-									this.setSelectedTheme( 'customize', this.state.previewingTheme );
+									buttonOptions.customize.action( this.state.previewingTheme );
 								}
 							} ) } >{ webPreviewButtonText }</Button>
 					</WebPreview>
@@ -153,16 +160,24 @@ var Themes = React.createClass( {
 				{ this.renderThankYou() }
 				{ ! this.isMultisite() && this.renderCurrentTheme() }
 				{ isJetpack && ! jetpackEnabled
-					? this.renderJetpackMessage()
-					: <ThemesSelection search={ this.props.search }
+				? this.renderJetpackMessage()
+				: <ThemesSelection search={ this.props.search }
 						key={ this.isMultisite() || site.ID }
 						siteId={ this.props.siteId }
-						sites={ this.props.sites }
-						togglePreview={ this.togglePreview }
-						getOptions={ partialRight( getButtonOptions, this.isLoggedOut(), bindActionCreators( Action, dispatch ), this.setSelectedTheme, this.togglePreview, false ) }
+						selectedSite={ site }
+						onScreenshotClick={ function( theme ) {
+							getScreenshotAction( theme ).action( theme );
+						} }
+						getActionLabel={ function( theme ) {
+							return getScreenshotAction( theme ).label
+						} }
+						getOptions={ function( theme ) {
+							return pick(
+								addTracking( buttonOptions ),
+								option => ! ( option.hideForTheme && option.hideForTheme( theme ) )
+							); } }
 						trackScrollPage={ this.props.trackScrollPage }
 						tier={ this.props.tier }
-						customize={ bindActionCreators( Action.customize, dispatch ) }
 						queryParams={ this.props.queryParams }
 						themesList={ this.props.themesList } />
 				}
@@ -184,7 +199,9 @@ export default connect(
 		props,
 		{
 			queryParams: ThemesListSelectors.getQueryParams( state ),
-			themesList: ThemesListSelectors.getThemesList( state )
+			themesList: ThemesListSelectors.getThemesList( state ),
+			selectedSite: getSelectedSite( state ) || false,
+			isLoggedOut: ! getCurrentUser( state )
 		}
 	)
 )( Themes );

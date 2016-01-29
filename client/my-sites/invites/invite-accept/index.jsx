@@ -5,10 +5,8 @@ import React from 'react';
 import Debug from 'debug';
 import classNames from 'classnames';
 import page from 'page';
-import store from 'store';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import get from 'lodash/object/get'
 
 /**
  * Internal Dependencies
@@ -16,18 +14,24 @@ import get from 'lodash/object/get'
 import InviteHeader from 'my-sites/invites/invite-header';
 import LoggedIn from 'my-sites/invites/invite-accept-logged-in';
 import LoggedOut from 'my-sites/invites/invite-accept-logged-out';
-import user from 'lib/user';
+import _user from 'lib/user';
 import { fetchInvite } from 'lib/invites/actions';
 import InvitesStore from 'lib/invites/stores/invites-validation';
 import EmptyContent from 'components/empty-content';
 import { successNotice, infoNotice } from 'state/notices/actions';
 import analytics from 'analytics';
+import { getRedirectAfterAccept } from 'my-sites/invites/utils';
+import Notice from 'components/notice';
+import NoticeAction from 'components/notice/notice-action';
+import config from 'config';
+import userUtils from 'lib/user/utils';
+import LocaleSuggestions from 'signup/locale-suggestions';
 
 /**
  * Module variables
  */
 const debug = new Debug( 'calypso:invite-accept' );
-const userModule = user();
+const userModule = _user();
 
 let InviteAccept = React.createClass( {
 
@@ -35,19 +39,17 @@ let InviteAccept = React.createClass( {
 		return {
 			invite: false,
 			error: false,
-			user: userModule.get()
+			user: userModule.get(),
+			matchEmailError: false
 		}
 	},
 
 	componentWillMount() {
-		const acceptedInvite = store.get( 'invite_accepted' );
-		if ( acceptedInvite && acceptedInvite.inviteKey === this.props.inviteKey ) {
-			store.remove( 'invite_accepted' );
-			page( this.getRedirectAfterAccept( acceptedInvite ) );
-			this.acceptedNotice( acceptedInvite );
-			return;
+		// The site ID and invite key are required, so only fetch if set
+		if ( this.props.siteId && this.props.inviteKey ) {
+			fetchInvite( this.props.siteId, this.props.inviteKey );
 		}
-		fetchInvite( this.props.siteId, this.props.inviteKey );
+
 		userModule.on( 'change', this.refreshUser );
 		InvitesStore.on( 'change', this.refreshInvite );
 	},
@@ -75,6 +77,15 @@ let InviteAccept = React.createClass( {
 		this.setState( { invite, error } );
 	},
 
+	isMatchEmailError() {
+		const { invite, user } = this.state;
+		return invite && invite.forceMatchingEmail && user.email !== invite.sentTo;
+	},
+
+	isInvalidInvite() {
+		return this.state.error || ! this.props.siteId || ! this.props.inviteKey;
+	},
+
 	getErrorTitle() {
 		return this.translate(
 			'Oops, your invite is not valid',
@@ -93,142 +104,56 @@ let InviteAccept = React.createClass( {
 		analytics.tracks.recordEvent( 'calypso_invite_accept_notice_site_link_click' );
 	},
 
-	acceptedNotice( invite ) {
-		invite = invite || this.state.invite;
-		let displayOnNextPage = true;
-		let takeATour = (
-			<p className="invite-message__intro">
-				{
-					this.translate(
-						'Since you\'re new, you might like to {{docsLink}}take a tour{{/docsLink}}.',
-						{ components: { docsLink: <a href="https://learn.wordpress.com/" target="_blank" /> } }
-					)
-				}
-			</p>
-		);
-		let site = (
-			<a href={ get( invite, 'site.URL' ) } className="invite-accept__notice-site-link">
-				{ get( invite, 'site.title' ) }
-			</a>
-		);
-
-		switch ( get( invite, 'role' ) ) {
-			case 'follower':
-				this.props.successNotice(
-					this.translate(
-						'You are now following {{site/}}', {
-							components: { site }
-						}
-					),
-					{
-						button: this.translate( 'Visit Site' ),
-						href: get( invite, 'site.URL' ),
-						displayOnNextPage
-					}
-				);
-				break;
-			case 'administrator':
-				this.props.successNotice(
-					<div>
-						<h3 className="invite-message__title">
-							{ this.translate( 'You\'re now an Administrator of: {{site/}}', {
-								components: { site }
-							} ) }
-						</h3>
-						<p className="invite-message__intro">
-							{ this.translate( 'This is your site dashboard where you will be able to manage all aspects of %(site)s', {
-								args: { site: get( invite, 'site.title' ) }
-							} ) }
-						</p>
-						{ takeATour }
-					</div>,
-					{ displayOnNextPage }
-				);
-				break;
-			case 'editor':
-				this.props.successNotice(
-					<div>
-						<h3 className="invite-message__title">
-							{ this.translate( 'You\'re now an Editor of: {{site/}}', {
-								components: { site }
-							} ) }
-						</h3>
-						<p className="invite-message__intro">
-							{ this.translate( 'This is your site dashboard where you can publish and manage your own posts and the posts of others, as well as upload media.' ) }
-						</p>
-						{ takeATour }
-					</div>,
-					{ displayOnNextPage }
-				);
-				break;
-			case 'author':
-				this.props.successNotice(
-					<div>
-						<h3 className="invite-message__title">
-							{ this.translate( 'You\'re now an Author of: {{site/}}', {
-								components: { site }
-							} ) }
-						</h3>
-						<p className="invite-message__intro">
-							{ this.translate( 'This is your site dashboard where you can publish and edit your own posts as well as upload media.' ) }
-						</p>
-						{ takeATour }
-					</div>,
-					{ displayOnNextPage }
-				);
-				break;
-			case 'contributor':
-				this.props.successNotice(
-					<div>
-						<h3 className="invite-message__title">
-							{ this.translate( 'You\'re now a Contributor of: {{site/}}', {
-								components: { site }
-							} ) }
-						</h3>
-						<p className="invite-message__intro">
-							{ this.translate( 'This is your site dashboard where you can write and manage your own posts.' ) }
-						</p>
-						{ takeATour }
-					</div>,
-					{ displayOnNextPage }
-				);
-				break;
-			case 'subscriber':
-				this.props.successNotice(
-					this.translate( 'You\'re now a Subscriber of: {{site/}}', {
-						components: { site }
-					} ),
-					{ displayOnNextPage }
-				);
-				break;
-		}
-	},
-
-	getRedirectAfterAccept( invite = this.state.invite ) {
-		switch ( invite.role ) {
-			case 'viewer':
-			case 'follower':
-				return '/';
-				break;
-			default:
-				return '/posts/' + this.props.siteId;
-		}
-	},
-
 	decline() {
 		this.props.infoNotice( this.translate( 'You declined to join.' ), { displayOnNextPage: true } );
 		page( '/' );
 	},
 
+	signInLink() {
+		const invite = this.state.invite;
+		let loginUrl = config( 'login_url' ) + '?redirect_to=' + encodeURIComponent( window.location.href );
+
+		if ( invite && invite.sentTo ) {
+			let presetEmail = '&email_address=' + encodeURIComponent( invite.sentTo );
+			loginUrl += presetEmail;
+		}
+
+		return loginUrl;
+	},
+
+	signUpLink() {
+		userUtils.logout( window.location.href );
+	},
+
+	localeSuggestions() {
+		if ( this.state.user || ! this.props.locale ) {
+			return;
+		}
+
+		return (
+			<LocaleSuggestions path={ this.props.path } locale={ this.props.locale } />
+		);
+	},
+
 	renderForm() {
-		if ( ! this.state.invite ) {
+		const { invite, user } = this.state;
+		if ( ! invite ) {
 			debug( 'Not rendering form - Invite not set' );
 			return null;
 		}
 		debug( 'Rendering invite' );
-		return this.state.user
-			? <LoggedIn { ...this.state.invite } redirectTo={ this.getRedirectAfterAccept() } decline={ this.decline } user={ this.state.user } acceptedNotice={ this.acceptedNotice } />
-			: <LoggedOut { ...this.state.invite } decline={ this.decline } />;
+
+		let props = {
+			invite: this.state.invite,
+			redirectTo: getRedirectAfterAccept( this.state.invite ),
+			decline: this.decline,
+			signInLink: this.signInLink(),
+			forceMatchingEmail: this.isMatchEmailError()
+		};
+
+		return user
+			? <LoggedIn { ... props } user={ this.state.user } />
+			: <LoggedOut { ... props } />;
 	},
 
 	renderError() {
@@ -241,12 +166,52 @@ let InviteAccept = React.createClass( {
 		);
 	},
 
-	render() {
-		const classes = classNames( 'invite-accept', { 'is-error': !! this.state.error } );
+	renderNoticeAction() {
+		const { user, invite } = this.state;
+
+		if ( ! user && ! invite.knownUser ) {
+			return;
+		}
+
+		let props,
+			actionText = this.translate( 'Switch Accounts' );
+
+		if ( ! user ) {
+			actionText = this.translate( 'Sign In' );
+		}
+
+		if ( invite.knownUser ) {
+			props = { href: this.signInLink() };
+		} else {
+			props = { onClick: this.signUpLink };
+		}
+
 		return (
-			<div className={ classes }>
-				{ ! this.state.error && <InviteHeader { ...this.state.invite } /> }
-				{ this.state.error ? this.renderError() : this.renderForm() }
+			<NoticeAction { ... props } >
+				{ actionText }
+			</NoticeAction>
+		);
+	},
+
+	render() {
+		const formClasses = classNames( 'invite-accept__form', { 'is-error': !! this.isInvalidInvite() } ),
+			{ invite, user } = this.state;
+
+		return (
+			<div className="invite-accept">
+				{ this.localeSuggestions() }
+				<div className={ formClasses }>
+					{ this.isMatchEmailError() && user &&
+						<Notice
+							text={ this.translate( 'This invite is only valid for %(email)s.', { args: { email: invite.sentTo } } ) }
+							status="is-error"
+							showDismiss={ false } >
+							{ this.renderNoticeAction() }
+						</Notice>
+					}
+					{ ! this.isInvalidInvite() && <InviteHeader { ... invite } /> }
+					{ this.isInvalidInvite() ? this.renderError() : this.renderForm() }
+				</div>
 			</div>
 		);
 	}

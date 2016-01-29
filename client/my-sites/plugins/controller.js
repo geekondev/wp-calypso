@@ -15,10 +15,12 @@ var route = require( 'lib/route' ),
 	notices = require( 'notices' ),
 	sites = require( 'lib/sites-list' )(),
 	analytics = require( 'analytics' ),
+	PlanSetup = require( './plan-setup' ),
 	PluginListComponent = require( './main' ),
 	PluginComponent = require( './plugin' ),
 	PluginBrowser = require( './plugins-browser' ),
 	titleActions = require( 'lib/screen-title/actions' ),
+	renderWithReduxStore = require( 'lib/react-helpers' ).renderWithReduxStore,
 	allowedCategoryNames = [ 'new', 'popular', 'featured' ];
 
 /**
@@ -50,11 +52,18 @@ function renderSinglePlugin( context, siteUrl, isWpcomPlugin ) {
 	}
 
 	if (
-		( ! site || ! site.jetpack ) &&
+		( site && ! site.jetpack ) &&
 		businessPlugins.indexOf( pluginSlug ) >= 0 &&
 		context.path.indexOf( '/business' ) < 0
 	) {
 		return page.redirect( '/plugins/' + pluginSlug + '/business' + ( site ? '/' + site.slug : '' ) );
+	}
+
+	if ( ! site &&
+		context.path.indexOf( '/business' ) >= 0 &&
+		-1 === businessPlugins.indexOf( pluginSlug )
+	) {
+		return page.redirect( '/plugins/' + pluginSlug );
 	}
 
 	analytics.pageView.record( baseAnalyticsPath, analyticsPageTitle + ' > Plugin Details' );
@@ -63,7 +72,7 @@ function renderSinglePlugin( context, siteUrl, isWpcomPlugin ) {
 	window.scrollTo( 0, 0 );
 
 	// Render single plugin component
-	ReactDom.render(
+	renderWithReduxStore(
 		React.createElement( PluginComponent, {
 			path: context.path,
 			prevPath: lastPluginsListVisited || context.prevPath,
@@ -74,7 +83,8 @@ function renderSinglePlugin( context, siteUrl, isWpcomPlugin ) {
 			isWpcomPlugin: isWpcomPlugin,
 			onPluginRefresh: title => titleActions.setTitle( title )
 		} ),
-		document.getElementById( 'primary' )
+		document.getElementById( 'primary' ),
+		context.store
 	);
 }
 
@@ -95,8 +105,7 @@ function renderPluginList( context, basePath, siteUrl ) {
 	lastPluginsQuerystring = context.querystring;
 	titleActions.setTitle( i18n.translate( 'Plugins', { textOnly: true } ), { siteID: siteUrl } );
 
-	// Render multiple plugins component
-	ReactDom.render(
+	renderWithReduxStore(
 		React.createElement( PluginListComponent, {
 			path: basePath,
 			context: context,
@@ -104,7 +113,8 @@ function renderPluginList( context, basePath, siteUrl ) {
 			sites: sites,
 			search: search
 		} ),
-		document.getElementById( 'primary' )
+		document.getElementById( 'primary' ),
+		context.store
 	);
 
 	if ( search ) {
@@ -149,6 +159,16 @@ function renderPluginsBrowser( context, siteUrl ) {
 	);
 }
 
+function renderProvisionPlugins() {
+	let site = sites.getSelectedSite();
+	ReactDom.render(
+		React.createElement( PlanSetup, {
+			selectedSite: site,
+		} ),
+		document.getElementById( 'primary' )
+	);
+}
+
 controller = {
 
 	plugins: function( filter, context ) {
@@ -165,7 +185,7 @@ controller = {
 		var isWpcomPlugin = 'business' === context.params.business_plugin,
 			siteUrl = route.getSiteFragment( context.path );
 
-		if ( context.params.plugin && context.params.plugin === siteUrl ) {
+		if ( siteUrl && context.params.plugin && context.params.plugin === siteUrl.toString() ) {
 			controller.plugins( 'all', context );
 			return;
 		}
@@ -199,6 +219,9 @@ controller = {
 			}
 		}
 		next();
+	},
+	setupPlugins: function() {
+		renderProvisionPlugins();
 	}
 
 };

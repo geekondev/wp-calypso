@@ -37,20 +37,44 @@ module.exports = {
 		},
 		defaultVariation: 'drake'
 	},
-	domainsAddButton: {
-		datestamp: '20160113',
+	freeTrials: {
+		datestamp: '20160120',
+		variations: {
+			notOffered: 90,
+			offered: 10
+		},
+		defaultVariation: 'notOffered'
+	},
+	monthlyPlanPricing: {
+		datestamp: '20160118',
+		variations: {
+			yearly: 50,
+			monthly: 50
+		},
+		defaultVariation: 'yearly'
+	},
+	plansUpgradeButton: {
+		datestamp: '20160129',
 		variations: {
 			original: 50,
 			button: 50
 		},
 		defaultVariation: 'original'
 	},
-	freeTrials: {
-		datestamp: '20160112',
+	checkoutMasterbar: {
+		datestamp: '20160126',
 		variations: {
-			notOffered: 90,
-			offered: 10
+			original: 50,
+			minimal: 50
 		},
-		defaultVariation: 'notOffered'
+		defaultVariation: 'original'
+	},
+	domainRegistrationCta: {
+		datestamp: '20160128',
+		variations: {
+			add: 50,
+			select: 50
+		},
+		defaultVariation: 'add'
 	},
 };

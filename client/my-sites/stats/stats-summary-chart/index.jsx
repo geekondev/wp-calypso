@@ -3,15 +3,16 @@
  */
 var React = require( 'react' ),
 	classNames = require( 'classnames' ),
-	isEqual = require( 'lodash/lang/isEqual' ),
-	debug = require( 'debug' )( 'calypso:stats:module-summary-chart' );
+	isEqual = require( 'lodash/lang/isEqual' );
 
 /**
  * Internal dependencies
  */
 var observe = require( 'lib/mixins/data-observe' ),
 	ElementChart = require( 'components/chart' ),
-	StatTab = require( '../stats-tabs/tab' ),
+	StatsTabs = require( '../stats-tabs' ),
+	StatsTab = require( '../stats-tabs/tab' ),
+	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
 	analytics = require( 'analytics' ),
 	Card = require( 'components/card' );
 
@@ -128,18 +129,18 @@ module.exports = React.createClass( {
 			attr: this.props.labelKey,
 			value: selectedBar ? this.state.selectedBar[ this.props.dataKey ] : null,
 			selected: true,
-			className: this.props.labelClass,
+			gridicon: this.props.labelClass,
 			label: this.props.tabLabel + label
 		};
 
-		tabs = <StatTab key="chart-tab" { ...tabOptions } />;
+		tabs = <StatsTab key="chart-tab" { ...tabOptions } />;
 
-		return ( <ul className="module-tabs is-expanded">{ tabs }</ul> );
+		return ( <StatsTabs>{ tabs }</StatsTabs> );
 	},
 
 	render: function() {
-		var classes;
-		debug( 'Rendering stats/post.jsx', this.props );
+		var classes,
+			isLoading = this.props.dataList.isLoading();
 
 		classes = [
 			'stats-module',
@@ -151,9 +152,9 @@ module.exports = React.createClass( {
 
 		return (
 			<Card className={ classNames.apply( null, classes ) }>
-				<div className="module-chart module-placeholder is-void is-chart"></div>
+				<StatsModulePlaceholder className="is-chart" isLoading={ isLoading } />
 				<ElementChart key="chart"
-					loading={ this.props.dataList.isLoading() }
+					loading={ isLoading }
 					data={ this.buildChartData() }
 					barClick={ this.barClick } />
 				{ this.chartTabs() }

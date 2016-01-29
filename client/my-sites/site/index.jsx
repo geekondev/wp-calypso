@@ -15,31 +15,11 @@ var SiteIcon = require( 'components/site-icon' ),
 module.exports = React.createClass( {
 	displayName: 'Site',
 
-	componentDidMount: function() {
-		if ( this.props.isSelected ) {
-			this.scrollIntoView();
-		}
-	},
-
-	componentDidUpdate: function( prevProps, prevState ) {
-		if ( this.props.isSelected && ! prevProps.isSelected ) {
-			this.scrollIntoView();
-		}
-	},
-
-	scrollIntoView: function() {
-		var node = this.refs.site,
-			parentScrollTop = node.offsetTop;
-		if ( node.previousSibling ) {
-			parentScrollTop -= node.previousSibling.offsetHeight / 2;
-		}
-		node.parentNode.scrollTop = parentScrollTop;
-	},
-
 	getDefaultProps: function() {
 		return {
 			// onSelect callback
 			onSelect: noop,
+			onClick: noop,
 			// mouse event callbacks
 			onMouseEnter: noop,
 			onMouseLeave: noop,
@@ -65,7 +45,8 @@ module.exports = React.createClass( {
 		onMouseEnter: React.PropTypes.func,
 		onMouseLeave: React.PropTypes.func,
 		isSelected: React.PropTypes.bool,
-		site: React.PropTypes.object.isRequired
+		site: React.PropTypes.object.isRequired,
+		onClick: React.PropTypes.func
 	},
 
 	onSelect: function( event ) {
@@ -74,7 +55,7 @@ module.exports = React.createClass( {
 		}
 
 		this.props.onSelect( event );
-		event.preventDefault();
+		event.preventDefault(); // this doesn't actually do anything...
 	},
 
 	render: function() {
@@ -87,7 +68,7 @@ module.exports = React.createClass( {
 		}
 
 		siteClass = classNames( {
-			'site': true,
+			site: true,
 			'is-jetpack': site.jetpack,
 			'is-primary': site.primary,
 			'is-private': site.is_private,
@@ -96,12 +77,13 @@ module.exports = React.createClass( {
 		} );
 
 		return (
-			<div className={ siteClass } ref="site">
+			<div className={ siteClass }>
 				<a className="site__content"
 					href={ this.props.homeLink ? site.URL : this.props.href }
 					target={ this.props.externalLink && '_blank' }
 					title={ this.props.homeLink ? this.translate( 'Visit "%(title)s"', { args: { title: site.title } } ) : site.title }
 					onTouchTap={ this.onSelect }
+					onClick={ this.props.onClick }
 					onMouseEnter={ this.props.onMouseEnter }
 					onMouseLeave={ this.props.onMouseLeave }
 					aria-label={ this.translate( 'Open site %(domain)s in new tab', { args: { domain: site.domain } } ) }
@@ -117,7 +99,7 @@ module.exports = React.createClass( {
 						</span>
 					}
 				</a>
-				{ this.props.indicator ? <SiteIndicator site={ site } /> : null }
+				{ this.props.indicator ? <SiteIndicator site={ site } onSelect={ this.props.onSelect } /> : null }
 			</div>
 		);
 	}

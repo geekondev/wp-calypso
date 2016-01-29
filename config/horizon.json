@@ -35,13 +35,13 @@
 		"manage/plugins": true,
 		"manage/plugins/cache": false,
 		"manage/plugins/browser": true,
+		"manage/plugins/setup": false,
 		"manage/customize": true,
 		"manage/menus": true,
 		"manage/menus-jetpack": true,
 		"manage/themes": true,
 		"manage/themes-jetpack": true,
 		"manage/themes/logged-out": true,
-		"premium-themes": true,
 		"press-this": true,
 		"manage/sharing": true,
 		"manage/plans": true,
@@ -60,6 +60,11 @@
 		"reader/recommendations": true,
 
 		"upgrades/checkout": true,
+		"upgrades/credit-cards": true,
+		"upgrades/in-app-purchase": false,
+		"upgrades/premium-themes": true,
+
+		"show-site-groups": true,
 
 		"notifications2beta": true,
 		"muse": true,
@@ -75,7 +80,6 @@
 		"me/security": true,
 		"me/notifications": true,
 		"me/next-steps": true,
-		"me/credit-cards": true,
 		"me/find-friends": false,
 		"me/trophies": false,
 		"help": true,
@@ -85,7 +89,8 @@
 		"settings/security/monitor": true,
 		"settings/security/scan": false,
 		"ad-tracking": false,
-		"perfmon": true
+		"perfmon": true,
+		"accept-invite": true
 	},
 	"siftscience_key": "a4f69f6759",
 	"wpcom_signup_id": "39911",

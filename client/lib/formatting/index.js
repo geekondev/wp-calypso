@@ -2,7 +2,8 @@
  * External Dependencies
  */
 var trim = require( 'lodash/string/trim' ),
-	warn = require( 'lib/warn' );
+	warn = require( 'lib/warn' ),
+	stripTags = require( 'striptags' );
 
 /**
  * Internal Dependencies
@@ -43,7 +44,7 @@ function interpose( separator, list ) {
  * @return {string}        The stripped string
  */
 function stripHTML( string ) {
-	return string.replace( /<\/?[^<>]*>/gi, '' );
+	return stripTags( string );
 }
 
 /**
@@ -67,6 +68,10 @@ function unicodeToString( character ) {
  */
 function preventWidows( text, wordsToKeep ) {
 	var words, endWords;
+
+	if ( typeof text !== 'string' ) {
+		return text;
+	}
 
 	text = text && trim( text );
 	if ( ! text ) {

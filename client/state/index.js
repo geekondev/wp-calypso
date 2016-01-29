@@ -7,20 +7,25 @@ import { createStore, applyMiddleware, combineReducers, compose } from 'redux';
 /**
  * Internal dependencies
  */
-import { analyticsMiddleware } from 'lib/themes/middlewares.js';
+import { analyticsMiddleware } from './themes/middlewares.js';
+import application from './application/reducer';
 import notices from './notices/reducer';
 import posts from './posts/reducer';
+import plugins from './plugins/reducer';
 import sharing from './sharing/reducer';
 import sites from './sites/reducer';
 import siteSettings from './site-settings/reducer'
-import themes from 'lib/themes/reducers';
+import themes from './themes/reducer';
 import users from './users/reducer';
+import currentUser from './current-user/reducer';
 import ui from './ui/reducer';
 
 /**
  * Module variables
  */
 const reducer = combineReducers( {
+	plugins,
+	application,
 	notices,
 	posts,
 	sharing,
@@ -28,6 +33,7 @@ const reducer = combineReducers( {
 	siteSettings,
 	themes,
 	users,
+	currentUser,
 	ui
 } );
 

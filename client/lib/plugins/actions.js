@@ -34,6 +34,10 @@ function getSolvedPromise( dataToPass ) {
 	return new Promise( resolve => resolve( dataToPass ) );
 }
 
+function getRejectedPromise( errorToPass ) {
+	return new Promise( ( resolve, reject ) => reject( errorToPass ) );
+}
+
 function queueSitePluginAction( action, siteId, pluginId, callback ) {
 	let next = function( nextCallback, error, data ) {
 		let nextAction;
@@ -137,10 +141,10 @@ PluginsActions = {
 					site: site
 				} );
 			} );
+
 			return;
 		}
 		const endpoint = site.jetpack ? wpcom.plugins : wpcom.wpcomPlugins;
-
 		endpoint.call( wpcom, site.ID, ( error, data ) => {
 			Dispatcher.handleServerAction( {
 				type: 'RECEIVE_PLUGINS',
@@ -191,8 +195,12 @@ PluginsActions = {
 	installPlugin: function( site, plugin ) {
 		var install, activate, autoupdate, dispatchMessage;
 
-		if ( ! site.canUpdateFiles || ! site.user_can_manage ) {
-			return;
+		if ( ! site.canUpdateFiles ) {
+			return getRejectedPromise( 'Error: Can\'t update files on the site' )
+		}
+
+		if ( ! site.user_can_manage ) {
+			return getRejectedPromise( 'Error: User can\'t manage the site' )
 		}
 
 		install = function() {

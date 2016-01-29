@@ -177,6 +177,7 @@ module.exports = React.createClass( {
 				buttonLabel={ this.translate( 'Customize' ) }
 				onNavigate={ this.onNavigate }
 				icon={ 'themes' }
+				preloadSectionName="themes"
 			/>
 		);
 	},
@@ -227,7 +228,11 @@ module.exports = React.createClass( {
 			return null;
 		}
 
-		if ( ! this.props.sites.canManageSelectedOrAll() ) {
+		if ( ! this.props.sites.canManageSelectedOrAll()  ) {
+			return null;
+		}
+
+		if ( ! this.props.sites.hasSiteWithPlugins() && ! this.isSingle() ) {
 			return null;
 		}
 
@@ -284,7 +289,7 @@ module.exports = React.createClass( {
 			return null;
 		}
 
-		if ( abtest( 'domainsAddButton' ) === 'button' ) {
+		if ( config.isEnabled( 'upgrades/domain-search' ) ) {
 			addDomainButton = <a onClick={ this.onNavigate } href={ addDomainLink } className="add-new">{ this.translate( 'Add' ) }</a>;
 		}
 
@@ -326,10 +331,18 @@ module.exports = React.createClass( {
 			linkClass += ' is-paid-plan';
 		}
 
-		let planName = site.plan.product_name_short;
+		let planName = site.plan.product_name_short,
+			labelClass = 'plan-name';
+
+		if ( abtest( 'plansUpgradeButton' ) === 'button' && productsValues.isFreePlan( site.plan ) ) {
+			labelClass = 'add-new';
+			planName = 'More'; // TODO: translate this string if the test is removed
+		}
 
 		if ( productsValues.isFreeTrial( site.plan ) ) {
-			planName = this.translate( 'Trial' );
+			planName = this.translate( 'Trial', {
+				context: 'Label in the sidebar indicating that the user is on the free trial for a plan.'
+			} );
 		}
 
 		return (
@@ -338,7 +351,7 @@ module.exports = React.createClass( {
 					<Gridicon icon="clipboard" size={ 24 } />
 					<span className="menu-link-text">{ this.translate( 'Plan', { context: 'noun' } ) }</span>
 				</a>
-				<a href={ planLink } className="plan-name" onClick={ this.trackUpgradeClick }>{ planName }</a>
+				<a href={ planLink } className={ labelClass } onClick={ this.trackUpgradeClick }>{ planName }</a>
 			</li>
 		);
 	},
@@ -386,7 +399,7 @@ module.exports = React.createClass( {
 	users: function() {
 		var site = this.getSelectedSite(),
 			usersLink = '/people/team' + this.siteSuffix(),
-			addPeopleLink = '/people' + this.siteSuffix() + '/new',
+			addPeopleLink = '/people/new' + this.siteSuffix(),
 			addPeopleTarget = '_self',
 			addPeopleButton;
 
@@ -406,10 +419,10 @@ module.exports = React.createClass( {
 			usersLink = site.options.admin_url + 'users.php';
 		}
 
-		if ( ! config.isEnabled( 'manage/add-people' ) && site.options ) {
-			addPeopleLink = ( site.jetpack ) ?
-				site.options.admin_url + 'user-new.php' :
-				site.options.admin_url + 'users.php?page=wpcom-invite-users';
+		if ( site.options && ( ! config.isEnabled( 'manage/add-people' ) || site.jetpack ) ) {
+			addPeopleLink = ( site.jetpack )
+				? site.options.admin_url + 'user-new.php'
+				: site.options.admin_url + 'users.php?page=wpcom-invite-users';
 			addPeopleTarget = '_blank';
 		}
 

@@ -57,6 +57,7 @@
 		"manage/plugins/browser": true,
 		"manage/plugins/compatibility-warning": false,
 		"manage/plugins/cache": false,
+		"manage/plugins/setup": true,
 
 		"manage/export": true,
 		"manage/security": true,
@@ -79,13 +80,13 @@
 		"manage/themes": true,
 		"manage/themes-jetpack": true,
 		"manage/themes/logged-out": true,
-		"premium-themes": true,
 		"press-this": true,
 
 		"manage/plans": true,
 		"manage/jetpack-plans": true,
 
 		"upgrades/checkout": true,
+		"upgrades/credit-cards": true,
 		"upgrades/domain-management/contacts-privacy": true,
 		"upgrades/domain-management/email": true,
 		"upgrades/domain-management/list": true,
@@ -93,6 +94,8 @@
 		"upgrades/domain-management/site-redirect": true,
 		"upgrades/domain-management/transfer": true,
 		"upgrades/domain-search": true,
+		"upgrades/in-app-purchase": false,
+		"upgrades/premium-themes": true,
 
 		"manage/customize": true,
 
@@ -117,11 +120,13 @@
 		"me/security/checkup": true,
 		"me/notifications": true,
 		"me/next-steps": true,
-		"me/credit-cards": true,
 		"me/find-friends": false,
 		"me/trophies": false,
 
 		"help": true,
+		"support-user": true,
+
+		"show-site-groups": true,
 
 		"notifications2beta": true,
 		"muse": true,
@@ -137,6 +142,7 @@
 		"settings/security/monitor": true,
 		"settings/security/scan": true,
 		"ad-tracking": false,
+		"desktop-promo": true,
 
 		"accept-invite": true,
 		"perfmon": false,

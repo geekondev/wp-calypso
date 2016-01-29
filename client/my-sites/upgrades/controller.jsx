@@ -12,7 +12,7 @@ var analytics = require( 'analytics' ),
 	sites = require( 'lib/sites-list' )(),
 	route = require( 'lib/route' ),
 	i18n = require( 'lib/mixins/i18n' ),
-	activated = require( 'lib/themes/actions' ).activated,
+	activated = require( 'state/themes/actions' ).activated,
 	Main = require( 'components/main' ),
 	upgradesActions = require( 'lib/upgrades/actions' ),
 	titleActions = require( 'lib/screen-title/actions' ),
@@ -172,11 +172,15 @@ module.exports = {
 
 		analytics.pageView.record( basePath, 'Checkout' );
 
+		context.store.dispatch( setSection( 'checkout' ) );
+
 		titleActions.setTitle( i18n.translate( 'Checkout' ), {
 			siteID: context.params.domain
 		} );
 
-		ReactDom.render(
+		context.store.dispatch( setSection( null, { hasSidebar: true } ) );
+
+		renderWithReduxStore(
 			(
 				<CheckoutData>
 					<Checkout
@@ -187,7 +191,8 @@ module.exports = {
 						sites={ sites } />
 				</CheckoutData>
 			),
-			document.getElementById( 'primary' )
+			document.getElementById( 'primary' ),
+			context.store
 		);
 
 		ReactDom.render(
@@ -206,7 +211,7 @@ module.exports = {
 			basePath = route.sectionify( context.path );
 
 		analytics.pageView.record( basePath, 'Checkout Thank You' );
-		context.store.dispatch( setSection( null, { hasSidebar: false } ) );
+		context.store.dispatch( setSection( 'checkout-thank-you', { hasSidebar: false } ) );
 
 		if ( ! lastTransaction ) {
 			page.redirect( '/plans' );

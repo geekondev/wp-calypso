@@ -279,7 +279,8 @@ export default React.createClass( {
 		if ( ! messages ) {
 			return;
 		}
-		let link = config( 'login_url' ) + '?redirect_to=' + this.props.getRedirectToAfterLoginUrl();
+
+		let link = config( 'login_url' ) + '?redirect_to=' + this.props.getRedirectToAfterLoginUrl;
 		return map( messages, ( message, error_code ) => {
 			if ( error_code === 'taken' ) {
 				link += '&email_address=' + encodeURIComponent( formState.getFieldValue( this.state.form, fieldName ) );
@@ -310,15 +311,16 @@ export default React.createClass( {
 						autoCapitalize="off"
 						autoCorrect="off"
 						className="signup-form__input"
-						disabled={ this.state.submitting || this.props.disabled }
+						disabled={ this.state.submitting || !! this.props.disabled || !! this.props.disableEmailInput }
 						id="email"
 						name="email"
 						type="email"
 						value={ formState.getFieldValue( this.state.form, 'email' ) }
 						isError={ formState.isFieldInvalid( this.state.form, 'email' ) }
-						isValid={ this.state.validationInitialized && formState.isFieldValid( this.state.form, 'email' ) }
+						isValid={ ! this.props.disableEmailInput && this.state.validationInitialized && formState.isFieldValid( this.state.form, 'email' ) }
 						onBlur={ this.handleBlur }
 						onChange={ this.handleChangeEvent } />
+					{ this.emailDisableExplanation() }
 				</ValidationFieldset>
 
 				<ValidationFieldset errorMessages={ this.getErrorMessagesWithLogin( 'username' ) }>
@@ -373,7 +375,7 @@ export default React.createClass( {
 
 	termsOfServiceLink() {
 		return (
-			<p className='signup-form__terms-of-service-link'>{
+			<p className="signup-form__terms-of-service-link">{
 				this.translate(
 					'By creating an account you agree to our {{a}}fascinating Terms of Service{{/a}}.',
 					{
@@ -397,6 +399,14 @@ export default React.createClass( {
 			return this.globalNotice( this.state.notice );
 		}
 		return false;
+	},
+
+	emailDisableExplanation() {
+		if ( this.props.disableEmailInput && this.props.disableEmailExplanation ) {
+			return (
+				<FormSettingExplanation noValidate={ true }>{ this.props.disableEmailExplanation }</FormSettingExplanation>
+			);
+		}
 	},
 
 	formFooter() {

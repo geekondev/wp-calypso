@@ -11,6 +11,7 @@ import React from 'react';
 import analytics from 'analytics';
 import camelCase from 'lodash/string/camelCase';
 import Card from 'components/card';
+import { clearPurchases } from 'lib/upgrades/actions/purchases';
 import CompactCard from 'components/card/compact';
 import { createPaygateToken } from 'lib/store-transactions';
 import CreditCardForm from 'components/upgrades/credit-card-form';
@@ -165,6 +166,8 @@ const EditCardDetails = React.createClass( {
 					persistent: true
 				} );
 
+				clearPurchases();
+
 				const { id } = getPurchase( this.props );
 
 				page( paths.managePurchase( this.props.selectedSite.slug, id ) );
@@ -235,7 +238,7 @@ const EditCardDetails = React.createClass( {
 						<em>{ this.translate( 'All fields required' ) }</em>
 
 						<FormButton type="submit">
-							{ this.translate( 'Update Card', { context: 'Button label', comment: 'Credit card' } ) }
+							{ this.translate( 'Save Card', { context: 'Button label', comment: 'Credit card' } ) }
 						</FormButton>
 					</CompactCard>
 				</form>

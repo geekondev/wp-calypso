@@ -9,7 +9,9 @@ var React = require( 'react' ),
  * Internal dependencies
  */
 var StatsList = require( '../stats-list' ),
-	SelectDropdown = require( 'components/select-dropdown' ),
+	StatsListLegend = require( '../stats-list/legend' ),
+	StatsModuleSelectDropdown = require( '../stats-module/select-dropdown' ),
+	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
 	toggle = require( '../mixin-toggle' ),
 	skeleton = require( '../mixin-skeleton' ),
 	ErrorPanel = require( '../stats-error' ),
@@ -55,11 +57,7 @@ module.exports = React.createClass( {
 			];
 
 		if ( 'comment' !== this.props.followType ) {
-			selectFilter = (
-				<div className="select-dropdown__wrapper">
-					<SelectDropdown options={ options } onSelect={ this.props.changeFilter } />
-				</div>
-			);
+			selectFilter = <StatsModuleSelectDropdown options={ options } onSelect={ this.props.changeFilter } />;
 		}
 
 		return selectFilter;
@@ -75,6 +73,7 @@ module.exports = React.createClass( {
 		var data = this.data(),
 			hasError = this.props.followersList.isError(),
 			noData = this.props.followersList.isEmpty( 'subscribers' ),
+			isLoading = this.props.followersList.isLoading(),
 			followers,
 			moduleHeaderTitle,
 			labelLegend,
@@ -95,7 +94,7 @@ module.exports = React.createClass( {
 			'summary',
 			'is-followers-page',
 			{
-				'is-loading': this.props.followersList.isLoading(),
+				'is-loading': isLoading,
 				'is-showing-info': this.state.showInfo,
 				'has-no-data': noData,
 				'is-showing-error': hasError || noData
@@ -207,22 +206,13 @@ module.exports = React.createClass( {
 
 						{ pagination }
 
-						<div className="stats-async-metabox-wrapper">
-							<ul className="module-content-list module-content-list-legend">
-								<li className="module-content-list-item">
-									<span className="module-content-list-item-wrapper">
-										<span className="module-content-list-item-right">
-											<span className="module-content-list-item-value">{ valueLegend }</span>
-										</span>
-										<span className="module-content-list-item-label">{ labelLegend }</span>
-									</span>
-								</li>
-							</ul>
-							{ followers }
-							{ hasError ? <ErrorPanel className={ 'network-error' } /> : null }
-						</div>
+						<StatsListLegend value={ valueLegend } label={ labelLegend } />
 
-						<div className="module-placeholder is-void"></div>
+						{ followers }
+						
+						{ hasError ? <ErrorPanel className={ 'network-error' } /> : null }
+						
+						<StatsModulePlaceholder isLoading={ isLoading } />
 
 						{ pagination }
 

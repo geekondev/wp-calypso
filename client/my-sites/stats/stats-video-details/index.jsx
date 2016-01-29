@@ -2,16 +2,16 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	classNames = require( 'classnames' ),
-	debug = require( 'debug' )( 'calypso:stats:module-video-details' );
+	classNames = require( 'classnames' );
 
 /**
  * Internal dependencies
  */
 var StatsList = require( '../stats-list' ),
+	StatsListLegend = require( '../stats-list/legend' ),
+	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
 	skeleton = require( '../mixin-skeleton' ),
 	Card = require( 'components/card' );
-
 
 module.exports = React.createClass( {
 	displayName: 'StatModuleVideoDetails',
@@ -25,9 +25,8 @@ module.exports = React.createClass( {
 	},
 
 	render: function() {
-		debug( 'Rendering video details' );
-
-		var classes;
+		var classes,
+			isLoading = this.props.summaryList.isLoading();
 
 		classes = [
 			'stats-module',
@@ -35,7 +34,7 @@ module.exports = React.createClass( {
 			'summary',
 			'is-video-details',
 			{
-				'is-loading': this.props.summaryList.isLoading(),
+				'is-loading': isLoading,
 				'is-showing-info': this.state.showInfo,
 				'has-no-data': this.props.summaryList.isEmpty()
 			}
@@ -48,17 +47,9 @@ module.exports = React.createClass( {
 						<h4 className="module-header-title">{ this.translate( 'Video Embeds' ) }</h4>
 					</div>
 					<div className="module-content">
-						<div className="stats-async-metabox-wrapper">
-							<ul className="module-content-list module-content-list-legend">
-								<li className="module-content-list-item">
-									<span className="module-content-list-item-wrapper">
-										<span className="module-content-list-item-label">{ this.translate( 'Page' ) }</span>
-									</span>
-								</li>
-							</ul>
-							<div className="module-placeholder is-void"></div>
-							<StatsList moduleName='Video Details' data={ this.props.summaryList.response.pages ? this.props.summaryList.response.pages : [] } />
-						</div>
+						<StatsListLegend label={ this.translate( 'Page' ) } />
+						<StatsModulePlaceholder isLoading={ isLoading } />
+						<StatsList moduleName="Video Details" data={ this.props.summaryList.response.pages ? this.props.summaryList.response.pages : [] } />
 					</div>
 				</div>
 			</Card>

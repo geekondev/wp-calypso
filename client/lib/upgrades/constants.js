@@ -2,7 +2,7 @@ const keyMirror = require( 'key-mirror' );
 
 module.exports.action = keyMirror( {
 	CART_COUPON_APPLY: null,
-	CART_ITEM_ADD: null,
+	CART_ITEMS_ADD: null,
 	CART_ITEM_REMOVE: null,
 	CART_POPUP_CLOSE: null,
 	CART_POPUP_OPEN: null,
@@ -39,6 +39,10 @@ module.exports.action = keyMirror( {
 	PRIVACY_PROTECTION_CANCEL_COMPLETED: null,
 	PRIVACY_PROTECTION_CANCEL_FAILED: null,
 	PRIVACY_PROTECTION_ENABLE_COMPLETED: null,
+	PURCHASE_REMOVE: null,
+	PURCHASE_REMOVE_COMPLETED: null,
+	PURCHASE_REMOVE_FAILED: null,
+	PURCHASES_REMOVE: null,
 	PURCHASES_SITE_FETCH: null,
 	PURCHASES_SITE_FETCH_COMPLETED: null,
 	PURCHASES_SITE_FETCH_FAILED: null,

@@ -29,13 +29,12 @@ var Card = require( 'components/card' ),
 	PostErrors = require( 'reader/post-errors' ),
 	PostExcerpt = require( 'components/post-excerpt' ),
 	Site = require( 'my-sites/site' ),
-	SiteLink = require( 'reader/site-link' ),
 	SiteStore = require( 'lib/reader-site-store' ),
 	SiteStoreActions = require( 'lib/reader-site-store/actions' ),
 	Share = require( 'reader/share' ),
+	ShareHelper = require( 'reader/share/helper' ),
 	utils = require( 'reader/utils' ),
 	PostCommentHelper = require( 'reader/comments/helper' ),
-	FollowingEditHelper = require( 'reader/following-edit/helper' ),
 	LikeHelper = require( 'reader/like-helper' ),
 	readerRoute = require( 'reader/route' ),
 	stats = require( 'reader/stats' ),
@@ -46,7 +45,8 @@ var Card = require( 'components/card' ),
 	DiscoverHelper = require( 'reader/discover/helper' ),
 	FeedPostStore = require( 'lib/feed-post-store' ),
 	FollowButton = require( 'reader/follow-button' ),
-	Gridicon = require( 'components/gridicon' );
+	Gridicon = require( 'components/gridicon' ),
+	smartSetState = require( 'lib/react-smart-set-state' );
 
 var Post = React.createClass( {
 
@@ -61,6 +61,8 @@ var Post = React.createClass( {
 		additionalClasses: React.PropTypes.object,
 		handleClick: React.PropTypes.func.isRequired
 	},
+
+	smartSetState: smartSetState,
 
 	getMaxFeaturedWidthSize: function() {
 		return ReactDom.findDOMNode( this ).offsetWidth;
@@ -114,6 +116,7 @@ var Post = React.createClass( {
 
 		return {
 			site: site,
+			siteish: utils.siteishFromSiteAndPost( site, post ),
 			originalPost: originalPost,
 			isDiscoverPost: isDiscoverPost,
 			isDiscoverSitePick: isDiscoverSitePick
@@ -140,7 +143,7 @@ var Post = React.createClass( {
 	updateState: function( props ) {
 		var newState = this.getStateFromStores( props );
 		if ( newState.site !== this.state.site ) {
-			this.setState( newState );
+			this.smartSetState( newState );
 		}
 	},
 
@@ -187,7 +190,7 @@ var Post = React.createClass( {
 		}
 
 		return useFeaturedEmbed ?
-			<div ref="featuredEmbed" className="reader__post-featured-video" key="featuredVideo" dangerouslySetInnerHTML={ { __html: featuredEmbed.iframe } } /> :
+			<div ref="featuredEmbed" className="reader__post-featured-video" key="featuredVideo" dangerouslySetInnerHTML={ { __html: featuredEmbed.iframe } } /> : //eslint-disable-line react/no-danger
 			<div className="reader__post-featured-image" onClick={ this.handlePermalinkClick }>
 				{ featuredSize ?
 					<img className="reader__post-featured-image-image"
@@ -221,13 +224,18 @@ var Post = React.createClass( {
 		classes( headerNode ).toggle( 'is-long', this.shouldApplyIsLong() );
 	},
 
+	propagateCardClick: function( options = {} ) {
+		let postToOpen = this.props.post;
+		// For Discover posts (but not site picks), open the original post in full post view
+		if ( this.state.originalPost ) {
+			postToOpen = this.state.originalPost;
+		}
+
+		this.props.handleClick( postToOpen, options );
+	},
+
 	handleCardClick: function( event ) {
-		var rootNode = ReactDom.findDOMNode( this ),
-			post = this.props.post,
-			isDiscoverPost = this.state.isDiscoverPost,
-			postUrl = isDiscoverPost ? post.discover_metadata.permalink : post.URL,
-			postToOpen = post,
-			postOptions = {};
+		var rootNode = ReactDom.findDOMNode( this );
 
 		// if the click has modifier or was not primary, ignore it
 		if ( event.button > 0 || event.metaKey || event.controlKey || event.shiftKey || event.altKey ) {
@@ -254,26 +262,17 @@ var Post = React.createClass( {
 			return;
 		}
 
-		// For Discover posts (but not site picks), open the original post in full post view
-		if ( this.state.originalPost ) {
-			postToOpen = this.state.originalPost;
-		}
-
-		// if the user clicked the comments button.
-		if ( closest( event.target, '.comment-button', true, rootNode ) ) {
-			postOptions[ 'comments' ] = true;
-		}
-
 		// programattic ignore
 		if ( ! event.defaultPrevented ) { // some child handled it
 			event.preventDefault();
-			this.props.handleClick( postToOpen, postOptions );
+			this.propagateCardClick();
 		}
 	},
 
-	recordCommentButtonClick: function() {
+	handleCommentButtonClick: function() {
 		stats.recordAction( 'click_comments' );
 		stats.recordGaEvent( 'Clicked Post Comment Button' );
+		this.propagateCardClick( { comments: true } );
 	},
 
 	recordTagClick: function() {
@@ -286,21 +285,28 @@ var Post = React.createClass( {
 	},
 
 	pickSite: function( event ) {
-		if ( event.button > 0 || event.metaKey || event.controlKey || event.shiftKey || event.altKey ) {
+		// ugh, double negative. If we should let the site click go, bail.
+		if ( utils.isSpecialClick( event ) ) {
 			return;
 		}
 
 		const url = readerRoute.getStreamUrlFromPost( this.props.post );
 		page.show( url );
-		event.preventDefault();
+	},
+
+	handleSiteClick: function( event ) {
+		if ( ! utils.isSpecialClick( event ) ) {
+			event.preventDefault();
+		}
 	},
 
 	render: function() {
 		var post = this.props.post,
-			site = this.state.site && this.state.site.toJS(),
+			site = this.state.siteish,
 			featuredImage = this.featuredImageComponent( post ),
 			shouldShowComments = PostCommentHelper.shouldShowComments( post ),
 			shouldShowLikes = LikeHelper.shouldShowLikes( post ),
+			shouldShowShare = ShareHelper.shouldShowShare( post ),
 			hasFeaturedImage = featuredImage !== null,
 			articleClasses = assign( {
 				reader__card: true,
@@ -315,12 +321,6 @@ var Post = React.createClass( {
 			shouldShowExcerptOnly = !! post.use_excerpt,
 			shouldUseFullExcerpt = ! shouldShowExcerptOnly && ( post.display_type & DISPLAY_TYPES.ONE_LINER ),
 			siteName = utils.siteNameFromSiteAndPost( this.state.site, post ),
-			siteTitleClasses = {
-				'ignore-click': true,
-				'should-scroll': true
-			},
-			siteNameClasses = classnames( { 'reader__site-name': true } ),
-			siteLink,
 			isDiscoverPost = this.state.isDiscoverPost,
 			isDiscoverSitePick = this.state.isDiscoverSitePick,
 			discoverSiteUrl,
@@ -329,19 +329,6 @@ var Post = React.createClass( {
 			likePostId = ( originalPost ? originalPost.ID : post.ID ),
 			commentCount = ( originalPost ? originalPost.discussion.comment_count : post.discussion.comment_count ),
 			xPostedToContent = null;
-
-		if ( ! site ) {
-			site = {
-				title: siteName,
-				domain: FollowingEditHelper.formatUrlForDisplay( post.site_URL )
-			}
-		}
-
-		siteTitleClasses = classnames( siteTitleClasses );
-
-		siteLink = this.props.suppressSiteNameLink ?
-			siteName :
-			( <SiteLink className={ siteTitleClasses } post={ post }>{ siteName }</SiteLink> );
 
 		forOwn( DISPLAY_TYPES, function( value, key ) {
 			if ( post.display_type && ( post.display_type & value ) ) { // bitwise intentional
@@ -356,6 +343,18 @@ var Post = React.createClass( {
 		if ( this.props.isSelected ) {
 			articleClasses[ 'is-selected' ] = true;
 		}
+
+		if ( post.site_ID ) {
+			articleClasses[ 'blog-' + post.site_ID ] = true;
+		}
+
+		if ( post.feed_ID ) {
+			articleClasses[ 'feed-' + post.feed_ID ] = true;
+		}
+
+		forOwn( post.tags, ( { slug } ) => {
+			articleClasses[ 'tag-' + slug ] = true;
+		} );
 
 		articleClasses = classnames( articleClasses );
 
@@ -384,7 +383,10 @@ var Post = React.createClass( {
 
 				<div className="reader__post-header">
 					{ this.props.showFollowInHeader ? <FollowButton siteUrl={ post.site_URL } /> : null }
-					<Site site={ site } href={ post.site_URL } onSelect={ this.pickSite } />
+					<Site site={ site }
+						href={ post.site_URL }
+						onSelect={ this.pickSite }
+						onClick={ this.handleSiteClick } />
 				</div>
 
 				{ featuredImage }
@@ -394,7 +396,7 @@ var Post = React.createClass( {
 				<PostByline post={ post } site={ this.props.site } />
 
 				{ shouldUseFullExcerpt ?
-					<div key="full-post-inline" className="reader__full-post-content" dangerouslySetInnerHTML={{ __html: post.content }} ></div> :
+					<div key="full-post-inline" className="reader__full-post-content" dangerouslySetInnerHTML={{ __html: post.content }} ></div> : //eslint-disable-line react/no-danger
 					<PostExcerpt text={ post.excerpt } />
 				}
 
@@ -417,9 +419,9 @@ var Post = React.createClass( {
 				}
 
 				<ul className="reader__post-footer">
-					<Share post={ post } />
 					<PostPermalink siteName={ siteName } postUrl={ post.URL } />
-					{ ( shouldShowComments ) ? <CommentButton onClick={ this.recordCommentButtonClick } commentCount={ commentCount } /> : null }
+					{ ( shouldShowShare ) ? <Share post={ post } /> : null }
+					{ ( shouldShowComments ) ? <CommentButton onClick={ this.handleCommentButtonClick } commentCount={ commentCount } /> : null }
 					{ ( shouldShowLikes ) ? <LikeButton siteId={ likeSiteId } postId={ likePostId } /> : null }
 					<li className="reader__post-options"><PostOptions post={ post } site={ this.state.site } /></li>
 				</ul>

@@ -3,8 +3,7 @@
  */
 import {
 	SELECTED_SITE_SET,
-	SET_SECTION,
-	CURRENT_USER_ID_SET
+	SET_SECTION
 } from 'state/action-types';
 
 /**
@@ -22,16 +21,15 @@ export function setSelectedSiteId( siteId ) {
 }
 
 /**
- * Returns an action object to be used in signalling that the current user ID
- * has been set.
+ * Returns an action object to be used in signalling that all sites have been
+ * set as selected.
  *
- * @param  {Number} userId User ID
  * @return {Object}        Action object
  */
-export function setCurrentUserId( userId ) {
+export function setAllSitesSelected() {
 	return {
-		type: CURRENT_USER_ID_SET,
-		userId
+		type: SELECTED_SITE_SET,
+		siteId: null
 	};
 }
 

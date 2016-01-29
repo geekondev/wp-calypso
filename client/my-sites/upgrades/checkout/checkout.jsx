@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-var Dispatcher = require( 'dispatcher' ),
+var connect = require( 'react-redux' ).connect,
+	Dispatcher = require( 'dispatcher' ),
 	isEmpty = require( 'lodash/lang/isEmpty' ),
 	isEqual = require( 'lodash/lang/isEqual' ),
 	page = require( 'page' ),
@@ -12,17 +13,17 @@ var Dispatcher = require( 'dispatcher' ),
  */
 var analytics = require( 'analytics' ),
 	cartItems = require( 'lib/cart-values' ).cartItems,
+	clearPurchases = require( 'lib/upgrades/actions/purchases' ).clearPurchases,
 	DomainDetailsForm = require( './domain-details-form' ),
 	hasDomainDetails = require( 'lib/store-transactions' ).hasDomainDetails,
 	observe = require( 'lib/mixins/data-observe' ),
-	planActions = require( 'state/sites/plans/actions' ),
+	clearSitePlans = require( 'state/sites/plans/actions' ).clearSitePlans,
 	purchasePaths = require( 'me/purchases/paths' ),
 	SecurePaymentForm = require( './secure-payment-form' ),
+	getExitCheckoutUrl = require( 'lib/checkout' ).getExitCheckoutUrl,
 	upgradesActions = require( 'lib/upgrades/actions' );
 
-module.exports = React.createClass( {
-	displayName: 'Checkout',
-
+const Checkout = React.createClass( {
 	mixins: [ observe( 'sites', 'cards', 'productsList' ) ],
 
 	getInitialState: function() {
@@ -109,22 +110,7 @@ module.exports = React.createClass( {
 		}
 
 		if ( this.state.previousCart ) {
-			if ( cartItems.hasDomainRegistration( this.state.previousCart ) ) {
-				redirectTo = '/domains/add/';
-			} else if ( cartItems.hasDomainMapping( this.state.previousCart ) ) {
-				redirectTo = '/domains/add/mapping/';
-			} else if ( cartItems.hasProduct( this.state.previousCart, 'offsite_redirect' ) ) {
-				redirectTo = '/domains/add/site-redirect/';
-			} else if ( cartItems.hasProduct( this.state.previousCart, 'premium_theme' ) ) {
-				redirectTo = '/design/';
-			}
-			redirectTo = redirectTo + this.props.sites.getSelectedSite().slug;
-
-			if ( cartItems.hasRenewalItem( this.state.previousCart ) ) {
-				renewalItem = cartItems.getRenewalItems( this.state.previousCart )[ 0 ];
-
-				redirectTo = purchasePaths.managePurchase( renewalItem.extra.purchaseDomain, renewalItem.extra.purchaseId );
-			}
+			redirectTo = getExitCheckoutUrl( this.state.previousCart, this.props.sites.getSelectedSite().slug );
 		}
 
 		page.redirect( redirectTo );
@@ -136,15 +122,13 @@ module.exports = React.createClass( {
 		var renewalItem;
 
 		if ( cartItems.hasRenewalItem( this.props.cart ) ) {
+			clearPurchases();
+
 			renewalItem = cartItems.getRenewalItems( this.props.cart )[ 0 ];
 
 			return purchasePaths.managePurchaseDestination( renewalItem.extra.purchaseDomain, renewalItem.extra.purchaseId, 'thank-you' );
 		} else if ( cartItems.hasFreeTrial( this.props.cart ) ) {
-			planActions.clearSitePlans();
-
-			Dispatcher.handleServerAction( {
-				type: 'FETCH_SITES'
-			} );
+			this.props.clearSitePlans( this.props.sites.getSelectedSite().ID );
 
 			return `/plans/${ this.props.sites.getSelectedSite().slug }/thank-you`;
 		}
@@ -208,3 +192,14 @@ module.exports = React.createClass( {
 		);
 	}
 } );
+
+module.exports = connect(
+	undefined,
+	function( dispatch ) {
+		return {
+			clearSitePlans: function( siteId ) {
+				dispatch( clearSitePlans( siteId ) );
+			}
+		};
+	}
+)( Checkout );

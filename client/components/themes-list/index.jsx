@@ -11,7 +11,7 @@ var React = require( 'react' ),
 var Theme = require( 'components/theme' ),
 	EmptyContent = require( 'components/empty-content' ),
 	InfiniteScroll = require( 'lib/mixins/infinite-scroll' ),
-	PER_PAGE = require( 'lib/themes/constants' ).PER_PAGE;
+	PER_PAGE = require( 'state/themes/themes-list/constants' ).PER_PAGE;
 
 /**
  * Component
@@ -28,6 +28,7 @@ var ThemesList = React.createClass( {
 		getButtonOptions: React.PropTypes.func,
 		onScreenshotClick: React.PropTypes.func.isRequired,
 		onMoreButtonClick: React.PropTypes.func,
+		getActionLabel: React.PropTypes.func
 	},
 
 	fetchNextPage: function( options ) {
@@ -42,6 +43,9 @@ var ThemesList = React.createClass( {
 			optionsGenerator: function() {
 				return [];
 			},
+			getActionLabel: function() {
+				return '';
+			}
 		};
 	},
 
@@ -57,13 +61,14 @@ var ThemesList = React.createClass( {
 			screenshotClickUrl={ this.props.getScreenshotUrl && this.props.getScreenshotUrl( theme ) }
 			onScreenshotClick={ this.props.onScreenshotClick }
 			onMoreButtonClick={ this.props.onMoreButtonClick }
+			actionLabel={ this.props.getActionLabel( theme ) }
 			index={ index }
-			{ ...theme } />;
+			theme={ theme } />;
 	},
 
 	renderLoadingPlaceholders: function() {
 		return times( PER_PAGE, function( i ) {
-			return <Theme key={ 'placeholder-' + i } id={ 'placeholder-' + i } name="Loading…" isPlaceholder={ true } />;
+			return <Theme key={ 'placeholder-' + i } theme={ { id: 'placeholder-' + i, name: 'Loading…' } } isPlaceholder={ true } />;
 		} );
 	},
 
@@ -88,17 +93,11 @@ var ThemesList = React.createClass( {
 			return this.renderEmpty();
 		}
 
-		let themes = this.props.themes.map( this.renderTheme );
-
-		if ( this.props.loading ) {
-			themes.push( this.renderLoadingPlaceholders() );
-		}
-
-		themes.push( this.renderTrailingItems() );
-
 		return (
 			<div className="themes-list">
-				{ themes }
+				{ this.props.themes.map( this.renderTheme ) }
+				{ this.props.loading && this.renderLoadingPlaceholders() }
+				{ this.renderTrailingItems() }
 			</div>
 		);
 	}
