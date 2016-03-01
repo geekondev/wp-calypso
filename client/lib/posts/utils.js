@@ -49,6 +49,12 @@ var utils = {
 			if ( site.options.is_mapped_domain ) {
 				previewUrl = previewUrl.replace( site.URL, site.options.unmapped_url );
 			}
+			if ( site.options && site.options.frame_nonce ) {
+				parsed = url.parse( previewUrl, true );
+				parsed.query['frame-nonce'] = site.options.frame_nonce;
+				delete parsed.search;
+				previewUrl = url.format( parsed );
+			}
 		}
 
 		return previewUrl;
@@ -117,8 +123,8 @@ var utils = {
 			[
 				postNormalizer.decodeEntities,
 				postNormalizer.stripHTML,
-				postNormalizer.firstPassCanonicalImage,
 				postNormalizer.safeImageProperties( imageWidth ),
+				postNormalizer.firstPassCanonicalImage,
 				postNormalizer.withContentDOM( [
 					postNormalizer.content.removeStyles,
 					postNormalizer.content.safeContentImages( imageWidth )
@@ -148,7 +154,6 @@ var utils = {
 		postNormalizer(
 			post,
 			[
-				postNormalizer.waitForImagesToLoad,
 				postNormalizer.keepValidImages( 72, 72 )
 			],
 			callback

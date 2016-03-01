@@ -2,7 +2,7 @@
  * External dependencies
  */
 var expect = require( 'chai' ).expect,
-	pluck = require( 'lodash/collection/pluck' );
+	map = require( 'lodash/map' );
 
 /**
  * Internal dependencies
@@ -46,7 +46,7 @@ describe( 'MediaUtils', function() {
 				photon: true
 			} );
 
-			expect( url ).to.equal( 'https://i2.wp.com/secure.gravatar.com/blavatar/4e21d703d81809d215ceaabbf07efbc6' );
+			expect( url ).to.equal( 'https://i2.wp.com/secure.gravatar.com/blavatar/4e21d703d81809d215ceaabbf07efbc6?ssl=1' );
 		} );
 
 		it( 'should generate the correct width-constrained photon URL', function() {
@@ -55,7 +55,7 @@ describe( 'MediaUtils', function() {
 				maxWidth: 450
 			} );
 
-			expect( url ).to.equal( 'https://i2.wp.com/secure.gravatar.com/blavatar/4e21d703d81809d215ceaabbf07efbc6?w=450' );
+			expect( url ).to.equal( 'https://i2.wp.com/secure.gravatar.com/blavatar/4e21d703d81809d215ceaabbf07efbc6?ssl=1&w=450' );
 		} );
 
 		it( 'should generate the correct width-constrained URL', function() {
@@ -164,7 +164,7 @@ describe( 'MediaUtils', function() {
 		} );
 
 		it( 'should return a new array array, sorted descending by date', function() {
-			expect( pluck( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
+			expect( map( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
 		} );
 
 		it( 'should return the item with the the greater ID if the dates are not set', function() {
@@ -173,7 +173,7 @@ describe( 'MediaUtils', function() {
 				return item;
 			} );
 
-			expect( pluck( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
+			expect( map( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
 		} );
 
 		it( 'should return the item with the the greater ID if the dates are equal', function() {
@@ -182,7 +182,7 @@ describe( 'MediaUtils', function() {
 				return item;
 			} );
 
-			expect( pluck( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
+			expect( map( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
 		} );
 
 		it( 'should parse dates in string format', function() {
@@ -191,12 +191,12 @@ describe( 'MediaUtils', function() {
 				return item;
 			} );
 
-			expect( pluck( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
+			expect( map( MediaUtils.sortItemsByDate( items ), 'ID' ) ).to.eql( [ 2, 1 ] );
 		} );
 
 		it( 'should not mutate the original array', function() {
 			MediaUtils.sortItemsByDate( items );
-			expect( pluck( items, 'ID' ) ).to.eql( [ 1, 2 ] );
+			expect( map( items, 'ID' ) ).to.eql( [ 1, 2 ] );
 		} );
 	} );
 
@@ -458,6 +458,54 @@ describe( 'MediaUtils', function() {
 			} );
 
 			expect( value ).to.equal( '[gallery ids="100,200" type="rectangular"]' );
+		} );
+	} );
+
+	describe( '#canUserDeleteItem()', () => {
+		const item = { author_ID: 73705554 };
+
+		it( 'should return false if the user ID matches the item author but user cannot delete posts', () => {
+			const user = { ID: 73705554 };
+			const site = {
+				capabilities: {
+					delete_posts: false
+				}
+			};
+
+			expect( MediaUtils.canUserDeleteItem( item, user, site ) ).to.be.false;
+		} );
+
+		it( 'should return true if the user ID matches the item author and user can delete posts', () => {
+			const user = { ID: 73705554 };
+			const site = {
+				capabilities: {
+					delete_posts: true
+				}
+			};
+
+			expect( MediaUtils.canUserDeleteItem( item, user, site ) ).to.be.true;
+		} );
+
+		it( 'should return false if the user ID does not match the item author and user cannot delete others posts', () => {
+			const user = { ID: 73705672 };
+			const site = {
+				capabilities: {
+					delete_others_posts: false
+				}
+			};
+
+			expect( MediaUtils.canUserDeleteItem( item, user, site ) ).to.be.false;
+		} );
+
+		it( 'should return true if the user ID does not match the item author but user can delete others posts', () => {
+			const user = { ID: 73705672 };
+			const site = {
+				capabilities: {
+					delete_others_posts: true
+				}
+			};
+
+			expect( MediaUtils.canUserDeleteItem( item, user, site ) ).to.be.true;
 		} );
 	} );
 } );

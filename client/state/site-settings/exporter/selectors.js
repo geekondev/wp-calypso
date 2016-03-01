@@ -1,23 +1,40 @@
+/**
+ * Internal dependencies
+ */
 import { States } from './constants.js';
+
+export const getExportingState = ( state, siteId ) => {
+	const exportingState = state.siteSettings.exporter.exportingState;
+	if ( ! exportingState[ siteId ] ) {
+		return States.READY;
+	}
+	return exportingState[ siteId ];
+}
 
 /**
  * Indicates whether an export activity is in progress.
  *
  * @param  {Object} state    Global state tree
+ * @param  {Number} siteId   The ID of the site to check
  * @return {boolean}         true if activity is in progress
  */
-export function shouldShowProgress( state ) {
-	const exportingState = state.siteSettings.exporter.ui.get( 'exportingState' );
+export function shouldShowProgress( state, siteId ) {
+	const exportingState = getExportingState( state, siteId );
 
-	return ( exportingState === States.STARTING || exportingState === States.EXPORTING );
+	return ( exportingState === States.STARTING ||
+		exportingState === States.EXPORTING );
 }
 
 /**
- * Return the exporter UI state as a plain JS object.
- *
- * @param  {Object} state    Global state tree
- * @return {Object}          Exporter UI state
+ * Indicates whether the export is in progress on the server
+ * @param  {Object}  state  Global state tree
+ * @param  {Number}  siteId The site ID for which to check export progress
+ * @return {Boolean}        true if an export is in progress
  */
-export function getUIState( state ) {
-	return state.siteSettings.exporter.ui.toJS();
+export function isExporting( state, siteId ) {
+	const exportingState = getExportingState( state, siteId );
+	return exportingState === States.EXPORTING;
 }
+
+export const getSelectedPostType = ( state ) => state.siteSettings.exporter.selectedPostType;
+export const advancedSettings = ( state, siteId ) => state.siteSettings.exporter.advancedSettings[ siteId ];

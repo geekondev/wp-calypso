@@ -2,11 +2,14 @@
  * External dependencies
  */
 import React from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 /**
  * Internal dependencies
  */
 import EmailForwardingLimit from './email-forwarding-limit';
+import { emailForwardingPlanLimit } from 'lib/domains/email-forwarding';
 import FormButton from 'components/forms/form-button';
 import FormFieldset from 'components/forms/form-fieldset';
 import FormFooter from 'my-sites/upgrades/domain-management/components/form-footer';
@@ -16,6 +19,7 @@ import FormTextInputWithAffixes from 'components/forms/form-text-input-with-affi
 import analyticsMixin from 'lib/mixins/analytics';
 import notices from 'notices';
 import * as upgradesActions from 'lib/upgrades/actions';
+import { successNotice } from 'state/notices/actions';
 
 const EmailForwardingAddNew = React.createClass( {
 	propTypes: {
@@ -38,7 +42,7 @@ const EmailForwardingAddNew = React.createClass( {
 	},
 
 	hasReachedLimit() {
-		return this.props.emailForwarding.list.length >= 5;
+		return this.props.emailForwarding.list.length >= emailForwardingPlanLimit( this.props.selectedSite.plan );
 	},
 
 	onAddEmailForward( event ) {
@@ -58,7 +62,7 @@ const EmailForwardingAddNew = React.createClass( {
 			if ( error ) {
 				notices.error( error.message );
 			} else {
-				notices.success( this.translate( 'Yay, %(email)s has been successfully added!', { args: {
+				this.props.successNotice( this.translate( 'Yay, %(email)s has been successfully added!', { args: {
 					email: this.state.mailbox + '@' + this.props.selectedDomainName
 				} } ) );
 
@@ -160,6 +164,7 @@ const EmailForwardingAddNew = React.createClass( {
 		return (
 			<form className="email-forwarding__add-new">
 				<EmailForwardingLimit
+					selectedSite= { this.props.selectedSite }
 					emailForwarding={ this.props.emailForwarding } />
 
 				{ this.formFields() }
@@ -193,4 +198,7 @@ const EmailForwardingAddNew = React.createClass( {
 	}
 } );
 
-export default EmailForwardingAddNew;
+export default connect(
+	null,
+	dispatch => bindActionCreators( { successNotice }, dispatch )
+)( EmailForwardingAddNew );

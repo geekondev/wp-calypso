@@ -1,8 +1,8 @@
 // External Dependencies
 var React = require( 'react' ),
-	map = require( 'lodash/collection/map' ),
-	noop = require( 'lodash/utility/noop' ),
-	find = require( 'lodash/collection/find' );
+	map = require( 'lodash/map' ),
+	noop = require( 'lodash/noop' ),
+	find = require( 'lodash/find' );
 
 // Internal Dependencies
 var Gravatar = require( 'components/gravatar' ),
@@ -15,6 +15,8 @@ var Gravatar = require( 'components/gravatar' ),
 	stats = require( 'reader/stats' ),
 	PostCommentContent = require( './post-comment-content' ),
 	Gridicon = require( 'components/gridicon' );
+
+import { decodeEntities } from 'lib/formatting';
 
 var PostComment = React.createClass( {
 
@@ -126,7 +128,7 @@ var PostComment = React.createClass( {
 			<div className="comment__actions">
 				{ showReplyButton ?
 					<button className="comment__actions-reply" onClick={ this.handleReply }>
-						<Gridicon icon="reply" size="18" />
+						<Gridicon icon="reply" size={ 18 } />
 						<span className="comment__actions-reply-label">Reply</span>
 					</button>
 				: null }
@@ -145,6 +147,8 @@ var PostComment = React.createClass( {
 		if ( comment.state && comment.state === CommentStates.PENDING ) {
 			comment.author = User;
 			comment.author.name = User.display_name;
+		} else {
+			comment.author.name = decodeEntities( comment.author.name );
 		}
 
 		// If we have an error, render the error component instead

@@ -11,7 +11,7 @@ var ReactDom = require( 'react-dom' ),
 	sinonChai = require( 'sinon-chai' ),
 	mockery = require( 'mockery' ),
 	chai = require( 'chai' ),
-	noop = require( 'lodash/utility/noop' ),
+	noop = require( 'lodash/noop' ),
 	expect = chai.expect;
 
 chai.use( sinonChai );
@@ -48,7 +48,7 @@ describe( 'EditorDiscussion', function() {
 			recordEvent: noop,
 			recordStat: noop
 		} );
-		EditorDiscussion = require( '../' );
+		EditorDiscussion = require( '../' ).WrappedComponent;
 		EditorDiscussion.prototype.__reactAutoBindMap.translate = sinon.stub().returnsArg( 0 );
 	} );
 
@@ -135,7 +135,7 @@ describe( 'EditorDiscussion', function() {
 			var tree, checkbox;
 
 			tree = TestUtils.renderIntoDocument(
-				<EditorDiscussion post={ post } site={ DUMMY_SITE } />
+				<EditorDiscussion post={ post } site={ DUMMY_SITE } setDiscussionSettings={ function() {} } />
 			);
 
 			checkbox = ReactDom.findDOMNode( tree ).querySelector( '[name=ping_status]' );
@@ -158,7 +158,7 @@ describe( 'EditorDiscussion', function() {
 			var tree, checkbox;
 
 			tree = TestUtils.renderIntoDocument(
-				<EditorDiscussion post={ post } site={ DUMMY_SITE } />
+				<EditorDiscussion post={ post } site={ DUMMY_SITE } setDiscussionSettings={ function() {} } />
 			);
 
 			checkbox = ReactDom.findDOMNode( tree ).querySelector( '[name=ping_status]' );

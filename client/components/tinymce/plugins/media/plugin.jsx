@@ -3,13 +3,14 @@
  */
 var ReactDom = require( 'react-dom' ),
 	ReactDomServer = require( 'react-dom/server' ),
+	ReduxProvider = require( 'react-redux' ).Provider,
 	React = require( 'react' ),
 	tinymce = require( 'tinymce/tinymce' ),
-	pick = require( 'lodash/object/pick' ),
-	assign = require( 'lodash/object/assign' ),
-	values = require( 'lodash/object/values' ),
-	debounce = require( 'lodash/function/debounce' ),
-	includes = require( 'lodash/collection/includes' ),
+	pick = require( 'lodash/pick' ),
+	assign = require( 'lodash/assign' ),
+	values = require( 'lodash/values' ),
+	debounce = require( 'lodash/debounce' ),
+	includes = require( 'lodash/includes' ),
 	Shortcode = require( 'lib/shortcode' ),
 	closest = require( 'component-closest' );
 
@@ -71,16 +72,18 @@ function mediaButton( editor ) {
 		}
 
 		ReactDom.render(
-			<MediaLibrarySelectedData siteId={ selectedSite.ID }>
-				<EditorMediaModal
-					{ ...props }
-					onClose={ renderModal.bind( null, { visible: false } ) }
-					onInsertMedia={ ( markup ) => {
-						insertMedia( markup );
-						renderModal( { visible: false } );
-					} }
-					site={ selectedSite } />
-			</MediaLibrarySelectedData>,
+			<ReduxProvider store={ editor.getParam( 'redux_store' ) }>
+				<MediaLibrarySelectedData siteId={ selectedSite.ID }>
+					<EditorMediaModal
+						{ ...props }
+						onClose={ renderModal.bind( null, { visible: false } ) }
+						onInsertMedia={ ( markup ) => {
+							insertMedia( markup );
+							renderModal( { visible: false } );
+						} }
+						site={ selectedSite } />
+				</MediaLibrarySelectedData>
+			</ReduxProvider>,
 			nodes.modal
 		);
 	}

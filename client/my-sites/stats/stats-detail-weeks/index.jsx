@@ -70,7 +70,6 @@ export default React.createClass( {
 						<th>{ this.translate( 'Sun' ) }</th>
 						<th>{ this.translate( 'Total' ) }</th>
 						<th>{ this.translate( 'Average' ) }</th>
-						<th>{ this.translate( 'Change', { context: 'Stats: noun - change over a period in weekly numbers' } ) }</th>
 					</tr>
 				</thead>
 			);
@@ -101,8 +100,8 @@ export default React.createClass( {
 
 					return (
 						<td key={ dayIndex } className={ cellClass }>
-							<span className="date">{ day.format( 'MMM D' ) }</span>
-							<span className="value">{ this.numberFormat( event.count ) }</span>
+							<span className="stats-detail-weeks__date">{ day.format( 'MMM D' ) }</span>
+							<span className="stats-detail-weeks__value">{ this.numberFormat( event.count ) }</span>
 						</td>
 					);
 				}, this );
@@ -117,13 +116,15 @@ export default React.createClass( {
 				}
 
 				cells.push( <td key={ 'total' + index }>{ this.numberFormat( week.total ) }</td> );
-				cells.push( <td key={ 'average' + index }>{ this.numberFormat( week.average ) }</td> );
 
 				if ( 'number' === typeof ( week.change ) ) {
 					let changeClass = classNames( {
-						'value-rising': week.change > 0,
-						'value-falling': week.change < 0
+						'is-rising': week.change > 0,
+						'is-falling': week.change < 0,
+						'is-same': week.change === 0
 					} );
+
+					let displayValue = this.numberFormat( week.change, 2 ) + '%';
 
 					if ( week.change > 0 ) {
 						iconType = 'arrow-up';
@@ -133,16 +134,17 @@ export default React.createClass( {
 						iconType = 'arrow-down';
 					}
 
-					cells.push(
-						<td className={ changeClass } key={ 'change' + index }>
-							<span className="value">
+					if ( week.change === 0 ) {
+						displayValue = this.translate( 'No change', { context: 'Stats: No change in stats value from prior period' } );
+					}
+
+					cells.push( <td key={ 'average' + index }>
+						{ this.numberFormat( week.average ) }
+							<span className={ 'stats-detail-weeks__value ' + changeClass } key={ 'change' + index }>
 								{ iconType ? <Gridicon icon={ iconType } size={ 18 } /> : null }
-								{ this.numberFormat( week.change, 2 ) }%
-							</span>
-						</td>
-					);
-				} else if ( 'object' === typeof ( week.change ) && null !== week.change && week.change.isInfinity ) {
-					cells.push( <td key={ 'change' + index }>&infin;</td> );
+								{ displayValue }
+							</span></td>
+						);
 				} else {
 					cells.push( <td className="no-data" key={ 'change' + index }></td> );
 				}

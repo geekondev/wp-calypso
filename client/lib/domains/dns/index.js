@@ -1,29 +1,29 @@
 /**
  * External dependencies
  */
-const includes = require( 'lodash/collection/includes' ),
-	mapValues = require( 'lodash/object/mapValues' ),
-	endsWith = require( 'lodash/string/endsWith' );
+const includes = require( 'lodash/includes' ),
+	mapValues = require( 'lodash/mapValues' ),
+	endsWith = require( 'lodash/endsWith' );
 
-function validateAllFields( fieldValues, selectedDomainName ) {
+function validateAllFields( fieldValues, domainName ) {
 	return mapValues( fieldValues, ( value, fieldName ) => {
 		const isValid = validateField( {
+			value,
+			domainName,
 			name: fieldName,
-			value: value,
 			type: fieldValues.type,
-			selectedDomainName
 		} );
 
 		return isValid ? [] : [ 'Invalid' ];
 	} );
 }
 
-function validateField( { name, value, type, selectedDomainName } ) {
+function validateField( { name, value, type, domainName } ) {
 	switch ( name ) {
 		case 'name':
-			return isValidName( value, type, selectedDomainName );
+			return isValidName( value, type, domainName );
 		case 'target':
-			return isValidDomainName( value, type );
+			return isValidDomain( value, type );
 		case 'data':
 			return isValidData( value, type );
 		case 'protocol':
@@ -39,43 +39,25 @@ function validateField( { name, value, type, selectedDomainName } ) {
 	}
 }
 
-/*
- * As per RFC 2181, there's actually only one restriction for DNS records - length.
- * But to keep things sane, we only allow host names for A/AAAA records (RFC 952 and RFC 1123)
- * and more loosely defined domain names for other records.
- */
-function isValidDomainName( name, type ) {
+function isValidDomain( name ) {
 	if ( name.length > 253 ) {
 		return false;
 	}
+	return /^([a-z0-9-_]{1,63}\.)*[a-z0-9-]{1,63}\.[a-z]{2,63}$/i.test( name );
+}
+
+function isValidName( name, type, domainName ) {
+	if ( isRootDomain( name, domainName ) && canBeRootDomain( type ) ) {
+		return true;
+	}
+
 	switch ( type ) {
 		case 'A':
 		case 'AAAA':
-			return /^([a-z0-9]([a-z0-9\-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9\-]*[a-z0-9])?\.[a-z]{2,63}$/i.test( name );
+			return /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i.test( name );
 		default:
-			return /^([a-z0-9-_]{1,63}\.)*[a-z0-9-]{1,63}\.[a-z]{2,63}$/i.test( name );
+			return /^([a-z0-9-_]{1,63}\.)*([a-z0-9-_]{1,63})$/i.test( name );
 	}
-}
-
-function isValidName( name, type, selectedDomainName ) {
-	switch ( type ) {
-		case 'CNAME':
-			return (
-				isValidCname( name, selectedDomainName ) &&
-				isValidDomainName( name, type )
-			);
-		case 'SRV':
-			return (
-				name === '' ||
-				isValidDomainName( name, type )
-			);
-		default:
-			return isValidDomainName( name, type );
-	}
-}
-
-function isValidCname( name, selectedDomainName ) {
-	return endsWith( name, '.' + selectedDomainName );
 }
 
 function isValidData( data, type ) {
@@ -86,32 +68,57 @@ function isValidData( data, type ) {
 			return data.match( /^[a-f0-9\:]+$/i );
 		case 'CNAME':
 		case 'MX':
-			return isValidDomainName( data, type );
+			return isValidDomain( data );
 		case 'TXT':
-			return data.length < 256;
+			return data.length > 0 && data.length < 256;
 	}
 }
 
-function getNormalizedData( fieldValues, selectedDomainName ) {
-	var data = fieldValues;
-
-	data.data = getFieldWithDot( data.data );
-
-	if ( includes( [ 'A', 'AAAA' ], data.type ) ) {
-		data.name = removeTrailingDomain( data.name, selectedDomainName );
+function getNormalizedData( record, selectedDomainName ) {
+	const normalizedRecord = Object.assign( {}, record );
+	normalizedRecord.data = getFieldWithDot( record.data );
+	normalizedRecord.name = getNormalizedName( record.name, record.type, selectedDomainName );
+	if ( record.target ) {
+		normalizedRecord.target = getFieldWithDot( record.target );
 	}
 
-	data.name = getFieldWithDot( data.name );
-
-	if ( data.target ) {
-		data.target = getFieldWithDot( data.target );
-	}
-
-	return data;
+	return normalizedRecord;
 }
 
-function removeTrailingDomain( domain, trailing ) {
-	return domain.replace( new RegExp( '\\.+' + trailing + '\\.?$', 'i' ), '' );
+function getNormalizedName( name, type, selectedDomainName ) {
+	const endsWithDomain = endsWith( name, '.' + selectedDomainName );
+
+	if ( isRootDomain( name, selectedDomainName ) && canBeRootDomain( type ) ) {
+		return '';
+	}
+
+	if ( endsWithDomain ) {
+		if ( isIpRecord( type ) ) {
+			return name.replace( new RegExp( '\\.+' + selectedDomainName + '\\.?$', 'i' ), '' );
+		}
+		return getFieldWithDot( name );
+	} else if ( ! isIpRecord( type ) ) {
+		return name + '.' + selectedDomainName + '.';
+	}
+	return name;
+}
+
+function isIpRecord( type ) {
+	return includes( [ 'A', 'AAAA' ], type );
+}
+
+function isRootDomain( name, domainName ) {
+	const rootDomainVariations = [
+		'@',
+		domainName,
+		domainName + '.',
+		'@.' + domainName,
+		'@.' + domainName + '.' ];
+	return ! name || includes( rootDomainVariations, name );
+}
+
+function canBeRootDomain( type ) {
+	return includes( [ 'MX', 'SRV', 'TXT' ], type );
 }
 
 function getFieldWithDot( field ) {

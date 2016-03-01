@@ -1,32 +1,43 @@
 /**
  * External Dependencies
  */
-var assign = require( 'lodash/object/assign' ),
+var assign = require( 'lodash/assign' ),
 	async = require( 'async' ),
 	debug = require( 'debug' )( 'calypso:post-normalizer' ),
-	deepClone = require( 'lodash/lang/cloneDeep' ),
-	every = require( 'lodash/collection/every' ),
-	endsWith = require( 'lodash/string/endsWith' ),
-	filter = require( 'lodash/collection/filter' ),
-	find = require( 'lodash/collection/find' ),
-	first = require( 'lodash/array/first' ),
-	forEach = require( 'lodash/collection/forEach' ),
-	forOwn = require( 'lodash/object/forOwn' ),
-	map = require( 'lodash/collection/map' ),
-	max = require( 'lodash/collection/max' ),
-	pick = require( 'lodash/object/pick' ),
-	some = require( 'lodash/collection/some' ),
+	cloneDeep = require( 'lodash/cloneDeep' ),
+	every = require( 'lodash/every' ),
+	endsWith = require( 'lodash/endsWith' ),
+	filter = require( 'lodash/filter' ),
+	find = require( 'lodash/find' ),
+	head = require( 'lodash/head' ),
+	forEach = require( 'lodash/forEach' ),
+	forOwn = require( 'lodash/forOwn' ),
+	map = require( 'lodash/map' ),
+	maxBy = require( 'lodash/maxBy' ),
+	pick = require( 'lodash/pick' ),
+	some = require( 'lodash/some' ),
 	srcset = require( 'srcset' ),
-	startsWith = require( 'lodash/string/startsWith' ),
-	toArray = require( 'lodash/lang/toArray' ),
-	uniq = require( 'lodash/array/uniq' ),
-	url = require( 'url' );
+	startsWith = require( 'lodash/startsWith' ),
+	toArray = require( 'lodash/toArray' ),
+	trim = require( 'lodash/trim' ),
+	uniqBy = require( 'lodash/uniqBy' ),
+	url = require( 'url' ),
+	values = require( 'lodash/values' );
+
+import striptags from 'striptags';
 
 /**
- * Internal depedencies
+ * Internal dependencies
  */
-var formatting = require( 'lib/formatting' ),
-	safeImageURL = require( 'lib/safe-image-url' );
+import i18n from 'lib/mixins/i18n';
+import formatting from 'lib/formatting';
+import safeImageURL from 'lib/safe-image-url';
+
+const DEFAULT_PHOTON_QUALITY = 80, // 80 was chosen after some heuristic testing as the best blend of size and quality
+	READING_WORDS_PER_SECOND = 250 / 60; // Longreads says that people can read 250 words per minute. We want the rate in words per second.
+
+const imageScaleFactor = ( typeof window !== 'undefined' && window.devicePixelRatio && window.devicePixelRatio > 1 ) ? 2 : 1,
+	TRANSPARENT_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 function debugForPost( post ) {
 	return function( msg ) {
@@ -50,11 +61,6 @@ function stripAutoPlays( query ) {
 	return query;
 }
 
-const DEFAULT_PHOTON_QUALITY = 80, // 80 was chosen after some heuristic testing as the best blend of size and quality
-	READING_WORDS_PER_SECOND = 250 / 60; // Longreads says that people can read 250 words per minute. We want the rate in words per second.
-
-const imageScaleFactor = ( typeof window !== 'undefined' && window.devicePixelRatio && window.devicePixelRatio > 1 ) ? 2 : 1;
-
 /**
  * Asynchronously normalizes an object shaped like a post. Works on a copy of the post and does not mutate the original post.
  * @param  {object} post A post shaped object, generally returned by the API
@@ -73,7 +79,7 @@ function normalizePost( post, transforms, callback ) {
 		return;
 	}
 
-	let normalizedPost = deepClone( post ),
+	let normalizedPost = cloneDeep( post ),
 		postDebug = debugForPost( post );
 
 	postDebug( 'running transforms' );
@@ -94,7 +100,11 @@ function normalizePost( post, transforms, callback ) {
 }
 
 function maxWidthPhotonishURL( imageURL, width ) {
-	var parsedURL = url.parse( imageURL, true, true ), // true, true means allow protocol-less hosts and parse the querystring
+	if ( ! imageURL ) {
+		return imageURL;
+	}
+
+	let parsedURL = url.parse( imageURL, true, true ), // true, true means allow protocol-less hosts and parse the querystring
 		isGravatar, sizeParam;
 
 	if ( ! parsedURL.host ) {
@@ -273,7 +283,7 @@ normalizePost.firstPassCanonicalImage = function firstPassCanonicalImage( post, 
 			type: 'image'
 		}, imageSizeFromAttachments( post.featured_image ) );
 	} else {
-		let candidate = first( filter( post.attachments, function( attachment ) {
+		let candidate = head( filter( post.attachments, function( attachment ) {
 			return startsWith( attachment.mime_type, 'image/' );
 		} ) );
 
@@ -299,14 +309,12 @@ normalizePost.makeSiteIDSafeForAPI = function makeSiteIDSafeForAPI( post, callba
 };
 
 normalizePost.pickPrimaryTag = function assignPrimaryTag( post, callback ) {
-	var NO_ENTRIES_FOUND_MARKER = -Infinity;
-
 	// if we hand max an invalid or empty array, it returns -Infinity
-	post.primary_tag = max( post.tags, function( tag ) {
+	post.primary_tag = maxBy( values( post.tags ), function( tag ) {
 		return tag.post_count;
 	} );
 
-	if ( post.primary_tag === NO_ENTRIES_FOUND_MARKER ) {
+	if ( post.primary_tag === undefined ) {
 		delete post.primary_tag;
 	}
 
@@ -322,6 +330,13 @@ normalizePost.safeImageProperties = function( maxWidth ) {
 		}
 		if ( post.canonical_image && post.canonical_image.type === 'image' ) {
 			makeImageURLSafe( post.canonical_image, 'uri', maxWidth, post.URL );
+		}
+		if ( post.attachments ) {
+			forOwn( post.attachments, function( attachment ) {
+				if ( startsWith( attachment.mime_type, 'image/' ) ) {
+					makeImageURLSafe( attachment, 'URL', maxWidth, post.URL );
+				}
+			} );
 		}
 
 		callback();
@@ -367,7 +382,7 @@ normalizePost.waitForImagesToLoad = function waitForImagesToLoad( post, callback
 	} );
 
 	// dedupe the set of images
-	imagesToCheck = uniq( imagesToCheck, function( image ) {
+	imagesToCheck = uniqBy( imagesToCheck, function( image ) {
 		return image.src;
 	} );
 
@@ -423,6 +438,54 @@ normalizePost.pickCanonicalImage = function pickCanonicalImage( post, callback )
 	}
 	callback();
 };
+
+normalizePost.createBetterExcerpt = function createBetterExcerpt( post, callback ) {
+	if ( ! post || ! post.content ) {
+		callback();
+		return;
+	}
+
+	function removeElement( element ) {
+		element.parentNode && element.parentNode.removeChild( element );
+	}
+
+	let betterExcerpt = striptags( post.content, [ 'p', 'br' ] );
+
+	// Spin up a new DOM for the linebreak markup
+	const dom = document.createElement( 'div' );
+	dom.innerHTML = betterExcerpt;
+
+	// Ditch any photo captions with the wp-caption-text class
+	forEach( dom.querySelectorAll( '.wp-caption-text' ), removeElement );
+
+	// Strip any empty p and br elements from the beginning of the content
+	forEach( dom.querySelectorAll( 'p,br' ), function( element ) {
+		// is this element non-empty? bail on our iteration.
+		if ( element.childNodes.length > 0 && trim( element.textContent ).length > 0 ) {
+			return false;
+		}
+		element.parentNode && element.parentNode.removeChild( element );
+	} );
+
+	// now strip any p's that are empty
+	forEach( dom.querySelectorAll( 'p' ), function( element ) {
+		if ( trim( element.textContent ).length === 0 ) {
+			element.parentNode && element.parentNode.removeChild( element );
+		}
+	} );
+
+	// now limit it to the first three elements
+	forEach( dom.querySelectorAll( 'p, br' ), function( element, index ) {
+		if ( index >= 3 ) {
+			element.parentNode && element.parentNode.removeChild( element );
+		}
+	} );
+
+	post.better_excerpt = trim( dom.innerHTML );
+	dom.innerHTML = '';
+
+	callback();
+},
 
 normalizePost.withContentDOM = function( transforms ) {
 	return function withContentDOM( post, callback ) {
@@ -506,16 +569,17 @@ normalizePost.content = {
 
 				removeUnsafeAttributes( image );
 
-				if ( imageShouldBeRemovedFromContent( imgSource ) ) {
+				safeSource = safeImageURL( imgSource );
+
+				if ( ! safeSource || imageShouldBeRemovedFromContent( imgSource ) ) {
 					image.parentNode.removeChild( image );
 					// fun fact: removing the node from the DOM will not prevent it from loading. You actually have to
 					// change out the src to change what loads. The following is a 1x1 transparent gif as a data URL
-					image.setAttribute( 'src', 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' );
+					image.setAttribute( 'src', TRANSPARENT_GIF );
 					image.removeAttribute( 'srcset' );
 					return;
 				}
 
-				safeSource = safeImageURL( imgSource );
 				if ( maxWidth ) {
 					safeSource = maxWidthPhotonishURL( safeSource, maxWidth );
 				}
@@ -545,7 +609,8 @@ normalizePost.content = {
 
 			// grab all of the non-tracking pixels and push them into content_images
 			content_images = filter( content_images, function( image ) {
-				var edgeLength = image.height + image.width;
+				if ( ! image.src ) return false;
+				const edgeLength = image.height + image.width;
 				// if the image size isn't set (0) or is greater than 2, keep it
 				return edgeLength === 0 || edgeLength > 2;
 			} );
@@ -716,6 +781,32 @@ normalizePost.content = {
 				srcUrl.query = stripAutoPlays( srcUrl.query );
 				srcUrl.search = null;
 				embed.src = url.format( srcUrl );
+			}
+		} );
+
+		callback();
+	},
+
+	// Attempt to find embedded Polldaddy polls - and link to any we find
+	detectPolls( post, callback ) {
+		if ( ! post.__contentDOM ) {
+			throw new Error( 'this transform must be used as part of withContentDOM' );
+		}
+
+		// Polldaddy embed markup isn't very helpfully structured, but we can look for the noscript tag,
+		// which contains the information we need, and replace it with a paragraph.
+		let noscripts = toArray( post.__contentDOM.querySelectorAll( 'noscript' ) );
+
+		noscripts.forEach( function( noscript ) {
+			if ( ! noscript.firstChild ) {
+				return;
+			}
+			let firstChildData = formatting.decodeEntities( noscript.firstChild.data );
+			let match = firstChildData.match( '^<a href="http:\/\/polldaddy.com\/poll\/([0-9]+)' );
+			if ( match ) {
+				let p = document.createElement( 'p' );
+				p.innerHTML = '<a rel="external" target="_blank" href="http://polldaddy.com/poll/' + match[1] + '">' + i18n.translate( 'Take our poll' ) + '</a>';
+				noscript.parentNode.replaceChild( p, noscript );
 			}
 		} );
 

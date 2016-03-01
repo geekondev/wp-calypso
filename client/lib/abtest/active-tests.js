@@ -29,14 +29,6 @@ module.exports = {
 		},
 		defaultVariation: 'originalA'
 	},
-	businessPluginsNudge: {
-		datestamp: '20151119',
-		variations: {
-			drake: 50,
-			nudge: 50
-		},
-		defaultVariation: 'drake'
-	},
 	freeTrials: {
 		datestamp: '20160120',
 		variations: {
@@ -54,27 +46,65 @@ module.exports = {
 		defaultVariation: 'yearly'
 	},
 	plansUpgradeButton: {
-		datestamp: '20160129',
+		datestamp: '20160212', // Update to the day of deploy
 		variations: {
-			original: 50,
-			button: 50
+			original: 20,
+			free: 20,
+			add: 20,
+			info: 20,
+			change: 20
 		},
 		defaultVariation: 'original'
 	},
-	checkoutMasterbar: {
-		datestamp: '20160126',
+	plansFeatureList: {
+		datestamp: '20160215',
 		variations: {
-			original: 50,
-			minimal: 50
+			list: 33,
+			andMore: 33,
+			description: 34
+		},
+		defaultVariation: 'description'
+	},
+	headstart: {
+		datestamp: '20160215',
+		variations: {
+			original: 20,
+			notTested: 60,
+			headstart: 20
 		},
 		defaultVariation: 'original'
 	},
-	domainRegistrationCta: {
-		datestamp: '20160128',
+	checkoutFooter: {
+		datestamp: '20160215',
 		variations: {
-			add: 50,
-			select: 50
+			original: 50,
+			noFooter: 50
 		},
-		defaultVariation: 'add'
+		defaultVariation: 'original'
+	},
+	altThemes: {
+		datestamp: '20160215',
+		variations: {
+			original: 20,
+			altThemes: 20,
+			notTested: 60
+		},
+		defaultVariation: 'original'
+	},
+	freePlansDefault: {
+		datestamp: '20160219',
+		variations: {
+			allPlans: 90,
+			skipForFree: 10
+		},
+		defaultVariation: 'allPlans'
+	},
+	domainSearchResultsCount: {
+		datestamp: '20160223',
+		variations: {
+			original: 50,
+			moreResults: 50
+		},
+		defaultVariation: 'original'
 	},
 };

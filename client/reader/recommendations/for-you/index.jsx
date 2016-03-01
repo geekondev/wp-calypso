@@ -1,5 +1,5 @@
 import React from 'react';
-import times from 'lodash/utility/times';
+import times from 'lodash/times';
 import url from 'url';
 
 import Main from 'components/main';
@@ -18,6 +18,7 @@ import { fetchMore } from 'lib/recommended-sites-store/actions';
 import SiteStore from 'lib/reader-site-store';
 import { recordAction, recordGaEvent } from 'reader/stats';
 import { getSiteUrl } from 'reader/route';
+import { decodeEntities } from 'lib/formatting';
 
 const RecommendedForYou = React.createClass( {
 
@@ -112,7 +113,7 @@ const RecommendedForYou = React.createClass( {
 				<Title>
 					<a href={ siteUrl } onclick={ this.trackSiteClick }>{ title }</a>
 				</Title>
-				<Description>{ rec.reason }</Description>
+				<Description>{ decodeEntities( rec.reason ) }</Description>
 				<Actions>
 					<FollowButton siteUrl={ site.URL } />
 				</Actions>
@@ -131,7 +132,7 @@ const RecommendedForYou = React.createClass( {
 				<InfiniteList
 					items={ this.state.recommendations }
 					fetchingNextPage={ this.state.fetching }
-					lastPage={ this.state.recommendations && this.state.recommendations.length >= 100 }
+					lastPage={ RecommendedSites.isLastPage() }
 					guessedItemHeight={ 300 }
 					fetchNextPage={ this.loadMore }
 					getItemRef={ this.getItemRef }

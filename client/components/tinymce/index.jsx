@@ -5,8 +5,8 @@ const ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	classnames = require( 'classnames' ),
 	autosize = require( 'autosize' ),
-	forEach = require( 'lodash/collection/forEach' ),
-	assign = require( 'lodash/object/assign' ),
+	forEach = require( 'lodash/forEach' ),
+	assign = require( 'lodash/assign' ),
 	tinymce = require( 'tinymce/tinymce' );
 
 require( 'tinymce/themes/modern/theme.js' );
@@ -124,7 +124,7 @@ const CONTENT_CSS = [
 	window.app.tinymceWpSkin,
 	'//s1.wp.com/wp-includes/css/dashicons.css',
 	window.app.tinymceEditorCss,
-	'//fonts.googleapis.com/css?family=Merriweather:700%2C400%2C700italic%2C400italic',
+	'//s1.wp.com/i/fonts/merriweather/merriweather.css',
 ];
 
 module.exports = React.createClass( {
@@ -298,7 +298,7 @@ module.exports = React.createClass( {
 			if ( this.props[ eventHandler ] ) {
 				this._editor.off( eventName, this.props[ eventHandler ] );
 			}
-		}, this );
+		}.bind( this ) );
 
 		window.removeEventListener( 'scroll', this.onScrollPinTools );
 		tinymce.remove( this._editor );
@@ -321,7 +321,7 @@ module.exports = React.createClass( {
 					this._editor.off( eventName, this.props[ eventHandler ] );
 				}
 			}
-		}, this );
+		}.bind( this ) );
 	},
 
 	onScrollPinTools: function() {

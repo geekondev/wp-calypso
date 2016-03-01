@@ -6,19 +6,18 @@ import React from 'react';
 import { Provider as ReduxProvider } from 'react-redux';
 import page from 'page';
 import qs from 'qs';
-import isEmpty from 'lodash/lang/isEmpty';
+import isEmpty from 'lodash/isEmpty';
 
 /**
  * Internal Dependencies
  */
-import { abtest } from 'lib/abtest';
 import i18n from 'lib/mixins/i18n';
 import config from 'config';
-import { defaultFlowName } from 'signup/config/flows';
 import route from 'lib/route';
 import analytics from 'analytics';
 import layoutFocus from 'lib/layout-focus';
 import SignupComponent from './main';
+import JetpackConnect from './jetpack-connect';
 import utils from './utils';
 import userModule from 'lib/user';
 import titleActions from 'lib/screen-title/actions';
@@ -71,10 +70,6 @@ export default {
 	},
 
 	redirectToFlow( context, next ) {
-		if ( utils.getFlowName( context.params ) === defaultFlowName && abtest( 'freeTrials' ) === 'offered' ) {
-			return page.redirect( utils.getValidPath( { flowName: 'free-trial' } ) );
-		}
-
 		if ( context.path !== utils.getValidPath( context.params ) ) {
 			return page.redirect( utils.getValidPath( context.params ) );
 		}
@@ -147,6 +142,13 @@ export default {
 				path: context.path,
 				locale: context.params.lang
 			} ),
+			document.getElementById( 'primary' )
+		);
+	},
+
+	jetpackConnect( context ) {
+		ReactDom.render(
+			React.createElement( JetpackConnect, {} ),
 			document.getElementById( 'primary' )
 		);
 	}

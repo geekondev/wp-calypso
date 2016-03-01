@@ -3,14 +3,14 @@
  */
 import React, { PropTypes } from 'react';
 import page from 'page';
-import defer from 'lodash/function/defer';
+import defer from 'lodash/defer';
 
 /**
  * Internal dependencies
  */
 import Theme from 'components/theme';
 import SiteSelectorModal from 'components/site-selector-modal';
-import Helper from 'lib/themes/helpers';
+import Helper from './helpers';
 
 const ThemesSiteSelectorModal = React.createClass( {
 	propTypes: {

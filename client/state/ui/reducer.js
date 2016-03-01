@@ -8,9 +8,12 @@ import { combineReducers } from 'redux';
  */
 import {
 	SELECTED_SITE_SET,
-	SET_SECTION
+	SET_SECTION,
+	SERIALIZE,
+	DESERIALIZE
 } from 'state/action-types';
 import editor from './editor/reducer';
+import reader from './reader/reducer';
 
 /**
  * Tracks the currently selected site ID.
@@ -22,8 +25,7 @@ import editor from './editor/reducer';
 export function selectedSiteId( state = null, action ) {
 	switch ( action.type ) {
 		case SELECTED_SITE_SET:
-			state = action.siteId || null;
-			break;
+			return action.siteId || null;
 	}
 
 	return state;
@@ -43,46 +45,68 @@ export function recentlySelectedSiteIds( state = [], action ) {
 			if ( state.length === 3 ) {
 				state.pop();
 			}
-			break;
+			return state;
 	}
 
 	return state;
 }
 
+//TODO: do we really want to mix strings and booleans?
 export function section( state = false, action ) {
-	if ( action.type === SET_SECTION && action.section !== undefined ) {
-		state = action.section;
+	switch ( action.type ) {
+		case SET_SECTION:
+			return ( action.section !== undefined ) ? action.section : state;
 	}
 	return state;
 }
 
 export function hasSidebar( state = true, action ) {
-	if ( action.type === SET_SECTION && action.hasSidebar !== undefined ) {
-		state = action.hasSidebar;
+	switch ( action.type ) {
+		case SET_SECTION:
+			return ( action.hasSidebar !== undefined ) ? action.hasSidebar : state;
+	}
+	return state;
+}
+
+export function isFullScreen( state = false, action ) {
+	if ( action.type === SET_SECTION && action.isFullScreen !== undefined ) {
+		state = action.isFullScreen;
 	}
 	return state;
 }
 
 export function isLoading( state = false, action ) {
-	if ( action.type === SET_SECTION && action.isLoading !== undefined ) {
-		state = action.isLoading;
+	switch ( action.type ) {
+		case SET_SECTION:
+			return ( action.isLoading !== undefined ) ? action.isLoading : state;
 	}
 	return state;
 }
 
 export function chunkName( state = false, action ) {
-	if ( action.type === SET_SECTION && action.chunkName !== undefined ) {
-		state = action.chunkName;
+	switch ( action.type ) {
+		case SET_SECTION:
+			return ( action.chunkName !== undefined ) ? action.chunkName : state;
 	}
 	return state;
 }
 
-export default combineReducers( {
+const reducer = combineReducers( {
 	section,
 	isLoading,
 	hasSidebar,
+	isFullScreen,
 	chunkName,
 	selectedSiteId,
 	recentlySelectedSiteIds,
-	editor
+	editor,
+	reader
 } );
+
+export default function( state, action ) {
+	if ( SERIALIZE === action.type || DESERIALIZE === action.type ) {
+		return {};
+	}
+
+	return reducer( state, action );
+}

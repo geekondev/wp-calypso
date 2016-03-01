@@ -2,7 +2,7 @@
  * External dependencies
  */
 var connect = require( 'react-redux' ).connect,
-	find = require( 'lodash/collection/find' ),
+	find = require( 'lodash/find' ),
 	page = require( 'page' ),
 	React = require( 'react' );
 
@@ -58,6 +58,12 @@ var Plans = React.createClass( {
 		var url = '/plans/compare',
 			selectedSite = this.props.sites.getSelectedSite();
 
+		var compareString = this.translate( 'Compare Plans' );
+
+		if ( selectedSite.jetpack ) {
+			compareString = this.translate( 'Compare Options' );
+		}
+
 		if ( this.props.plans.get().length <= 0 ) {
 			return '';
 		}
@@ -69,13 +75,13 @@ var Plans = React.createClass( {
 		return (
 			<a href={ url } className="compare-plans-link" onClick={ this.recordComparePlansClick }>
 				<Gridicon icon="clipboard" size={ 18 } />
-				{ this.translate( 'Compare Plans' ) }
+				{ compareString }
 			</a>
 		);
 	},
 
 	redirectToDefault() {
-		page.redirect( paths.plans( this.props.getSelectedSite().slug ) );
+		page.redirect( paths.plans( this.props.sites.getSelectedSite().slug ) );
 	},
 
 	renderNotice() {
@@ -142,8 +148,7 @@ var Plans = React.createClass( {
 					cart={ this.props.cart }
 					destinationType={ this.props.context.params.destinationType }
 					plan={ currentPlan }
-					selectedSite={ selectedSite }
-					store={ this.props.context.store } />
+					selectedSite={ selectedSite } />
 			);
 		}
 
@@ -165,7 +170,7 @@ var Plans = React.createClass( {
 						<PlanList
 							sites={ this.props.sites }
 							plans={ this.props.plans.get() }
-							enableFreeTrials={ true }
+							enableFreeTrials={ getABTestVariation( 'freeTrials' ) === 'offered' }
 							sitePlans={ this.props.sitePlans }
 							onOpen={ this.openPlan }
 							onSelectPlan={ this.props.onSelectPlan }

@@ -2,6 +2,7 @@ export const appStates = Object.freeze( {
 	CANCEL_PENDING: 'importer-canceling',
 	DEFUNCT: 'importer-defunct',
 	DISABLED: 'importer-disabled',
+	EXPIRE_PENDING: 'importer-expire-pending',
 	IMPORT_FAILURE: 'importer-import-failure',
 	IMPORT_SUCCESS: 'importer-import-success',
 	IMPORTING: 'importer-importing',
@@ -13,12 +14,7 @@ export const appStates = Object.freeze( {
 	UPLOADING: 'importer-uploading'
 } );
 
-export const importerTypes = Object.freeze( {
-	WORDPRESS: 'importer-type-wordpress',
-	GHOST: 'importer-type-ghost',
-	MEDIUM: 'importer-type-medium',
-	SQUARESPACE: 'importer-type-squarespace'
-} );
+export const WORDPRESS = 'importer-type-wordpress';
 
 export const actionTypes = Object.freeze( {
 	API_REQUEST: 'importer-api-request',

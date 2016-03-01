@@ -3,15 +3,14 @@
  */
 var React = require( 'react' ),
 	classnames = require( 'classnames' ),
-	property = require( 'lodash/utility/property' ),
-	sortBy = require( 'lodash/collection/sortBy' );
+	property = require( 'lodash/property' ),
+	sortBy = require( 'lodash/sortBy' );
 
 /**
  * Internal dependencies
  */
-var abtest = require( 'lib/abtest' ).abtest,
-	MasterbarCheckout = require( 'layout/masterbar/checkout' ),
-	MasterbarLoggedIn = require( 'layout/masterbar/logged-in' ),
+var MasterbarLoggedIn = require( 'layout/masterbar/logged-in' ),
+	MasterbarMinimal = require( 'layout/masterbar/minimal' ),
 	observe = require( 'lib/mixins/data-observe' ),
 	GlobalNotices = require( 'components/global-notices' ),
 	notices = require( 'notices' ),
@@ -28,14 +27,18 @@ var abtest = require( 'lib/abtest' ).abtest,
 	SitesListNotices = require( 'lib/sites-list/notices' ),
 	OfflineStatus = require( 'layout/offline-status' ),
 	PollerPool = require( 'lib/data-poller' ),
-	CartData = require( 'components/data/cart' ),
 	KeyboardShortcutsMenu,
-	Layout;
+	Layout,
+	SupportUser;
 
 import { isOffline } from 'state/application/selectors';
 
 if ( config.isEnabled( 'keyboard-shortcuts' ) ) {
 	KeyboardShortcutsMenu = require( 'lib/keyboard-shortcuts/menu' );
+}
+
+if ( config.isEnabled( 'support-user' ) ) {
+	SupportUser = require( 'support/support-user' );
 }
 
 Layout = React.createClass( {
@@ -81,13 +84,21 @@ Layout = React.createClass( {
 		return sortBy( this.props.sites.get(), property( 'ID' ) ).pop();
 	},
 
-	renderMasterbar() {
-		if ( 'checkout' === this.props.section && abtest( 'checkoutMasterbar' ) === 'minimal' ) {
-			return (
-				<CartData>
-					<MasterbarCheckout selectedSite={ this.props.sites.getSelectedSite() } />
-				</CartData>
-			);
+	renderEmailVerificationNotice: function() {
+		if ( ! this.props.user ) {
+			return null;
+		}
+
+		return <EmailVerificationNotice user={ this.props.user } />;
+	},
+
+	renderMasterbar: function() {
+		if ( 'login' === this.props.section ) {
+			return null;
+		}
+
+		if ( ! this.props.user ) {
+			return <MasterbarMinimal url="/" />;
 		}
 
 		return (
@@ -98,36 +109,58 @@ Layout = React.createClass( {
 		);
 	},
 
-	render: function() {
-		var sectionClass = 'wp layout is-section-' + this.props.section + ' focus-' + this.props.focus.getCurrent(),
-			showWelcome = this.props.nuxWelcome.getWelcome(),
-			newestSite = this.newestSite(),
-			translatorInvitation = this.props.translatorInvitation,
-			showInvitation = ! showWelcome &&
+	renderWelcome: function() {
+		var translatorInvitation = this.props.translatorInvitation,
+			showInvitation,
+			showWelcome,
+			newestSite;
+
+		if ( ! this.props.user ) {
+			return null;
+		}
+
+		showWelcome = this.props.nuxWelcome.getWelcome();
+		newestSite = this.newestSite();
+		showInvitation = ! showWelcome &&
 				translatorInvitation.isPending() &&
-				translatorInvitation.isValidSection( this.props.section ),
+				translatorInvitation.isValidSection( this.props.section );
+
+		return (
+			<span>
+				<Welcome isVisible={ showWelcome } closeAction={ this.closeWelcome } additionalClassName="NuxWelcome">
+					<WelcomeMessage welcomeSite={ newestSite } />
+				</Welcome>
+				<TranslatorInvitation isVisible={ showInvitation } />
+			</span>
+		);
+	},
+
+	render: function() {
+		var sectionClass = classnames(
+				'wp',
+				'layout',
+				`is-section-${this.props.section}`,
+				`focus-${this.props.focus.getCurrent()}`,
+				{ 'is-support-user': this.props.isSupportUser },
+				{ 'has-no-sidebar': ! this.props.hasSidebar },
+				{ 'full-screen': this.props.isFullScreen }
+			),
 			loadingClass = classnames( {
 				layout__loader: true,
 				'is-active': this.props.isLoading
 			} );
 
-		if ( ! this.props.hasSidebar ) {
-			sectionClass += ' has-no-sidebar';
-		}
-
 		return (
 			<div className={ sectionClass }>
 				{ config.isEnabled( 'keyboard-shortcuts' ) ? <KeyboardShortcutsMenu /> : null }
 				{ this.renderMasterbar() }
+				{ config.isEnabled( 'support-user' ) && <SupportUser /> }
 				<div className={ loadingClass } ><PulsingDot active={ this.props.isLoading } chunkName={ this.props.chunkName } /></div>
 				{ this.props.isOffline && <OfflineStatus /> }
 				<div id="content" className="wp-content">
-					<Welcome isVisible={ showWelcome } closeAction={ this.closeWelcome } additionalClassName="NuxWelcome">
-						<WelcomeMessage welcomeSite={ newestSite } />
-					</Welcome>
-					<EmailVerificationNotice user={ this.props.user } />
+					{ this.renderWelcome() }
+					{ this.renderEmailVerificationNotice() }
 					<GlobalNotices id="notices" notices={ notices.list } forcePinned={ 'post' === this.props.section } />
-					<TranslatorInvitation isVisible={ showInvitation } />
 					<div id="primary" className="wp-primary wp-section" />
 					<div id="secondary" className="wp-secondary" />
 				</div>
@@ -142,11 +175,13 @@ Layout = React.createClass( {
 
 export default connect(
 	( state ) => {
-		const { isLoading, section, hasSidebar, chunkName } = state.ui;
-		return { 
+		const { isLoading, section, hasSidebar, isFullScreen, chunkName } = state.ui;
+		return {
 			isLoading,
+			isSupportUser: state.support.isSupportUser,
 			section,
 			hasSidebar,
+			isFullScreen,
 			chunkName,
 			isOffline: isOffline( state )
 		};

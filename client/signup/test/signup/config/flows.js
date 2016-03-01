@@ -2,7 +2,7 @@
  * External dependencies
  */
 var rewire = require( 'rewire' ),
-	assign = require( 'lodash/object/assign' );
+	assign = require( 'lodash/assign' );
 
 /**
  * Internal dependencies
@@ -18,7 +18,17 @@ flows.__set__( 'flows', {
 	account: {
 		steps: [ 'user', 'site' ],
 		destination: '/'
+	},
+
+	other: {
+		steps: [ 'user', 'site' ],
+		destination: '/'
+	},
+
+	filtered: {
+		steps: [ 'user', 'site' ],
+		destination: '/'
 	}
 } );
 
-module.exports = assign( {}, flows, { currentFlowName: 'account', defaultFlowName: 'main' } );
+module.exports = assign( {}, flows, { defaultFlowName: 'main' } );

@@ -16,7 +16,7 @@ import LoggedIn from 'my-sites/invites/invite-accept-logged-in';
 import LoggedOut from 'my-sites/invites/invite-accept-logged-out';
 import _user from 'lib/user';
 import { fetchInvite } from 'lib/invites/actions';
-import InvitesStore from 'lib/invites/stores/invites-validation';
+import InvitesStore from 'lib/invites/stores/invites-accept-validation';
 import EmptyContent from 'components/empty-content';
 import { successNotice, infoNotice } from 'state/notices/actions';
 import analytics from 'analytics';
@@ -158,6 +158,22 @@ let InviteAccept = React.createClass( {
 
 	renderError() {
 		debug( 'Rendering error: ' + JSON.stringify( this.state.error ) );
+		if ( this.state.error ) {
+			const props = {
+				line: this.translate( 'Would you like to accept the invite with a different account?' ),
+				action: this.translate( 'Switch Accounts' ),
+				actionURL: config( 'login_url' ) + '?redirect_to=' + encodeURIComponent( window.location.href ),
+				illustration: '/calypso/images/drake/drake-whoops.svg'
+			};
+			switch ( this.state.error.error ) {
+				case 'already_member':
+					return ( <EmptyContent { ... props } title={ this.translate( 'You are already a member of this blog.' ) } /> );
+					break;
+				case 'already_subscribed':
+					return ( <EmptyContent { ... props } title={ this.translate( 'You are already a follower on this blog.' ) } /> );
+					break;
+			}
+		}
 		return (
 			<EmptyContent
 				title={ this.getErrorTitle() }

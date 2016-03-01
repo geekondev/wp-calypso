@@ -2,7 +2,7 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	defer = require( 'lodash/function/defer' ),
+	defer = require( 'lodash/defer' ),
 	page = require( 'page' );
 
 /**
@@ -21,16 +21,12 @@ var StepWrapper = require( 'signup/step-wrapper' ),
 module.exports = React.createClass( {
 	displayName: 'DomainsStep',
 
-	basePath: function() {
-		return signupUtils.getStepUrl( this.props.flowName, this.props.stepName, this.props.locale );
-	},
-
 	showGoogleApps: function() {
-		page( this.basePath() + '/google' );
+		page( signupUtils.getStepUrl( this.props.flowName, this.props.stepName, 'google', this.props.locale ) );
 	},
 
 	showDomainSearch: function() {
-		page( this.basePath() );
+		page( signupUtils.getStepUrl( this.props.flowName, this.props.stepName, this.props.locale ) );
 	},
 
 	getInitialState: function() {
@@ -75,6 +71,16 @@ module.exports = React.createClass( {
 		} );
 	},
 
+	getThemeArgs: function() {
+		const isPurchasingTheme = this.props.queryObject && this.props.queryObject.premium;
+		const themeSlug = this.props.queryObject ? this.props.queryObject.theme : undefined;
+		const themeItem = isPurchasingTheme
+			? cartItems.themeItem( themeSlug, 'signup-with-theme' )
+			: undefined;
+
+		return { themeSlug, themeItem };
+	},
+
 	submitWithDomain: function( googleAppsCartItem ) {
 		const suggestion = this.props.step.suggestion,
 			isPurchasingItem = Boolean( suggestion.product_slug ),
@@ -88,7 +94,7 @@ module.exports = React.createClass( {
 				} ) :
 				undefined;
 
-		SignupActions.submitSignupStep( {
+		SignupActions.submitSignupStep( Object.assign( {
 			processingMessage: this.translate( 'Adding your domain' ),
 			stepName: this.props.stepName,
 			domainItem,
@@ -96,7 +102,7 @@ module.exports = React.createClass( {
 			isPurchasingItem,
 			siteUrl,
 			stepSectionName: this.props.stepSectionName
-		}, [], { domainItem } );
+		}, this.getThemeArgs() ), [], { domainItem } );
 
 		this.props.goToNextStep();
 	},
@@ -104,7 +110,7 @@ module.exports = React.createClass( {
 	handleAddMapping: function( sectionName, domain, state ) {
 		const domainItem = cartItems.domainMapping( { domain } );
 
-		SignupActions.submitSignupStep( {
+		SignupActions.submitSignupStep( Object.assign( {
 			processingMessage: this.translate( 'Adding your domain mapping' ),
 			stepName: this.props.stepName,
 			[ sectionName ]: state,
@@ -112,7 +118,7 @@ module.exports = React.createClass( {
 			isPurchasingItem: true,
 			siteUrl: domain,
 			stepSectionName: this.props.stepSectionName
-		} );
+		}, this.getThemeArgs() ) );
 
 		this.props.goToNextStep();
 	},

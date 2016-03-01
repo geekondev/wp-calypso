@@ -3,18 +3,17 @@
  */
 var React = require( 'react' ), // eslint-disable-line no-unused-vars
 	debug = require( 'debug' )( 'calypso:my-sites:upgrades:checkout:transaction-steps-mixin' ),
-	flatten = require( 'lodash/array/flatten' ),
-	values = require( 'lodash/object/values' ),
-	pick = require( 'lodash/object/pick' ),
-	defer = require( 'lodash/function/defer' ),
-	isEqual = require( 'lodash/lang/isEqual' ),
+	flatten = require( 'lodash/flatten' ),
+	values = require( 'lodash/values' ),
+	pick = require( 'lodash/pick' ),
+	defer = require( 'lodash/defer' ),
+	isEqual = require( 'lodash/isEqual' ),
 	page = require( 'page' );
 
 /**
  * Internal dependencies
  */
-var CheckoutThankYou = require( './thank-you' ),
-	analytics = require( 'analytics' ),
+var analytics = require( 'analytics' ),
 	adTracking = require( 'analytics/ad-tracking' ),
 	notices = require( 'notices' ),
 	isFree = require( 'lib/cart-values' ).isFree,
@@ -122,7 +121,11 @@ var TransactionStepsMixin = {
 						success: false
 					} );
 				} else if ( step.data ) {
-					cartValue.products.map( adTracking.recordPurchase );
+					// Makes sure free trials are not recorded as purchases in ad trackers since they are products with
+					// zero-value cost and would thus lead to a wrong computation of conversions
+					if ( ! cartItems.hasFreeTrial( cartValue ) ) {
+						cartValue.products.map( adTracking.recordPurchase );
+					}
 
 					analytics.tracks.recordEvent( 'calypso_checkout_payment_success', {
 						coupon_code: cartValue.coupon,
@@ -165,11 +168,6 @@ var TransactionStepsMixin = {
 		if ( ! step.last || step.error ) {
 			return;
 		}
-
-		CheckoutThankYou.setLastTransaction( {
-			cart: cart,
-			selectedSite: selectedSite
-		} );
 
 		defer( () => {
 			// The Thank You page throws a rendering error if this is not in a defer.

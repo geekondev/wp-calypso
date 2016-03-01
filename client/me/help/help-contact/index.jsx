@@ -13,6 +13,7 @@ import OlarkChatbox from 'components/olark-chatbox';
 import olarkStore from 'lib/olark-store';
 import olarkActions from 'lib/olark-store/actions';
 import olarkEvents from 'lib/olark-events';
+import olarkApi from 'lib/olark-api';
 import HelpContactForm from 'me/help/help-contact-form';
 import HelpContactConfirmation from 'me/help/help-contact-confirmation';
 import HeaderCake from 'components/header-cake';
@@ -36,6 +37,8 @@ module.exports = React.createClass( {
 		olarkEvents.on( 'api.chat.onOperatorsAway', this.onOperatorsAway );
 		olarkEvents.on( 'api.chat.onOperatorsAvailable', this.onOperatorsAvailable );
 		olarkEvents.on( 'api.chat.onCommandFromOperator', this.onCommandFromOperator );
+		olarkEvents.on( 'api.chat.onMessageToVisitor', this.onMessageToVisitor );
+		olarkEvents.on( 'api.chat.onMessageToOperator', this.onMessageToOperator );
 
 		sites.on( 'change', this.onSitesChanged );
 
@@ -55,6 +58,8 @@ module.exports = React.createClass( {
 		olarkEvents.off( 'api.chat.onOperatorsAway', this.onOperatorsAway );
 		olarkEvents.off( 'api.chat.onOperatorsAvailable', this.onOperatorsAvailable );
 		olarkEvents.off( 'api.chat.onCommandFromOperator', this.onCommandFromOperator );
+		olarkEvents.off( 'api.chat.onMessageToVisitor', this.onMessageToVisitor );
+		olarkEvents.off( 'api.chat.onMessageToOperator', this.onMessageToOperator );
 
 		if ( details.isConversing && ! isOperatorAvailable ) {
 			olarkActions.shrinkBox();
@@ -124,7 +129,7 @@ module.exports = React.createClass( {
 
 		this.setState( { isSubmitting: true } );
 
-		wpcom.submitKayakoTicket( subject, kayakoMessage, locale, ( error ) => {
+		wpcom.submitKayakoTicket( subject, kayakoMessage, locale, this.props.clientSlug, ( error ) => {
 			if ( error ) {
 				// TODO: bump a stat here
 				notices.error( error.message );
@@ -154,7 +159,7 @@ module.exports = React.createClass( {
 
 		this.setState( { isSubmitting: true } );
 
-		wpcom.submitSupportForumsTopic( subject, message, ( error, data ) => {
+		wpcom.submitSupportForumsTopic( subject, message, this.props.clientSlug, ( error, data ) => {
 			if ( error ) {
 				// TODO: bump a stat here
 				notices.error( error.message );
@@ -218,6 +223,55 @@ module.exports = React.createClass( {
 		widgetInput.onkeydown( { keyCode: KEY_ENTER } );
 	},
 
+	onMessageToVisitor: function() {
+		this.trackChatDisplayError( 'onMessageToVisitor' );
+	},
+
+	onMessageToOperator: function() {
+		this.trackChatDisplayError( 'onMessageToOperator' );
+	},
+
+	trackChatDisplayError: function( olarkEvent ) {
+		const { olark, isChatEnded } = this.state;
+
+		// If the user sent/received a message to/from an operator but the chatbox is not inlined
+		// then something must be going wrong. Lets record this event and give some details
+		if ( this.canShowChatbox() ) {
+			return;
+		}
+
+		const tracksData = {
+			olark_event: olarkEvent,
+			olark_locale: olark.locale,
+			olark_is_chat_ended: isChatEnded,
+			olark_is_ready: olark.isOlarkReady,
+			olark_is_expanded: olark.isOlarkExpanded,
+			olark_is_user_eligible: olark.isUserEligible,
+			olark_is_operator_available: olark.isOperatorAvailable
+		};
+
+		// Do a check here to make sure that details are present because an error in the
+		// olark event stack could cause it to be null/undefined
+		if ( olark.details ) {
+			tracksData.olark_is_conversing = olark.details.isConversing;
+		} else {
+			tracksData.olark_details_missing = true;
+		}
+
+		analytics.tracks.recordEvent( 'calypso_help_contact_chatbox_mistaken_display', tracksData );
+
+		// Lets call the olark API directly to see if the value we get differs from what our olark store has.
+		olarkApi( 'api.visitor.getDetails', ( details ) => {
+			const data = {
+				olark_event: olarkEvent,
+				olark_is_conversing: details.isConversing,
+			};
+
+			// This does a separate tracks ping just incase the error is occuring in the olark api call
+			analytics.tracks.recordEvent( 'calypso_help_contact_chatbox_mistaken_display_got_details', data );
+		} );
+	},
+
 	onOperatorsAway: function() {
 		const IS_UNAVAILABLE = false;
 		const { details } = this.state.olark;
@@ -258,7 +312,7 @@ module.exports = React.createClass( {
 	 * Auto fill the subject with the first five words contained in the message field of the contact form.
 	 */
 	autofillSubject: function() {
-		if ( ! savedContactForm.message || savedContactForm.subject ) {
+		if ( ! savedContactForm || ! savedContactForm.message || savedContactForm.subject ) {
 			return;
 		}
 

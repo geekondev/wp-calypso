@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import find from 'lodash/collection/find';
+import find from 'lodash/find';
 import page from 'page';
 import moment from 'moment';
 
@@ -10,6 +10,10 @@ import moment from 'moment';
  */
 import { addItem } from 'lib/upgrades/actions';
 import { cartItems } from 'lib/cart-values';
+import {
+	isFreeJetpackPlan,
+	isJetpackPlan
+} from 'lib/products-values';
 
 export function addCurrentPlanToCartAndRedirect( sitePlans, selectedSite ) {
 	addItem( cartItems.planItem( getCurrentPlan( sitePlans.data ).productSlug ) );
@@ -55,5 +59,19 @@ export function isInGracePeriod( plan ) {
 };
 
 export function shouldFetchSitePlans( sitePlans, selectedSite ) {
-	return ! sitePlans.hasLoadedFromServer && ! sitePlans.isFetching && selectedSite;
+	return ! sitePlans.hasLoadedFromServer && ! sitePlans.isRequesting && selectedSite;
+};
+
+export function filterPlansBySiteAndProps( plans, site, hideFreePlan ) {
+	return plans.filter( function( plan ) {
+		if ( site && site.jetpack ) {
+			return isJetpackPlan( plan ) && ! isFreeJetpackPlan( plan );
+		}
+
+		if ( hideFreePlan && 'free_plan' === plan.product_slug ) {
+			return false;
+		}
+
+		return ! isJetpackPlan( plan );
+	} );
 };

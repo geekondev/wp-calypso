@@ -1,8 +1,10 @@
+/** @ssr-ready **/
+
 /**
  * External dependencies
  */
-import find from 'lodash/collection/find';
-import includes from 'lodash/collection/includes';
+import find from 'lodash/find';
+import includes from 'lodash/includes';
 import moment from 'moment';
 
 /**
@@ -209,6 +211,10 @@ function purchaseType( purchase ) {
 	return null;
 }
 
+function shouldFetchPurchases( purchases ) {
+	return ! purchases.hasLoadedFromServer && ! purchases.isFetching;
+}
+
 function showCreditCardExpiringWarning( purchase ) {
 	return ! isIncludedWithPlan( purchase ) &&
 		isPaidWithCreditCard( purchase ) &&
@@ -239,5 +245,6 @@ export {
 	isRenewing,
 	paymentLogoType,
 	purchaseType,
+	shouldFetchPurchases,
 	showCreditCardExpiringWarning,
 }

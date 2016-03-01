@@ -3,7 +3,7 @@
  */
 var React = require( 'react' ),
 	classNames = require( 'classnames' ),
-	uniq = require( 'lodash/array/uniq' ),
+	uniqBy = require( 'lodash/uniqBy' ),
 	i18n = require( 'lib/mixins/i18n' );
 
 /**
@@ -45,7 +45,7 @@ module.exports = React.createClass( {
 		var progress = this.props.progress ? this.props.progress : [],
 			log = progress[ 0 ],
 			message,
-			uniqLogs = uniq( progress, function( uniqLog ) {
+			uniqLogs = uniqBy( progress, function( uniqLog ) {
 				return uniqLog.site.ID;
 			} ),
 			translationArgs = {
@@ -126,14 +126,6 @@ module.exports = React.createClass( {
 		}
 		if ( this.hasUpdate() ) {
 			return this.renderUpdateFlag();
-		}
-
-		if ( pluginData.wpcom ) {
-			return (
-				<div className="plugin-item__last_updated">
-					{ this.translate( 'Updated Automatically' ) }
-				</div>
-			);
 		}
 
 		if ( pluginData.last_updated ) {

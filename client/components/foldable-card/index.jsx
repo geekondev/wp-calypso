@@ -3,7 +3,7 @@
  */
 var React = require( 'react' ),
 	classNames = require( 'classnames' ),
-	noop = require( 'lodash/utility/noop' );
+	noop = require( 'lodash/noop' );
 
 /**
  * Internal Dependencies
@@ -138,7 +138,7 @@ var FoldableCard = React.createClass( {
 		return (
 			<Container className={ itemSiteClasses }>
 				{ this.renderHeader() }
-				{ this.renderContent() }
+				{ this.state.expanded && this.renderContent() }
 			</Container>
 		);
 	}

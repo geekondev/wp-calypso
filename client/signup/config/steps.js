@@ -16,6 +16,34 @@ module.exports = {
 		dependencies: [ 'siteSlug' ]
 	},
 
+	'themes-headstart': {
+		stepName: 'themes-headstart',
+		props: {
+			useHeadstart: true,
+		},
+		dependencies: [ 'siteSlug' ],
+		providesDependencies: [ 'theme' ]
+	},
+
+	altthemes: {
+		stepName: 'altthemes',
+		props: {
+			themes: [
+				{ name: 'Dyad', slug: 'dyad' },
+				{ name: 'Independent Publisher', slug: 'independent-publisher' },
+				{ name: 'Sela', slug: 'sela' },
+				{ name: 'Hemingway Rewritten', slug: 'hemingway-rewritten' },
+				{ name: 'Twenty Sixteen', slug: 'twentysixteen' },
+				{ name: 'Penscratch', slug: 'penscratch' },
+				{ name: 'Edin', slug: 'edin' },
+				{ name: 'Publication', slug: 'publication' },
+				{ name: 'Harmonic', slug: 'harmonic' },
+			],
+		},
+		apiRequestFunction: stepActions.setThemeOnSite,
+		dependencies: [ 'siteSlug' ]
+	},
+
 	'design-type': {
 		stepName: 'design-type',
 		providesDependencies: [ 'themes' ]
@@ -38,20 +66,20 @@ module.exports = {
 		stepName: 'test',
 	},
 
-	'survey-user': {
-		stepName: 'survey-user',
-		apiRequestFunction: stepActions.createAccount,
-		dependencies: [ 'surveySiteType', 'surveyQuestion' ],
-		providesToken: true,
-		providesDependencies: [ 'bearer_token', 'username' ]
-	},
-
 	survey: {
 		stepName: 'survey',
 		props: {
-			surveySiteType: ( '/start/vert-blog' === current ) ? 'blog' : 'site'
+			surveySiteType: ( current && current.toString().match( /\/start\/blog/ ) ) ? 'blog' : 'site'
 		},
 		providesDependencies: [ 'surveySiteType', 'surveyQuestion' ]
+	},
+
+	'survey-user': {
+		stepName: 'survey-user',
+		apiRequestFunction: stepActions.createAccount,
+		providesToken: true,
+		dependencies: [ 'surveySiteType', 'surveyQuestion' ],
+		providesDependencies: [ 'bearer_token', 'username' ]
 	},
 
 	plans: {
@@ -61,10 +89,32 @@ module.exports = {
 		providesDependencies: [ 'cartItem' ]
 	},
 
+	'select-plan': {
+		stepName: 'select-plan',
+		apiRequestFunction: stepActions.addPlanToCart,
+		dependencies: [ 'siteSlug' ],
+		providesDependencies: [ 'cartItem' ]
+	},
+
+	'select-plan-or-skip': {
+		stepName: 'select-plan-or-skip',
+		apiRequestFunction: stepActions.addPlanToCart,
+		dependencies: [ 'siteSlug' ],
+		providesDependencies: [ 'cartItem' ]
+	},
+
 	domains: {
 		stepName: 'domains',
 		apiRequestFunction: stepActions.addDomainItemsToCart,
-		providesDependencies: [ 'siteSlug', 'domainItem' ],
+		providesDependencies: [ 'siteSlug', 'domainItem', 'themeItem' ],
+		delayApiRequestUntilComplete: true
+	},
+
+	'domains-with-theme': {
+		stepName: 'domains-with-theme',
+		apiRequestFunction: stepActions.addDomainItemsToCart,
+		providesDependencies: [ 'siteSlug', 'domainItem', 'themeItem' ],
+		dependencies: [ 'theme' ],
 		delayApiRequestUntilComplete: true
 	},
 

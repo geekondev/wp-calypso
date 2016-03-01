@@ -4,7 +4,7 @@
 var React = require( 'react' ),
 	url = require( 'url' ),
 	Qs = require( 'qs' ),
-	cloneDeep = require( 'lodash/lang/cloneDeep' ),
+	cloneDeep = require( 'lodash/cloneDeep' ),
 	bindActionCreators = require( 'redux' ).bindActionCreators,
 	connect = require( 'react-redux' ).connect,
 	debug = require( 'debug' )( 'calypso:my-sites:customize' );
@@ -197,11 +197,15 @@ var Customize = React.createClass( {
 	buildCustomizerQuery: function() {
 		var protocol = window.location.protocol,
 			host = window.location.host,
-			query = cloneDeep( this.props.query );
+			query = cloneDeep( this.props.query ),
+			site = this.getSite();
 
 		query.return = protocol + '//' + host + this.getPreviousPath();
 		query.calypso = true;
 		query.calypsoOrigin = protocol + '//' + host;
+		if ( site.options && site.options.frame_nonce ) {
+			query['frame-nonce'] = site.options.frame_nonce;
+		}
 
 		return Qs.stringify( query );
 	},

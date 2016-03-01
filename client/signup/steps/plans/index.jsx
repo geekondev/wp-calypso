@@ -3,7 +3,7 @@
  */
 var React = require( 'react' ),
 	debug = require( 'debug' )( 'calypso:steps:plans' ),
-	isEmpty = require( 'lodash/lang/isEmpty' );
+	isEmpty = require( 'lodash/isEmpty' );
 
 /**
  * Internal dependencies
@@ -16,6 +16,7 @@ var productsList = require( 'lib/products-list' )(),
 	PlanList = require( 'components/plans/plan-list' ),
 	PlansCompare = require( 'components/plans/plans-compare' ),
 	SignupActions = require( 'lib/signup/actions' ),
+	signupUtils = require( 'signup/utils' ),
 	StepWrapper = require( 'signup/step-wrapper' ),
 	Gridicon = require( 'components/gridicon' );
 
@@ -74,15 +75,19 @@ module.exports = React.createClass( {
 	},
 
 	comparePlansUrl: function() {
-		return this.props.stepName + '/compare';
+		return signupUtils.getStepUrl( this.props.flowName, this.props.stepName, 'compare', this.props.locale );
 	},
 
 	handleComparePlansLinkClick: function( linkLocation ) {
 		analytics.tracks.recordEvent( 'calypso_signup_compare_plans_click', { location: linkLocation } );
 	},
 
-	isFreeTrialFlow: function() {
-		return 'free-trial' === this.props.flowName;
+	areFreeTrialsEnabled: function() {
+		if ( this.props.enableFreeTrials ) {
+			return true;
+		}
+
+		return getABTestVariation( 'freeTrials' ) === 'offered' && 'free-trial' === this.props.flowName;
 	},
 
 	plansList: function() {
@@ -91,7 +96,8 @@ module.exports = React.createClass( {
 				<PlanList
 					plans={ this.state.plans }
 					comparePlansUrl={ this.comparePlansUrl() }
-					enableFreeTrials={ this.isFreeTrialFlow() }
+					enableFreeTrials={ this.areFreeTrialsEnabled() }
+					hideFreePlan={ this.props.hideFreePlan }
 					isInSignup={ true }
 					onSelectPlan={ this.onSelectPlan } />
 				<a
@@ -109,7 +115,7 @@ module.exports = React.createClass( {
 		let headerText = this.translate( 'Pick a plan that\'s right for you.' ),
 			subHeaderText;
 
-		if ( this.isFreeTrialFlow() && getABTestVariation( 'freeTrials' ) === 'offered' ) {
+		if ( this.areFreeTrialsEnabled() && getABTestVariation( 'freeTrials' ) === 'offered' ) {
 			subHeaderText = this.translate(
 				'Try WordPress.com Premium or Business free for 14 days, no credit card required.'
 			);
@@ -126,6 +132,7 @@ module.exports = React.createClass( {
 		return (
 			<StepWrapper
 				flowName={ this.props.flowName }
+				goToNextStep={ this.props.showSkipStepButton ? this.onSelectPlan : null }
 				stepName={ this.props.stepName }
 				positionInFlow={ this.props.positionInFlow }
 				headerText={ headerText }
@@ -140,7 +147,8 @@ module.exports = React.createClass( {
 	plansCompare: function() {
 		return <PlansCompare
 			className="plans-step__compare"
-			enableFreeTrials={ this.isFreeTrialFlow() }
+			enableFreeTrials={ this.areFreeTrialsEnabled() }
+			hideFreePlan={ this.props.hideFreePlan }
 			onSelectPlan={ this.onSelectPlan }
 			isInSignup={ true }
 			backUrl={ this.props.path.replace( '/compare', '' ) }

@@ -1,7 +1,7 @@
 
 // External Dependencies
 var Immutable = require( 'immutable' ),
-	pick = require( 'lodash/object/pick' );
+	pick = require( 'lodash/pick' );
 
 // Internal Dependencies
 var ActionType = require( './constants' ).action,
@@ -26,16 +26,6 @@ var feeds = {},
 		state: State.PENDING,
 		error: undefined
 	} );
-
-function changeState( feedId, newState ) {
-	var feed = feeds[ feedId ];
-	if ( ! feed ) {
-		feed = new FeedRecord( { feed_ID: feedId } );
-	}
-
-	feed = feed.set( 'state', newState );
-	setFeed( feedId, feed );
-}
 
 function setFeed( feedId, feed ) {
 	if ( feed !== feeds[ feedId ] ) {
@@ -88,9 +78,6 @@ FeedStore.dispatchToken = Dispatcher.register( function( payload ) {
 	}
 
 	switch ( action.type ) {
-		case ActionType.FETCH:
-			changeState( action.feedId, State.PENDING );
-			break;
 		case ActionType.RECEIVE_FETCH:
 			if ( action.error ) {
 				receiveError( action.feedId, action.error );

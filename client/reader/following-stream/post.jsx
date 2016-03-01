@@ -4,15 +4,15 @@
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	PureRenderMixin = require( 'react-pure-render/mixin' ),
-	assign = require( 'lodash/object/assign' ),
+	assign = require( 'lodash/assign' ),
 	classnames = require( 'classnames' ),
 	closest = require( 'component-closest' ),
 	classes = require( 'component-classes' ),
 	//debug = require( 'debug' )( 'calypso:reader:following:post' ),
-	first = require( 'lodash/array/first' ),
-	forOwn = require( 'lodash/object/forOwn' ),
+	head = require( 'lodash/head' ),
+	forOwn = require( 'lodash/forOwn' ),
 	twemoji = require( 'twemoji' ),
-	get = require( 'lodash/object/get' ),
+	get = require( 'lodash/get' ),
 	page = require( 'page' );
 
 /**
@@ -36,6 +36,7 @@ var Card = require( 'components/card' ),
 	utils = require( 'reader/utils' ),
 	PostCommentHelper = require( 'reader/comments/helper' ),
 	LikeHelper = require( 'reader/like-helper' ),
+	EmbedHelper = require( 'reader/embed-helper' ),
 	readerRoute = require( 'reader/route' ),
 	stats = require( 'reader/stats' ),
 	PostExcerptLink = require( 'reader/post-excerpt-link' ),
@@ -153,17 +154,14 @@ var Post = React.createClass( {
 		this._parseEmoji();
 	},
 
-	getFeaturedSize: function( aspect, available ) {
+	getFeaturedSize: function( available ) {
 		available = available || this.getMaxFeaturedWidthSize();
-		return {
-			width: available + 'px',
-			height: Math.floor( available / aspect ) + 'px'
-		};
+		return this.featuredSizingStrategy( available );
 	},
 
 	featuredImageComponent: function( post ) {
 		var featuredImage = ( post.canonical_image && post.canonical_image.uri ),
-			featuredEmbed = first( post.content_embeds ),
+			featuredEmbed = head( post.content_embeds ),
 			maxWidth = Math.min( 653, window.innerWidth ),
 			featuredSize, useFeaturedEmbed;
 
@@ -182,11 +180,19 @@ var Post = React.createClass( {
 		//
 		useFeaturedEmbed = featuredEmbed &&
 			( ! featuredImage || ( featuredImage !== post.featured_image ) );
-		if ( useFeaturedEmbed && featuredEmbed.aspectRatio ) {
-			this.featuredAspect = featuredEmbed.aspectRatio;
+		if ( useFeaturedEmbed ) {
+			this.featuredSizingStrategy = EmbedHelper.getEmbedSizingFunction( featuredEmbed );
 		} else if ( featuredImage && post.canonical_image.width >= maxWidth ) {
-			this.featuredAspect = post.canonical_image.width / post.canonical_image.height;
-			featuredSize = this.getFeaturedSize( this.featuredAspect, maxWidth );
+			this.featuredSizingStrategy = function featuredImageSizingFunction( availible ) {
+				var aspectRatio = post.canonical_image.width / post.canonical_image.height;
+
+				return {
+					width: availible + 'px',
+					height: Math.floor( availible / aspectRatio ) + 'px'
+				};
+			};
+
+			featuredSize = this.getFeaturedSize( maxWidth );
 		}
 
 		return useFeaturedEmbed ?
@@ -212,7 +218,7 @@ var Post = React.createClass( {
 		}
 
 		if ( node ) {
-			assign( node.style, this.getFeaturedSize( this.featuredAspect ) );
+			assign( node.style, this.getFeaturedSize() );
 		}
 	},
 
@@ -396,8 +402,8 @@ var Post = React.createClass( {
 				<PostByline post={ post } site={ this.props.site } />
 
 				{ shouldUseFullExcerpt ?
-					<div key="full-post-inline" className="reader__full-post-content" dangerouslySetInnerHTML={{ __html: post.content }} ></div> : //eslint-disable-line react/no-danger
-					<PostExcerpt text={ post.excerpt } />
+					<div key="full-post-inline" className="reader__full-post-content" dangerouslySetInnerHTML={{ __html: post.content }}></div> : //eslint-disable-line react/no-danger
+					<PostExcerpt content={ post.better_excerpt ? post.better_excerpt : post.excerpt } />
 				}
 
 				{ shouldShowExcerptOnly ?

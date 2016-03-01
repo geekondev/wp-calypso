@@ -1,13 +1,15 @@
+/** @ssr-ready **/
+
 /**
  * External Dependencies
  */
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
-	findWhere = require( 'lodash/collection/findWhere' ),
-	filter = require( 'lodash/collection/filter' ),
-	findIndex = require( 'lodash/array/findIndex' ),
-	map = require( 'lodash/collection/map' ),
-	result = require( 'lodash/object/result' ),
+	find = require( 'lodash/find' ),
+	filter = require( 'lodash/filter' ),
+	findIndex = require( 'lodash/findIndex' ),
+	map = require( 'lodash/map' ),
+	result = require( 'lodash/result' ),
 	classNames = require( 'classnames' );
 
 /**
@@ -18,11 +20,6 @@ var DropdownItem = require( 'components/select-dropdown/item' ),
 	Count = require( 'components/count' );
 
 var noop = () => {};
-
-/**
- * Internal variables
- */
-var _instance = 1;
 
 /**
  * SelectDropdown
@@ -48,6 +45,10 @@ var SelectDropdown = React.createClass( {
 		)
 	},
 
+	statics: {
+		instances: 0
+	},
+
 	getDefaultProps: function() {
 		return {
 			onSelect: noop,
@@ -70,8 +71,9 @@ var SelectDropdown = React.createClass( {
 	},
 
 	componentWillMount: function() {
-		this.id = _instance;
-		_instance++;
+		this.setState( {
+			instanceId: ++SelectDropdown.instances
+		} );
 	},
 
 	componentWillReceiveProps: function() {
@@ -131,14 +133,14 @@ var SelectDropdown = React.createClass( {
 			if ( ! item ) {
 				return (
 					<DropdownSeparator
-						key={ 'dropdown-separator-' + this.id + '-' + index }
+						key={ 'dropdown-separator-' + this.state.instanceId + '-' + index }
 					/>
 				);
 			}
 
 			let dropdownItem = (
 				<DropdownItem
-					key={ 'dropdown-item-' + this.id + '-' + item.value }
+					key={ 'dropdown-item-' + this.state.instanceId + '-' + item.value }
 					ref={ 'item-' + refIndex }
 					selected={ this.state.selected === item.value }
 					onClick={ this.selectItem.bind( this, item ) }
@@ -170,7 +172,7 @@ var SelectDropdown = React.createClass( {
 		let dropdownClassName = classNames( dropdownClasses );
 		let selectedText = this.props.selectedText
 			? this.props.selectedText
-			: result( findWhere(
+			: result( find(
 				this.props.options, { value: this.state.selected }
 			), 'label' );
 
@@ -182,13 +184,13 @@ var SelectDropdown = React.createClass( {
 					onKeyDown={ this.navigateItem }
 					tabIndex={ this.props.tabIndex || 0 }
 					aria-haspopup="true"
-					aria-owns={ 'select-submenu-' + this.id }
-					aria-controls={ 'select-submenu-' + this.id }
+					aria-owns={ 'select-submenu-' + this.state.instanceId }
+					aria-controls={ 'select-submenu-' + this.state.instanceId }
 					aria-expanded={ this.state.isOpen }
 					onClick={ this.toggleDropdown }
 				>
 					<div
-						id={ 'select-dropdown-' + this.id }
+						id={ 'select-dropdown-' + this.state.instanceId }
 						className="select-dropdown__header"
 					>
 						<span className="select-dropdown__header-text">
@@ -201,10 +203,10 @@ var SelectDropdown = React.createClass( {
 					</div>
 
 					<ul
-						id={ 'select-submenu-' + this.id }
+						id={ 'select-submenu-' + this.state.instanceId }
 						className="select-dropdown__options"
 						role="menu"
-						aria-labelledby={ 'select-dropdown-' + this.id }
+						aria-labelledby={ 'select-dropdown-' + this.state.instanceId }
 						aria-expanded={ this.state.isOpen }
 					>
 						{ this.dropdownOptions() }

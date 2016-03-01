@@ -10,8 +10,8 @@ var fs = require( 'fs' ),
 	preProcessXGettextJSMatch = require( '../i18n/preprocess-xgettextjs-match.js' ),
 	SourceMapConsumer = require( 'source-map' ).SourceMapConsumer,
 	tokenize = require( '../../client/lib/interpolate-components/tokenize.js' ),
-	contains = require( 'lodash' ).contains,
-	flow = require( 'lodash' ).flow;
+	includes = require( 'lodash/includes' ),
+	flow = require( 'lodash/flow' );
 
 /*
  * Module variables
@@ -271,11 +271,11 @@ function isNotAcceptableTranslateArgument( node ) {
 	// likely to lead to confusion than convenience.
 
 	return ! ( node && node.type &&
-		contains( [ 'Literal', 'ObjectExpression', 'BinaryExpression' ], node.type ) );
+		includes( [ 'Literal', 'ObjectExpression', 'BinaryExpression' ], node.type ) );
 }
 
 function isRelevantProperty( property ) {
-	return contains( [ 'context', 'comment' ], keyName( property ) );
+	return includes( [ 'context', 'comment' ], keyName( property ) );
 }
 
 /* Grab the content out of from the source */
@@ -342,7 +342,8 @@ function auditASTNodeForVariablesInTranslateArguments( node, properties, warning
 	for ( i = 0; i < numberOfArgsToCheck; i++ ) {
 		if ( isNotAcceptableTranslateArgument( node.arguments[ i ] ) ) {
 			warnings.push( {
-				string: 'Arguments to translate() must be literals, because we use static analysis to build translation data.',
+				string: "We can't pass variables or functions to translate() (only string literals).\n" +
+					'    See https://wpcalypso.wordpress.com/devdocs/client/lib/mixins/i18n#strings-only',
 				original: originalString,
 				location: node.arguments[ i ].loc.start
 			} );
@@ -358,8 +359,9 @@ function auditASTNodeForVariablesInTranslateArguments( node, properties, warning
 		for ( i = 0; i < releventProperties.length; i++ ) {
 			if ( isNotAcceptableTranslateArgument( releventProperties[ i ].value ) ) {
 				warnings.push( {
-					string: '\'' + keyName( releventProperties[ i ] ) + '\' ' +
-						'option must be literal, because we use static analysis to build translation data.',
+					string: "'" + keyName( releventProperties[ i ] ) + "' " +
+						"option in translate() can't be a variable or function (it must be a string literal).\n" +
+						'    See https://wpcalypso.wordpress.com/devdocs/client/lib/mixins/i18n#strings-only',
 					original: originalString,
 					location: releventProperties[ i ].value.loc.start
 				} );

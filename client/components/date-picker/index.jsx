@@ -3,8 +3,8 @@
  */
 var React = require( 'react' ),
 	DayPicker = require( 'react-day-picker' ),
-	merge = require( 'lodash/object/merge' ),
-	noop = require( 'lodash/utility/noop' );
+	merge = require( 'lodash/merge' ),
+	noop = require( 'lodash/noop' );
 
 /**
  * Internal dependencies
@@ -80,7 +80,7 @@ module.exports = React.createClass( {
 				},
 
 				getFirstDayOfWeek: function() {
-					return localeData.firstDayOfWeek();
+					return Number( localeData.firstDayOfWeek() );
 				}
 			};
 

@@ -3,18 +3,25 @@
  */
 var React = require( 'react' ),
 	classNames = require( 'classnames' ),
-	find = require( 'lodash/collection/find' );
+	find = require( 'lodash/find' );
 
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
+var abtest = require( 'lib/abtest' ).abtest,
+	analytics = require( 'analytics' ),
+	testFeatures = require( 'lib/features-list/test-features' ),
 	Gridicon = require( 'components/gridicon' ),
+	isJetpackPlan = require( 'lib/products-values' ).isJetpackPlan,
+	JetpackPlanDetails = require( 'my-sites/plans/jetpack-plan-details' ),
 	PlanActions = require( 'components/plans/plan-actions' ),
 	PlanHeader = require( 'components/plans/plan-header' ),
 	PlanPrice = require( 'components/plans/plan-price' ),
 	PlanDiscountMessage = require( 'components/plans/plan-discount-message' ),
-	Card = require( 'components/card' );
+	Card = require( 'components/card' ),
+	WpcomPlanDetails = require( 'my-sites/plans/wpcom-plan-details' ),
+	productsValues = require( 'lib/products-values' ),
+	isBusiness = productsValues.isBusiness;
 
 module.exports = React.createClass( {
 	displayName: 'Plan',
@@ -35,8 +42,15 @@ module.exports = React.createClass( {
 		}
 	},
 
+	getComparePlansUrl: function() {
+		var site = this.props.site,
+			siteSuffix = site ? site.slug : '';
+
+		return this.props.comparePlansUrl ? this.props.comparePlansUrl : '/plans/compare/' + siteSuffix;
+	},
+
 	getDescription: function() {
-		var comparePlansUrl, siteSuffix;
+		const { plan, site } = this.props;
 
 		if ( this.isPlaceholder() ) {
 			return (
@@ -48,15 +62,59 @@ module.exports = React.createClass( {
 			);
 		}
 
-		siteSuffix = this.props.site ? this.props.site.slug : '';
-		comparePlansUrl = this.props.comparePlansUrl ? this.props.comparePlansUrl : '/plans/compare/' + siteSuffix;
+		if ( site && site.jetpack ) {
+			return (
+				<JetpackPlanDetails plan={ plan } />
+			);
+		}
 
 		return (
-			<div>
-				<p>{ this.props.plan.shortdesc }</p>
-				<a href={ comparePlansUrl } onClick={ this.handleLearnMoreClick }
-					className="plan__learn-more">{ this.translate( 'Learn more', { context: 'Find out more details about a plan' } ) }</a>
-			</div>
+			<WpcomPlanDetails
+				comparePlansUrl={ this.getComparePlansUrl() }
+				handleLearnMoreClick={ this.handleLearnMoreClick }
+				plan={ plan } />
+		);
+	},
+
+	getFeatureList: function() {
+		var features,
+			moreLink = '';
+
+		if ( this.isPlaceholder() ) {
+			return;
+		}
+
+		features = testFeatures[ this.props.plan.product_slug ].map( function( feature, i ) {
+			var classes = classNames( 'plan__feature', {
+				'is-plan-specific': feature.planSpecific
+			} );
+
+			if ( abtest( 'plansFeatureList' ) === 'andMore' && feature.testVariable ) {
+				return null;
+			}
+
+			return (
+				<li className={ classes } key={ i }>
+					<Gridicon icon="checkmark" size={ 12 } />
+					{ feature.text }
+				</li>
+			);
+		} );
+
+		if ( abtest( 'plansFeatureList' ) === 'andMore' && isBusiness( this.props.plan ) ) {
+			moreLink = (
+				<li className="plan__feature is-plan-specific">
+					<Gridicon icon="checkmark" size={ 12 } />
+					<a href={ this.getComparePlansUrl() }>And more</a>
+				</li>
+			);
+		}
+
+		return (
+			<ul className="plan__features">
+				{ features }
+				{ moreLink }
+			</ul>
 		);
 	},
 
@@ -107,7 +165,7 @@ module.exports = React.createClass( {
 	},
 
 	getPlanDiscountMessage: function() {
-		if ( this.isPlaceholder() ) {
+		if ( this.isPlaceholder() || this.props.hideDiscountMessage ) {
 			return;
 		}
 
@@ -121,7 +179,7 @@ module.exports = React.createClass( {
 	},
 
 	getBadge: function() {
-		if ( this.props.site ) {
+		if ( this.props.site && ! this.props.site.jetpack ) {
 			if ( this.props.site.plan.product_slug === this.getProductSlug() ) {
 				return (
 					<Gridicon icon="checkmark-circle" />
@@ -192,6 +250,7 @@ module.exports = React.createClass( {
 	},
 
 	render: function() {
+		var shouldDisplayFeatureList = this.props.plan && ! isJetpackPlan( this.props.plan ) && abtest( 'plansFeatureList' ) !== 'description';
 		return (
 			<Card className={ this.getClassNames() } key={ this.getProductSlug() } onClick={ this.showDetails }>
 				{ this.getPlanDiscountMessage() }
@@ -205,7 +264,7 @@ module.exports = React.createClass( {
 				</PlanHeader>
 				<div className="plan__plan-expand">
 					<div className="plan__plan-details">
-						{ this.getDescription() }
+						{ shouldDisplayFeatureList ? this.getFeatureList() : this.getDescription() }
 					</div>
 					{ this.getPlanActions() }
 				</div>

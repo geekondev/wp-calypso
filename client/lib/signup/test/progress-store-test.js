@@ -3,16 +3,20 @@ global.localStorage = require( 'localStorage' );
 /**
  * External dependencies
  */
+import sinon from 'sinon';
+
 var debug = require( 'debug' )( 'calypso:signup-progress-store:test' ), // eslint-disable-line no-unused-vars
 	assert = require( 'assert' ),
-	omit = require( 'lodash/object/omit' ),
-	find = require( 'lodash/collection/find' ),
-	last = require( 'lodash/array/last' ),
-	defer = require( 'lodash/function/defer' );
+	omit = require( 'lodash/omit' ),
+	find = require( 'lodash/find' ),
+	last = require( 'lodash/last' ),
+	defer = require( 'lodash/defer' );
 
 /**
  * Internal dependencies
  */
+import Dispatcher from 'dispatcher';
+
 var SignupProgressStore = require( '../progress-store' ),
 	SignupActions = require( '../actions' );
 
@@ -31,17 +35,25 @@ describe( 'SignupProgressStore', function() {
 		assert.equal( SignupProgressStore.get()[ 0 ].stepName, 'site-selection' );
 	} );
 
-	it( 'should add a timestamp to each step', function( done ) {
-		var previousTimestamp;
+	describe( 'timestamps', function() {
+		beforeEach( () => {
+			this.clock = sinon.useFakeTimers( 12345 );
+		} );
 
-		SignupActions.saveSignupStep( { stepName: 'site-selection' } );
-		previousTimestamp = SignupProgressStore.get()[ 0 ].lastUpdated;
+		afterEach( () => {
+			this.clock.restore();
+		} );
 
-		setTimeout( function() {
-			SignupActions.saveSignupStep( { stepName: 'site-selection' } );
-			assert( SignupProgressStore.get()[ 0 ].lastUpdated > previousTimestamp );
-			done();
-		}, 5 );
+		it( 'should be updated at each step', function() {
+			Dispatcher.handleViewAction( {
+				type: 'SAVE_SIGNUP_STEP',
+				data: {
+					stepName: 'site-selection'
+				}
+			} );
+
+			assert.equal( SignupProgressStore.get()[ 0 ].lastUpdated, 12345 );
+		} );
 	} );
 
 	it( 'should not store the same step twice', function() {

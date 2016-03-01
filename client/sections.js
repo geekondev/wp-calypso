@@ -56,7 +56,7 @@ sections = [
 	},
 	{
 		name: 'signup',
-		paths: [ '/start', '/phone', '/log-in' ],
+		paths: [ '/start', '/phone', '/log-in', '/jetpack' ],
 		module: 'signup',
 		enableLoggedOut: true
 	},
@@ -67,7 +67,7 @@ sections = [
 	},
 	{
 		name: 'themes',
-		paths: [ '/design' ],
+		paths: [ '/design', '/themes' ],
 		module: 'my-sites/themes',
 		enableLoggedOut: config.isEnabled( 'manage/themes/logged-out' )
 	},

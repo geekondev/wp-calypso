@@ -5,7 +5,7 @@ var page = require( 'page' ),
 	ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	ReduxProvider = require( 'react-redux' ).Provider,
-	defer = require( 'lodash/function/defer' );
+	defer = require( 'lodash/defer' );
 
 /**
  * Internal Dependencies
@@ -14,6 +14,7 @@ var sites = require( 'lib/sites-list' )(),
 	route = require( 'lib/route' ),
 	i18n = require( 'lib/mixins/i18n' ),
 	analytics = require( 'analytics' ),
+	getABTestVariation = require( 'lib/abtest' ).getABTestVariation,
 	plans = require( 'lib/plans-list' )(),
 	config = require( 'config' ),
 	upgradesActions = require( 'lib/upgrades/actions' ),
@@ -27,10 +28,6 @@ function handlePlanSelect( cartItem ) {
 	defer( function() {
 		page( '/checkout/' + sites.getSelectedSite().slug );
 	} );
-}
-
-function onSelectPlan( cartItem ) {
-	handlePlanSelect( cartItem, sites.getSelectedSite().slug );
 }
 
 module.exports = {
@@ -82,7 +79,7 @@ module.exports = {
 				<CartData>
 					<Plans
 						sites={ sites }
-						onSelectPlan={ onSelectPlan }
+						onSelectPlan={ handlePlanSelect }
 						plans={ plans }
 						context={ context }
 						destinationType={ context.params.destinationType }/>
@@ -124,9 +121,9 @@ module.exports = {
 				<ReduxProvider store={ context.store }>
 					<CartData>
 						<PlansCompare
-							enableFreeTrials
+							enableFreeTrials={ getABTestVariation( 'freeTrials' ) === 'offered' }
 							selectedSite={ site }
-							onSelectPlan={ onSelectPlan }
+							onSelectPlan={ handlePlanSelect }
 							plans={ plans }
 							features={ features }
 							productsList={ productsList } />
@@ -140,7 +137,5 @@ module.exports = {
 	redirectToCheckout: function( context ) {
 		// this route is deprecated, use `/checkout/:site/:plan` to link to plan checkout
 		page.redirect( `/checkout/${ context.params.domain }/${ context.params.plan }` );
-	},
-
-	handlePlanSelect,
+	}
 };

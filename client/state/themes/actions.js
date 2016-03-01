@@ -1,8 +1,10 @@
+/** @ssr-ready **/
+
 /**
  * External dependencies
  */
 import page from 'page';
-import defer from 'lodash/function/defer';
+import defer from 'lodash/defer';
 import debugFactory from 'debug';
 const debug = debugFactory( 'calypso:themes:actions' ); //eslint-disable-line no-unused-vars
 
@@ -10,7 +12,7 @@ const debug = debugFactory( 'calypso:themes:actions' ); //eslint-disable-line no
  * Internal dependencies
  */
 import ActionTypes from './action-types';
-import ThemeHelpers from 'lib/themes/helpers';
+import ThemeHelpers from 'my-sites/themes/helpers';
 import { getCurrentTheme } from './current-theme/selectors';
 import { isJetpack } from './themes-last-query/selectors';
 import { getQueryParams } from './themes-list/selectors';
@@ -73,6 +75,30 @@ export function fetchCurrentTheme( site ) {
 		};
 		wpcom.undocumented().activeTheme( site.ID, callback );
 	};
+}
+
+export function fetchThemeDetails( id ) {
+	return dispatch => {
+		const callback = ( error, data ) => {
+			debug( 'Received theme details', data );
+			if ( error ) {
+				dispatch( receiveServerError( error ) );
+			} else {
+				dispatch( {
+					type: ActionTypes.RECEIVE_THEME_DETAILS,
+					themeId: data.id,
+					themeName: data.name,
+					themeAuthor: data.author,
+					themePrice: data.price ? data.price.display : undefined,
+					themeScreenshot: data.screenshot,
+					themeDescription: data.description,
+					themeDescriptionLong: data.description_long,
+					themeSupportDocumentation: data.extended ? data.extended.support_documentation : undefined,
+				} );
+			}
+		};
+		wpcom.undocumented().themeDetails( id, callback );
+	}
 }
 
 export function receiveServerError( error ) {
@@ -184,7 +210,7 @@ export function signup( theme ) {
 	}
 }
 
-// Might be obsolete, since in theme-options.js, `hasUrl === true`
+// Might be obsolete, since in my-sites/themes, we're using `getUrl()` for Details
 export function details( theme, site ) {
 	return dispatch => {
 		const detailsUrl = ThemeHelpers.getDetailsUrl( theme, site );
@@ -198,7 +224,7 @@ export function details( theme, site ) {
 	}
 };
 
-// Might be obsolete, since in theme-options.js, `hasUrl === true`
+// Might be obsolete, since in my-sites/themes, we're using `getUrl()` for Support
 export function support( theme, site ) {
 	return dispatch => {
 		const supportUrl = ThemeHelpers.getSupportUrl( theme, site );

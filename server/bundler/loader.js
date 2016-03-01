@@ -2,7 +2,7 @@ var config = require( 'config' ),
 	utils = require( './utils' );
 
 function getSectionsModule( sections ) {
-	var dependencies = '',
+	var dependencies,
 		loadSection = '',
 		sectionLoaders = '';
 
@@ -12,7 +12,8 @@ function getSectionsModule( sections ) {
 			"\tlayoutFocus = require( 'lib/layout-focus' ),",
 			"\tReact = require( 'react' ),",
 			"\tLoadingError = require( 'layout/error' ),",
-			"\tclasses = require( 'component-classes' );",
+			"\tclasses = require( 'component-classes' ),",
+			"\tcontroller = require( 'controller' );",
 			'\n',
 			'var _loadedSections = {};'
 		].join( '\n' );
@@ -24,6 +25,7 @@ function getSectionsModule( sections ) {
 			} );
 		} );
 	} else {
+		dependencies = "var controller = require( 'controller' );\n";
 		sectionLoaders = getRequires( sections );
 	}
 
@@ -61,7 +63,7 @@ function splitTemplate( path, module, chunkName ) {
 		path = JSON.stringify( path );
 	} else {
 		regex = utils.pathToRegExp( path );
-		path = '/' + utils.regExpToString( regex.toString().slice( 1, -1 ) ) + '/';
+		path = '/' + regex.toString().slice( 1, -1 ) + '/';
 	}
 
 	result = [
@@ -84,7 +86,7 @@ function splitTemplate( path, module, chunkName ) {
 		'		}',
 		'		context.store.dispatch( { type: "SET_SECTION", isLoading: false } );',
 		'		if ( ! _loadedSections[ ' + JSON.stringify( module ) + ' ] ) {',
-		'			require( ' + JSON.stringify( module ) + ' )();',
+		'			require( ' + JSON.stringify( module ) + ' )( controller.clientRouter );',
 		'			_loadedSections[ ' + JSON.stringify( module ) + ' ] = true;',
 		'		}',
 		'		layoutFocus.next();',
@@ -97,7 +99,7 @@ function splitTemplate( path, module, chunkName ) {
 }
 
 function requireTemplate( module ) {
-	return 'require( ' + JSON.stringify( module ) + ' )();\n';
+	return 'require( ' + JSON.stringify( module ) + ' )( controller.clientRouter );\n';
 }
 
 function singleEnsure( chunkName ) {
@@ -126,4 +128,3 @@ module.exports = function( content ) {
 
 	return getSectionsModule( sections );
 };
-

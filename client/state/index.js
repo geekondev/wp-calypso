@@ -7,14 +7,16 @@ import { createStore, applyMiddleware, combineReducers, compose } from 'redux';
 /**
  * Internal dependencies
  */
-import { analyticsMiddleware } from './themes/middlewares.js';
 import application from './application/reducer';
 import notices from './notices/reducer';
 import posts from './posts/reducer';
+import postTypes from './post-types/reducer';
 import plugins from './plugins/reducer';
+import receipts from './receipts/reducer';
 import sharing from './sharing/reducer';
 import sites from './sites/reducer';
-import siteSettings from './site-settings/reducer'
+import siteSettings from './site-settings/reducer';
+import support from './support/reducer';
 import themes from './themes/reducer';
 import users from './users/reducer';
 import currentUser from './current-user/reducer';
@@ -23,26 +25,36 @@ import ui from './ui/reducer';
 /**
  * Module variables
  */
-const reducer = combineReducers( {
+export const reducer = combineReducers( {
 	plugins,
 	application,
 	notices,
 	posts,
+	postTypes,
+	receipts,
 	sharing,
 	sites,
 	siteSettings,
+	support,
 	themes,
 	users,
 	currentUser,
 	ui
 } );
 
-var createStoreWithMiddleware = applyMiddleware(
-	thunkMiddleware,
-	analyticsMiddleware
-);
+let middleware = [ thunkMiddleware ];
 
-export function createReduxStore() {
+// Analytics middleware currently only works in the browser
+if ( typeof window === 'object' ) {
+	middleware = [
+		...middleware,
+		require( './themes/middlewares.js' ).analyticsMiddleware
+	];
+}
+
+let createStoreWithMiddleware = applyMiddleware.apply( null, middleware );
+
+export function createReduxStore( initialState = {} ) {
 	if (
 		typeof window === 'object' &&
 		window.app &&
@@ -51,5 +63,5 @@ export function createReduxStore() {
 	) {
 		createStoreWithMiddleware = compose( createStoreWithMiddleware, window.devToolsExtension() );
 	}
-	return createStoreWithMiddleware( createStore )( reducer );
-};
+	return createStoreWithMiddleware( createStore )( reducer, initialState );
+}

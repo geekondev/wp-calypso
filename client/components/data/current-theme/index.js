@@ -2,9 +2,8 @@
  * External dependencies
  */
 import React from 'react';
-import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
-import omit from 'lodash/object/omit';
+import omit from 'lodash/omit';
 
 /**
  * Internal dependencies
@@ -65,5 +64,5 @@ export default connect(
 			currentTheme: getCurrentTheme( state, props.site.ID )
 		}
 	),
-	bindActionCreators.bind( null, { fetchCurrentTheme } )
+	{ fetchCurrentTheme }
 )( CurrentThemeData );

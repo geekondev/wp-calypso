@@ -2,16 +2,16 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	startsWith = require( 'lodash/string/startsWith' ),
+	startsWith = require( 'lodash/startsWith' ),
 	Dispatcher = require( 'dispatcher' ),
-	find = require( 'lodash/collection/find' ),
-	propertyOf = require( 'lodash/utility/propertyOf' ),
-	flatten = require( 'lodash/array/flatten' ),
-	map = require( 'lodash/collection/map' ),
-	sortBy = require( 'lodash/collection/sortBy' ),
-	size = require( 'lodash/collection/size' ),
-	filter = require( 'lodash/collection/filter' ),
-	includes = require( 'lodash/collection/includes' );
+	find = require( 'lodash/find' ),
+	propertyOf = require( 'lodash/propertyOf' ),
+	flatten = require( 'lodash/flatten' ),
+	map = require( 'lodash/map' ),
+	sortBy = require( 'lodash/sortBy' ),
+	size = require( 'lodash/size' ),
+	filter = require( 'lodash/filter' ),
+	includes = require( 'lodash/includes' );
 
 /**
  * Internal dependencies
@@ -30,6 +30,12 @@ var config = require( 'config' ),
 // remaining paths will make the button highlighted on that page.
 
 var NAV_ITEMS = {
+	Addons: {
+		paths: [ '/plans' ],
+		label: i18n.translate( 'Add-ons for Jetpack sites' ),
+		allSitesPath: false
+	},
+
 	Plans: {
 		paths: [ '/plans' ],
 		label: i18n.translate( 'Plans' ),
@@ -111,7 +117,7 @@ var UpgradesNavigation = React.createClass( {
 		var items;
 
 		if ( this.props.selectedSite.jetpack ) {
-			items = [ 'Plans' ];
+			items = [ 'Addons' ];
 		} else {
 			items = [ 'Plans', 'Domains', 'Email' ];
 		}
@@ -126,7 +132,7 @@ var UpgradesNavigation = React.createClass( {
 			} ),
 			selectedPath = find( sortedPaths, function( path ) {
 				return startsWith( this.props.path, path );
-			}, this );
+			}.bind( this ) );
 
 		return find( this.getNavItemData(), function( itemData ) {
 			return includes( itemData.paths, selectedPath );

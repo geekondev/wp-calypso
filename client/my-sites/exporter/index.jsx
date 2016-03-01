@@ -2,30 +2,46 @@
  * External dependencies
  */
 import { connect } from 'react-redux';
-import { compose } from 'lodash';
+import flowRight from 'lodash/flowRight';
 
 /**
  * Internal dependencies
  */
 import Exporter from './exporter';
-import { getUIState, shouldShowProgress } from 'state/site-settings/exporter/selectors';
-import { setPostType, startExport } from 'state/site-settings/exporter/actions';
+import {
+	shouldShowProgress,
+	getSelectedPostType,
+	isExporting,
+	getExportingState,
+} from 'state/site-settings/exporter/selectors';
+import {
+	advancedSettingsFetch,
+	exportStatusFetch,
+	setPostType,
+	startExport,
+} from 'state/site-settings/exporter/actions';
+import { States } from 'state/site-settings/exporter/constants';
 
-function mapStateToProps( state, ownProps ) {
-	const uiState = getUIState( state );
+function mapStateToProps( state ) {
+	const siteId = state.ui.selectedSiteId;
 
 	return {
-		site: ownProps.site,
-		postType: uiState.postType,
-		advancedSettings: uiState.advancedSettings,
-		shouldShowProgress: shouldShowProgress( state )
+		siteId,
+		postType: getSelectedPostType( state ),
+		shouldShowProgress: shouldShowProgress( state, siteId ),
+		isExporting: isExporting( state, siteId ),
+		downloadURL: state.siteSettings.exporter.downloadURL,
+		didComplete: getExportingState( state, siteId ) === States.COMPLETE,
+		didFail: getExportingState( state, siteId ) === States.FAILED,
 	};
 }
 
 function mapDispatchToProps( dispatch ) {
 	return {
-		setPostType: compose( dispatch, setPostType ),
-		startExport: () => startExport()( dispatch )
+		advancedSettingsFetch: flowRight( dispatch, advancedSettingsFetch ),
+		exportStatusFetch: flowRight( dispatch, exportStatusFetch ),
+		setPostType: flowRight( dispatch, setPostType ),
+		startExport: flowRight( dispatch, startExport ),
 	};
 }
 

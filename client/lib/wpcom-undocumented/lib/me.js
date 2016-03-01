@@ -25,16 +25,18 @@ function UndocumentedMe( wpcom ) {
  */
 inherits( UndocumentedMe, Me );
 
-UndocumentedMe.prototype.billingHistory = function( callback ) {
-	return this.wpcom.req.get( '/me/billing-history', callback );
-};
-
 UndocumentedMe.prototype.billingHistoryEmailReceipt = function( receiptId, callback ) {
 	var args = {
 		path: '/me/billing-history/receipt/' + receiptId + '/email'
 	};
 
 	return this.wpcom.req.get( args, callback );
+};
+
+UndocumentedMe.prototype.getReceipt = function( receiptId, fn ) {
+	return this.wpcom.req.get( {
+		path: `/me/billing-history/receipt/${ receiptId }`
+	}, fn );
 };
 
 UndocumentedMe.prototype.purchases = function( callback ) {

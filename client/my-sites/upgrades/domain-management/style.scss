@@ -25,27 +25,36 @@
 	border-top: 1px solid $gray-light;
 	margin: 16px -16px -16px -16px;
 	padding: 16px;
+	display: flex;
+	justify-content: flex-end;
 
 	@include breakpoint('>480px') {
 		padding: 24px;
 		margin: 24px -24px -24px -24px;
 	}
 
+	@include breakpoint( '<480px' ) {
+		flex-direction: column;
+	}
+
 	.button {
-		float: right;
 		margin: 0;
 
-		+ .button {
-			margin: 15px 0 0 0;
+		&.is-primary {
+			margin: 0 0 15px 0;
 
 			@include breakpoint('>480px') {
 				margin: 0 15px 0 0;
 			}
+
+			@include breakpoint( '<480px' ) {
+				order: 1;
+			}
 		}
 
 		@include breakpoint( '<480px' ) {
-			text-align: center;
 			width: 100%;
+			order: 2;
 		}
 	}
 }
@@ -116,11 +125,6 @@
 		display: inline-block;
 		width: 40%;
 	}
-}
-
-.domain-management-list__add-a-domain.add-new-button {
-	display: flex;
-	justify-content: center;
 }
 
 .domain-management-primary-domain {
@@ -855,22 +859,6 @@ ul.email-forwarding__list {
 	}
 }
 
-.name-servers {
-	.icann-verification {
-		.button {
-			margin-bottom: 15px;
-
-			@include breakpoint( '<480px' ) {
-				width: 100%;
-			}
-		}
-	}
-
-	.icann-verification__explanation {
-		margin-bottom: 15px;
-	}
-}
-
 ul.dns__list {
 	list-style: none;
 	margin: 15px 0 0 0;
@@ -904,6 +892,11 @@ ul.dns__list {
 		strong {
 			color: #58819e;
 			font-weight: normal;
+		}
+
+		&.is-disabled {
+			opacity: 0.2;
+			cursor: not-allowed;
 		}
 	}
 

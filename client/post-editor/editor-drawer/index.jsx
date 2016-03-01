@@ -1,77 +1,84 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	find = require( 'lodash/collection/find' ),
-	config = require( 'config' );
+import React from 'react';
+import get from 'lodash/get';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 /**
  * Internal dependencies
  */
-var Accordion = require( 'components/accordion' ),
-	AccordionSection = require( 'components/accordion/section' ),
-	Gridicon = require( 'components/gridicon' ),
-	TaxonomiesAccordion = require( 'post-editor/editor-taxonomies/accordion' ),
-	CategoryListData = require( 'components/data/category-list-data' ),
-	TagListData = require( 'components/data/tag-list-data' ),
-	FeaturedImage = require( 'post-editor/editor-featured-image' ),
-	EditorSharingContainer = require( 'post-editor/editor-sharing/container' ),
-	FormTextarea = require( 'components/forms/form-textarea' ),
-	PostFormatsData = require( 'components/data/post-formats-data' ),
-	PostFormatsAccordion = require( 'post-editor/editor-post-formats/accordion' ),
-	Location = require( 'post-editor/editor-location' ),
-	Discussion = require( 'post-editor/editor-discussion' ),
-	PageParent = require( 'post-editor/editor-page-parent' ),
-	EditorMoreOptionsSlug = require( 'post-editor/editor-more-options/slug' ),
-	InfoPopover = require( 'components/info-popover' ),
-	PageTemplatesData = require( 'components/data/page-templates-data' ),
-	PageTemplates = require( 'post-editor/editor-page-templates' ),
-	PageOrder = require( 'post-editor/editor-page-order' ),
-	PostMetadata = require( 'lib/post-metadata' ),
-	TrackInputChanges = require( 'components/track-input-changes' ),
-	actions = require( 'lib/posts/actions' ),
-	stats = require( 'lib/posts/stats' ),
-	observe = require( 'lib/mixins/data-observe' ),
-	siteUtils = require( 'lib/site/utils' ),
-	user = require( 'lib/user' )(),
-	userSettings = require( 'lib/user-settings' ),
-	AppPromo = require( 'components/app-promo' );
+import Accordion from 'components/accordion';
+import AccordionSection from 'components/accordion/section';
+import Gridicon from 'components/gridicon';
+import TaxonomiesAccordion from 'post-editor/editor-taxonomies/accordion';
+import CategoryListData from 'components/data/category-list-data';
+import TagListData from 'components/data/tag-list-data';
+import FeaturedImage from 'post-editor/editor-featured-image';
+import EditorSharingAccordion from 'post-editor/editor-sharing/accordion';
+import FormTextarea from 'components/forms/form-textarea';
+import PostFormatsData from 'components/data/post-formats-data';
+import PostFormatsAccordion from 'post-editor/editor-post-formats/accordion';
+import Location from 'post-editor/editor-location';
+import Discussion from 'post-editor/editor-discussion';
+import PageParent from 'post-editor/editor-page-parent';
+import EditorMoreOptionsSlug from 'post-editor/editor-more-options/slug';
+import InfoPopover from 'components/info-popover';
+import PageTemplatesData from 'components/data/page-templates-data';
+import PageTemplates from 'post-editor/editor-page-templates';
+import PageOrder from 'post-editor/editor-page-order';
+import PostMetadata from 'lib/post-metadata';
+import TrackInputChanges from 'components/track-input-changes';
+import actions from 'lib/posts/actions';
+import stats from 'lib/posts/stats';
+import siteUtils from 'lib/site/utils';
+import { setExcerpt } from 'state/ui/editor/post/actions';
+import QueryPostTypes from 'components/data/query-post-types';
+import { getSelectedSite } from 'state/ui/selectors';
+import { getPostTypes } from 'state/post-types/selectors';
 
-var EditorDrawer = React.createClass( {
-
+const EditorDrawer = React.createClass( {
 	propTypes: {
 		site: React.PropTypes.object,
 		post: React.PropTypes.object,
 		postTypes: React.PropTypes.object,
-		isNew: React.PropTypes.bool
+		isNew: React.PropTypes.bool,
+		setExcerpt: React.PropTypes.func
 	},
 
-	mixins: [
-		observe( 'postTypes', 'userSettings' ),
-	],
-
-	componentDidMount: function() {
-		userSettings.fetchSettings();
+	getDefaultProps: function() {
+		return {
+			setExcerpt: () => {}
+		};
 	},
 
 	onExcerptChange: function( event ) {
+		// TODO: REDUX - remove flux actions when whole post-editor is reduxified
 		actions.edit( { excerpt: event.target.value } );
+		this.props.setExcerpt( event.target.value );
+	},
+
+	currentPostTypeSupportsAll: function() {
+		// We explicitly hard-code posts as supporting all features, which is a
+		// hack that saves us a network request. While technically possible for
+		// a theme to remove feature support for posts, this is very rare. If
+		// encountered, we should consider removing this shortcut.
+		return 'post' === this.props.type;
 	},
 
 	currentPostTypeSupports: function( feature ) {
-		if ( ! this.props.site ) {
-			return false;
-		}
-
-		const types = this.props.postTypes.get( this.props.site.ID );
-		const currentType = find( types, { name: this.props.type } );
-
-		// assume positively if we can't determine support
-		if ( ! currentType || ! currentType.supports ) {
+		const { site, postTypes, type } = this.props;
+		if ( this.currentPostTypeSupportsAll() ) {
 			return true;
 		}
 
-		return currentType.supports[ feature ];
+		// Default to true until post types are known
+		if ( ! site || ! postTypes ) {
+			return true;
+		}
+
+		return get( postTypes, [ type, 'supports', feature ], false );
 	},
 
 	recordExcerptChangeStats: function() {
@@ -82,7 +89,7 @@ var EditorDrawer = React.createClass( {
 	renderTaxonomies: function() {
 		var element;
 
-		if ( 'post' !== this.props.type && ! this.currentPostTypeSupports( 'tags' ) ) {
+		if ( ! this.currentPostTypeSupports( 'tags' ) ) {
 			return;
 		}
 
@@ -121,13 +128,10 @@ var EditorDrawer = React.createClass( {
 	},
 
 	renderSharing: function() {
-		const currentUser = user.get();
-		if ( ! currentUser ) {
-			return null;
-		}
-
 		return (
-			<EditorSharingContainer currentUserID={ currentUser.ID } />
+			<EditorSharingAccordion
+				post={ this.props.post }
+				isNew={ this.props.isNew } />
 		);
 	},
 
@@ -148,7 +152,7 @@ var EditorDrawer = React.createClass( {
 	renderExcerpt: function() {
 		var excerpt;
 
-		if ( 'post' !== this.props.type && ! this.currentPostTypeSupports( 'excerpt' ) ) {
+		if ( ! this.currentPostTypeSupports( 'excerpt' ) ) {
 			return;
 		}
 
@@ -183,7 +187,7 @@ var EditorDrawer = React.createClass( {
 			return;
 		}
 
-		if ( 'post' !== this.props.type && ! this.currentPostTypeSupports( 'geo-location' ) ) {
+		if ( ! this.currentPostTypeSupports( 'geo-location' ) ) {
 			return;
 		}
 
@@ -196,7 +200,7 @@ var EditorDrawer = React.createClass( {
 	},
 
 	renderDiscussion: function() {
-		if ( 'post' !== this.props.type && ! this.currentPostTypeSupports( 'comments' ) ) {
+		if ( ! this.currentPostTypeSupports( 'comments' ) ) {
 			return;
 		}
 
@@ -212,11 +216,12 @@ var EditorDrawer = React.createClass( {
 	},
 
 	renderMoreOptions: function() {
-		if ( 'post' !== this.props.type &&
+		if (
 			! this.currentPostTypeSupports( 'excerpt' ) &&
 			! this.currentPostTypeSupports( 'geo-location' ) &&
 			! this.currentPostTypeSupports( 'comments' ) &&
-			! siteUtils.isPermalinkEditable( this.props.site ) ) {
+			! siteUtils.isPermalinkEditable( this.props.site )
+		) {
 			return;
 		}
 
@@ -240,7 +245,7 @@ var EditorDrawer = React.createClass( {
 
 	renderPageDrawer: function() {
 		return (
-			<div className="editor-drawer">
+			<div>
 				{ this.renderTaxonomies() }
 				{ this.renderFeaturedImage() }
 				<Accordion
@@ -265,48 +270,44 @@ var EditorDrawer = React.createClass( {
 		);
 	},
 
-	renderAppPromo: function() {
-		// if promo not configured return
-		if ( ! config.isEnabled( 'desktop-promo' ) ) {
-			return;
-		};
-
-		// if user settings not loaded, return so we dont show
-		// before we can check if user is already a desktop user
-		if ( userSettings.getSetting( 'is_desktop_app_user' ) === null ) {
-			return;
-		}
-
-		// if already using desktop app, dont show promo
-		if ( userSettings.getSetting( 'is_desktop_app_user' ) ) {
-			return;
-		}
-
-		// made it through the gauntlet, show the promo!
-		return (
-			<AppPromo location="editor" />
-		);
-	},
-
 	renderPostDrawer: function() {
 		return (
-			<div className="editor-drawer">
+			<div>
 				{ this.renderTaxonomies() }
 				{ this.renderFeaturedImage() }
 				{ this.renderSharing() }
 				{ this.renderPostFormats() }
 				{ this.renderMoreOptions() }
-				{ this.renderAppPromo() }
 			</div>
 		);
 	},
 
 	render: function() {
-		if ( this.props.type === 'page' ) {
-			return this.renderPageDrawer();
-		}
-		return this.renderPostDrawer();
+		const { site, type } = this.props;
+
+		return (
+			<div className="editor-drawer">
+				{ site && ! this.currentPostTypeSupportsAll() && (
+					<QueryPostTypes siteId={ site.ID } />
+				) }
+				{ 'page' === type
+					? this.renderPageDrawer()
+					: this.renderPostDrawer() }
+			</div>
+		);
 	}
 } );
 
-module.exports = EditorDrawer;
+export default connect(
+	( state ) => {
+		const site = getSelectedSite( state );
+		if ( ! site ) {
+			return {};
+		}
+
+		return {
+			postTypes: getPostTypes( state, site.ID )
+		};
+	},
+	dispatch => bindActionCreators( { setExcerpt }, dispatch )
+)( EditorDrawer );

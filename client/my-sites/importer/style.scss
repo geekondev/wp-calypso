@@ -24,14 +24,13 @@
 }
 
 .importer__service-icon {
-	$noticon-size: 40px;
-	width: 50px;
-	height: 45px;
-	padding-bottom: 5px;
+	width: 48px;
+	height: 48px;
+	padding: 2px;
 
 	position: absolute;
 		left: 20px;
-		top: 20px;
+		top: 18px;
 
 	background-color: $gray-dark;
 	stroke: $white;
@@ -39,12 +38,7 @@
 	fill: $white;
 	border-radius: 5px;
 
-	&.is-ghost {
-		stroke: $gray;
-		fill: $gray;
-	}
-
-	&.is-wordpress {
+	&.wordpress {
 		background-color: $blue-wordpress;
 	}
 }
@@ -99,12 +93,6 @@
 	transform: translateY( -50% );
 }
 
-.importer__upload-icon {
-	&:before {
-		@include noticon( '\f441', 32px );
-	}
-}
-
 .importer__upload-progress,
 .importer__import-progress {
 	width: 80%;
@@ -116,6 +104,12 @@
 	&.is-complete .progress-bar__progress {
 		background-color: $alert-green;
 	}
+}
+
+.importer__import-spinner {
+	position: absolute;
+		left: 50%;
+	transform: translateX( -50% );
 }
 
 .importer__start {
@@ -144,6 +138,14 @@
 	color: $gray;
 
 	@include clear-fix;
+}
+
+.importer__mapping-description {
+	margin-bottom: 16px;
+
+	& strong {
+		white-space: nowrap;
+	}
 }
 
 .importer__mapping-source-title {
@@ -186,10 +188,5 @@
 
 .importer__mapping-relation {
 	float: left;
-
-	&:before {
-		color: lighten( $gray, 10% );
-
-		@include noticon( '\f429', 32px );
-	}
+	color: lighten( $gray, 10% );
 }

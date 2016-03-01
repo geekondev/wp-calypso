@@ -32,6 +32,10 @@
 .current-site .site {
 	transition: opacity 0.15s ease-in-out;
 
+	.site__info {
+		animation: appear .3s ease-in-out;
+	}
+
 	.focus-sites & {
 		opacity: 0.2;
 		pointer-events: none;
@@ -85,10 +89,10 @@
 	}
 }
 
-.rtl .current-site__switch-sites .gridicon {
-	transform: rotate( 180deg );
-}
-
 .current-site .notice {
 	margin: 0 8px 8px;
+}
+
+.current-site .site__badge {
+	padding-right: 8px;
 }

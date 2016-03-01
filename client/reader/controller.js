@@ -1,18 +1,18 @@
 /**
  * External Dependencies
  */
-var ReactDom = require( 'react-dom' ),
+const ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	page = require( 'page' ),
 	debug = require( 'debug' )( 'calypso:reader:controller' ),
-	trim = require( 'lodash/string/trim' ),
-	startsWith = require( 'lodash/string/startsWith' ),
-	moment = require( 'moment' );
+	trim = require( 'lodash/trim' ),
+	moment = require( 'moment' ),
+	ReduxProvider = require( 'react-redux' ).Provider;
 
 /**
  * Internal Dependencies
  */
-var i18n = require( 'lib/mixins/i18n' ),
+const i18n = require( 'lib/mixins/i18n' ),
 	route = require( 'lib/route' ),
 	pageNotifier = require( 'lib/route/page-notifier' ),
 	analytics = require( 'analytics' ),
@@ -23,17 +23,16 @@ var i18n = require( 'lib/mixins/i18n' ),
 	TitleStore = require( 'lib/screen-title/store' ),
 	titleActions = require( 'lib/screen-title/actions' ),
 	setSection = require( 'state/ui/actions' ).setSection,
+	hideReaderFullPost = require( 'state/ui/reader/fullpost/actions' ).hideReaderFullPost,
 	FeedSubscriptionActions = require( 'lib/reader-feed-subscriptions/actions' ),
-	readerRoute = require( 'reader/route' );
+	readerRoute = require( 'reader/route' ),
+	stats = require( 'reader/stats' );
 
-// This is a tri-state.
-// null == nothing instantiated, nothing pending
-// false === waiting for transitions to end so we can unmount
-// object === instance alive and being used
-var __fullPostInstance = null,
-	// This holds the last title set on the page. Removing the overlay doesn't trigger a re-render, so we need a way to
-	// reset it
-	__lastTitle = null;
+import userSettings from 'lib/user-settings';
+
+// This holds the last title set on the page. Removing the overlay doesn't trigger a re-render, so we need a way to
+// reset it
+var __lastTitle = null;
 
 function trackPageLoad( path, title, readerView ) {
 	analytics.pageView.record( path, title );
@@ -49,7 +48,7 @@ function trackScrollPage( path, title, category, readerView, pageNum ) {
 	debug( 'scroll [%s], [%s], [%s], [%d]', path, title, category, pageNum );
 
 	analytics.ga.recordEvent( category, 'Loaded Next Page', 'page', pageNum );
-	analytics.tracks.recordEvent( 'calypso_reader_infinite_scroll_performed' );
+	stats.recordTrack( 'calypso_reader_infinite_scroll_performed' );
 	analytics.pageView.record( path, title );
 	analytics.mc.bumpStat( {
 		newdash_pageviews: 'scroll',
@@ -63,19 +62,15 @@ pageNotifier( function removeFullPostOnLeave( newContext, oldContext ) {
 		return;
 	}
 
-	const fullPostViewPrefix = '/read/post/';
+	const fullPostViewRegex = /^\/read\/(blogs|feeds)\/([0-9]+)\/posts\/([0-9]+)$/i;
 
-	if ( startsWith( oldContext.path, fullPostViewPrefix ) &&
-		! startsWith( newContext.path, fullPostViewPrefix ) &&
-		__fullPostInstance ) {
-		__fullPostInstance.setState( { isVisible: false } );
-		__fullPostInstance = false;
+	if ( ( ! oldContext || oldContext.path.match( fullPostViewRegex ) ) && ! newContext.path.match( fullPostViewRegex ) ) {
+		newContext.store.dispatch( hideReaderFullPost() );
 	}
 } );
 
 function removeFullPostDialog() {
 	ReactDom.unmountComponentAtNode( document.getElementById( 'tertiary' ) );
-	__fullPostInstance = null;
 }
 
 function userHasHistory( context ) {
@@ -100,12 +95,50 @@ function setPageTitle( title ) {
 }
 
 module.exports = {
-	redirects: function( context, next ) {
+	prettyRedirects: function( context, next ) {
+		// Do we have a 'pretty' site or feed URL?
 		let redirect;
 		if ( context.params.blog_id ) {
 			redirect = readerRoute.getPrettySiteUrl( context.params.blog_id );
 		} else if ( context.params.feed_id ) {
 			redirect = readerRoute.getPrettyFeedUrl( context.params.feed_id );
+		}
+
+		if ( redirect ) {
+			return page.redirect( redirect );
+		}
+
+		next();
+	},
+
+	legacyRedirects: function( context, next ) {
+		const legacyPathRegexes = {
+			feedStream: /^\/read\/blog\/feed\/([0-9]+)$/i,
+			feedFullPost: /^\/read\/post\/feed\/([0-9]+)\/([0-9]+)$/i,
+			blogStream: /^\/read\/blog\/id\/([0-9]+)$/i,
+			blogFullPost: /^\/read\/post\/id\/([0-9]+)\/([0-9]+)$/i,
+		};
+
+		if ( context.path.match( legacyPathRegexes.feedStream ) ) {
+			page.redirect( `/read/feeds/${context.params.feed_id}` );
+		} else if ( context.path.match( legacyPathRegexes.feedFullPost ) ) {
+			page.redirect( `/read/feeds/${context.params.feed_id}/posts/${context.params.post_id}` );
+		} else if ( context.path.match( legacyPathRegexes.blogStream ) ) {
+			page.redirect( `/read/blogs/${context.params.blog_id}` );
+		} else if ( context.path.match( legacyPathRegexes.blogFullPost ) ) {
+			page.redirect( `/read/blogs/${context.params.blog_id}/posts/${context.params.post_id}` );
+		}
+
+		next();
+	},
+
+	incompleteUrlRedirects: function( context, next ) {
+		let redirect;
+		// Have we arrived at a URL ending in /posts? Redirect to feed stream/blog stream
+		if ( context.path.match( /^\/read\/feeds\/([0-9]+)\/posts$/i ) ) {
+			redirect = `/read/feeds/${context.params.feed_id}`
+		} else if ( context.path.match( /^\/read\/blogs\/([0-9]+)\/posts$/i ) ) {
+			redirect = `/read/blogs/${context.params.blog_id}`
 		}
 
 		if ( redirect ) {
@@ -130,7 +163,9 @@ module.exports = {
 		context.store.dispatch( setSection( 'reader' ) );
 
 		ReactDom.render(
-			React.createElement( ReaderSidebarComponent, { path: context.path } ),
+			React.createElement( ReduxProvider, { store: context.store },
+				React.createElement( ReaderSidebarComponent, { path: context.path } )
+			),
 			document.getElementById( 'secondary' )
 		);
 
@@ -170,7 +205,7 @@ module.exports = {
 
 	feedListing: function( context ) {
 		var FeedStream = require( 'reader/feed-stream' ),
-			basePath = '/read/blog/feed/:feed_id',
+			basePath = '/read/feeds/:feed_id',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > Feed > ' + context.params.feed_id,
 			feedStore = feedStreamFactory( 'feed:' + context.params.feed_id ),
 			mcKey = 'blog';
@@ -178,7 +213,7 @@ module.exports = {
 		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
-		analytics.tracks.recordEvent( 'calypso_reader_blog_preview', {
+		stats.recordTrack( 'calypso_reader_blog_preview', {
 			feed_id: context.params.feed_id
 		} );
 
@@ -205,7 +240,7 @@ module.exports = {
 
 	blogListing: function( context ) {
 		var SiteStream = require( 'reader/site-stream' ),
-			basePath = '/read/blog/id/:blog_id',
+			basePath = '/read/blogs/:blog_id',
 			fullAnalyticsPageTitle = analyticsPageTitle + ' > Site > ' + context.params.blog_id,
 			feedStore = feedStreamFactory( 'site:' + context.params.blog_id ),
 			mcKey = 'blog';
@@ -213,7 +248,7 @@ module.exports = {
 		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
-		analytics.tracks.recordEvent( 'calypso_reader_blog_preview', {
+		stats.recordTrack( 'calypso_reader_blog_preview', {
 			blog_id: context.params.blog_id
 		} );
 
@@ -242,7 +277,7 @@ module.exports = {
 		var FullPostDialog = require( 'reader/full-post' ),
 			feedId = context.params.feed,
 			postId = context.params.post,
-			basePath = '/read/post/feed/:feed_id/:feed_item_id',
+			basePath = '/read/feeds/:feed_id/posts/:feed_item_id',
 			fullPageTitle = analyticsPageTitle + ' > Feed Post > ' + feedId + ' > ' + postId;
 
 		__lastTitle = TitleStore.getState().title;
@@ -252,16 +287,18 @@ module.exports = {
 		// this will automatically unmount anything that was already mounted
 		// in #tertiary, so we don't have to check the current state of
 		// __fullPostInstance before making another
-		__fullPostInstance = ReactDom.render(
-			React.createElement( FullPostDialog, {
-				feedId: feedId,
-				postId: postId,
-				setPageTitle: setPageTitle,
-				onClose: function() {
-					page.back( context.lastRoute || '/' );
-				},
-				onClosed: removeFullPostDialog
-			} ),
+		ReactDom.render(
+			React.createElement( ReduxProvider, { store: context.store },
+				React.createElement( FullPostDialog, {
+					feedId: feedId,
+					postId: postId,
+					setPageTitle: setPageTitle,
+					onClose: function() {
+						page.back( context.lastRoute || '/' );
+					},
+					onClosed: removeFullPostDialog
+				} )
+			),
 			document.getElementById( 'tertiary' )
 		);
 	},
@@ -278,7 +315,7 @@ module.exports = {
 		var FullPostDialog = require( 'reader/full-post' ),
 			blogId = context.params.blog,
 			postId = context.params.post,
-			basePath = '/read/post/id/:blog_id/:post_id',
+			basePath = '/read/blogs/:blog_id/posts/:post_id',
 			fullPageTitle = analyticsPageTitle + ' > Blog Post > ' + blogId + ' > ' + postId;
 
 		__lastTitle = TitleStore.getState().title;
@@ -286,29 +323,26 @@ module.exports = {
 		trackPageLoad( basePath, fullPageTitle, 'full_post' );
 
 		// this will automatically unmount anything that was already mounted
-		// in #tertiary, so we don't have to check the current state of
-		// __fullPostInstance before making another
-		__fullPostInstance = ReactDom.render(
-			React.createElement( FullPostDialog, {
-				blogId: blogId,
-				postId: postId,
-				context: context,
-				setPageTitle: setPageTitle,
-				onClose: function() {
-					page.back( context.lastRoute || '/' );
-				},
-				onClosed: removeFullPostDialog
-			} ),
+		// in #tertiary, so we don't have to check the current state
+		ReactDom.render(
+			React.createElement( ReduxProvider, { store: context.store },
+				React.createElement( FullPostDialog, {
+					blogId: blogId,
+					postId: postId,
+					context: context,
+					setPageTitle: setPageTitle,
+					onClose: function() {
+						page.back( context.lastRoute || '/' );
+					},
+					onClosed: removeFullPostDialog
+				} )
+			),
 			document.getElementById( 'tertiary' )
 		);
 	},
 
 	removePost: function( context, next ) {
-		if ( __fullPostInstance ) {
-			__fullPostInstance.setState( { isVisible: false } );
-			__fullPostInstance = false;
-		}
-
+		context.store.dispatch( hideReaderFullPost() );
 		next();
 	},
 
@@ -327,7 +361,7 @@ module.exports = {
 		ensureStoreLoading( tagStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
-		analytics.tracks.recordEvent( 'calypso_reader_tag_loaded', {
+		stats.recordTrack( 'calypso_reader_tag_loaded', {
 			tag: tagSlug
 		} );
 
@@ -361,7 +395,7 @@ module.exports = {
 		ensureStoreLoading( listStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
-		analytics.tracks.recordEvent( 'calypso_reader_list_loaded', {
+		stats.recordTrack( 'calypso_reader_list_loaded', {
 			list_owner: context.params.user,
 			list_slug: context.params.list
 		} );
@@ -465,7 +499,8 @@ module.exports = {
 				key: 'following-edit',
 				initialFollowUrl: context.query.follow,
 				search: search,
-				context: context
+				context: context,
+				userSettings: userSettings
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -590,7 +625,7 @@ module.exports = {
 		ensureStoreLoading( feedStore, context );
 
 		trackPageLoad( basePath, fullAnalyticsPageTitle, mcKey );
-		analytics.tracks.recordEvent( 'calypso_reader_discover_viewed' );
+		stats.recordTrack( 'calypso_reader_discover_viewed' );
 
 		ReactDom.render(
 			React.createElement( SiteStream, {

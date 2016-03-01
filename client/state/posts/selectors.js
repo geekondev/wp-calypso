@@ -1,11 +1,13 @@
 /**
  * External dependencies
  */
-import range from 'lodash/utility/range';
+import range from 'lodash/range';
+import createSelector from 'lib/create-selector';
 
 /**
  * Internal dependencies
  */
+import TreeConvert from 'lib/tree-convert';
 import {
 	getSerializedPostsQuery,
 	getSerializedPostsQueryWithoutPage
@@ -24,23 +26,6 @@ export function getPost( state, globalId ) {
 }
 
 /**
- * Returns a post object by site ID, post ID pair.
- *
- * @param  {Object}  state  Global state tree
- * @param  {Number}  siteId Site ID
- * @param  {String}  postId Post ID
- * @return {?Object}        Post object
- */
-export function getSitePost( state, siteId, postId ) {
-	const { sitePosts } = state.posts;
-	if ( ! sitePosts[ siteId ] || ! sitePosts[ siteId ][ postId ] ) {
-		return null;
-	}
-
-	return getPost( state, sitePosts[ siteId ][ postId ] );
-}
-
-/**
  * Returns true if the specified posts query is being tracked for the site, or
  * false otherwise.
  *
@@ -50,12 +35,7 @@ export function getSitePost( state, siteId, postId ) {
  * @return {Boolean}        Whether posts query is tracked for site
  */
 export function isTrackingSitePostsQuery( state, siteId, query ) {
-	const { siteQueries } = state.posts;
-	if ( ! siteQueries[ siteId ] ) {
-		return false;
-	}
-
-	return !! siteQueries[ siteId ][ getSerializedPostsQuery( query ) ];
+	return !! state.posts.queries[ getSerializedPostsQuery( query, siteId ) ];
 }
 
 /**
@@ -68,17 +48,16 @@ export function isTrackingSitePostsQuery( state, siteId, query ) {
  * @return {?Array}         Posts for the post query
  */
 export function getSitePostsForQuery( state, siteId, query ) {
-	const { siteQueries } = state.posts;
 	if ( ! isTrackingSitePostsQuery( state, siteId, query ) ) {
 		return null;
 	}
 
-	query = getSerializedPostsQuery( query );
-	if ( ! siteQueries[ siteId ][ query ].posts ) {
+	const serializedQuery = getSerializedPostsQuery( query, siteId );
+	if ( ! state.posts.queries[ serializedQuery ].posts ) {
 		return null;
 	}
 
-	return siteQueries[ siteId ][ query ].posts.map( ( globalId ) => {
+	return state.posts.queries[ serializedQuery ].posts.map( ( globalId ) => {
 		return getPost( state, globalId );
 	} );
 }
@@ -97,8 +76,8 @@ export function isRequestingSitePostsForQuery( state, siteId, query ) {
 		return false;
 	}
 
-	query = getSerializedPostsQuery( query );
-	return state.posts.siteQueries[ siteId ][ query ].fetching;
+	const serializedQuery = getSerializedPostsQuery( query, siteId );
+	return state.posts.queries[ serializedQuery ].fetching;
 }
 
 /**
@@ -111,13 +90,8 @@ export function isRequestingSitePostsForQuery( state, siteId, query ) {
  * @return {?Number}        Last posts page
  */
 export function getSitePostsLastPageForQuery( state, siteId, query ) {
-	const { siteQueriesLastPage } = state.posts;
-	if ( ! siteQueriesLastPage[ siteId ] ) {
-		return null;
-	}
-
-	const serializedQuery = getSerializedPostsQueryWithoutPage( query );
-	return siteQueriesLastPage[ siteId ][ serializedQuery ] || null;
+	const serializedQuery = getSerializedPostsQueryWithoutPage( query, siteId );
+	return state.posts.queriesLastPage[ serializedQuery ] || null;
 }
 
 /**
@@ -157,4 +131,53 @@ export function getSitePostsForQueryIgnoringPage( state, siteId, query ) {
 		const pageQuery = Object.assign( {}, query, { page } );
 		return memo.concat( getSitePostsForQuery( state, siteId, pageQuery ) || [] );
 	}, [] );
+}
+
+/**
+ * Returns an array of posts for the posts query, including all known queried
+ * pages, preserving hierarchy. Returns null if no posts have been received.
+ * Hierarchy is represented by `parent` and `items` properties on each post.
+ *
+ * @param  {Object} state  Global state tree
+ * @param  {Number} siteId Site ID
+ * @param  {Object} query  Post query object
+ * @return {?Array}        Hierarchical posts for the post query
+ */
+export const getSitePostsHierarchyForQueryIgnoringPage = createSelector(
+	( state, siteId, query ) => {
+		let sitePosts = getSitePostsForQueryIgnoringPage( state, siteId, query );
+		if ( ! sitePosts ) {
+			return sitePosts;
+		}
+
+		// For each site post object, add `parent` and `order` properties.
+		// These are used by the TreeConvert library to build the hierarchy.
+		const treeReadySitePosts = sitePosts.map( ( post, i ) => {
+			return Object.assign( {}, post, {
+				parent: post.parent ? post.parent.ID : 0,
+				order: i
+			} );
+		} );
+
+		return ( new TreeConvert( 'ID' ) ).treeify( treeReadySitePosts );
+	},
+	( state ) => [ state.posts.queries ],
+	( state, siteId, query ) => getSerializedPostsQueryWithoutPage( query, siteId )
+);
+
+/**
+ * Returns true if a request is in progress for the specified site post, or
+ * false otherwise.
+ *
+ * @param  {Object}  state  Global state tree
+ * @param  {Number}  siteId Site ID
+ * @param  {Number}  postId Post ID
+ * @return {Boolean}        Whether request is in progress
+ */
+export function isRequestingSitePost( state, siteId, postId ) {
+	if ( ! state.posts.siteRequests[ siteId ] ) {
+		return false;
+	}
+
+	return !! state.posts.siteRequests[ siteId ][ postId ];
 }

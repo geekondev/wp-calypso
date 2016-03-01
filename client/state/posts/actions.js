@@ -3,6 +3,9 @@
  */
 import wpcom from 'lib/wp';
 import {
+	POST_REQUEST,
+	POST_REQUEST_SUCCESS,
+	POST_REQUEST_FAILURE,
 	POSTS_RECEIVE,
 	POSTS_REQUEST,
 	POSTS_REQUEST_SUCCESS,
@@ -37,7 +40,7 @@ export function receivePosts( posts ) {
 /**
  * Triggers a network request to fetch posts for the specified site and query.
  *
- * @param  {Number}   siteId Site ID
+ * @param  {?Number}  siteId Site ID
  * @param  {String}   query  Post query
  * @return {Function}        Action thunk
  */
@@ -49,7 +52,14 @@ export function requestSitePosts( siteId, query = {} ) {
 			query
 		} );
 
-		return wpcom.site( siteId ).postsList( query ).then( ( { found, posts } ) => {
+		let source;
+		if ( siteId ) {
+			source = wpcom.site( siteId );
+		} else {
+			source = wpcom.me();
+		}
+
+		return source.postsList( query ).then( ( { found, posts } ) => {
 			dispatch( receivePosts( posts ) );
 			dispatch( {
 				type: POSTS_REQUEST_SUCCESS,
@@ -67,4 +77,48 @@ export function requestSitePosts( siteId, query = {} ) {
 			} );
 		} );
 	};
+}
+
+/**
+ * Triggers a network request to fetch a specific post from a site.
+ *
+ * @param  {Number}   siteId Site ID
+ * @param  {Number}   postId Post ID
+ * @return {Function}        Action thunk
+ */
+export function requestSitePost( siteId, postId ) {
+	return ( dispatch ) => {
+		dispatch( {
+			type: POST_REQUEST,
+			siteId,
+			postId
+		} );
+
+		return wpcom.site( siteId ).post( postId ).get().then( ( post ) => {
+			dispatch( receivePost( post ) );
+			dispatch( {
+				type: POST_REQUEST_SUCCESS,
+				siteId,
+				postId
+			} );
+		} ).catch( ( error ) => {
+			dispatch( {
+				type: POST_REQUEST_FAILURE,
+				siteId,
+				postId,
+				error
+			} );
+		} );
+	};
+}
+
+/**
+ * Returns a function which, when invoked, triggers a network request to fetch
+ * posts across all of the current user's sites for the specified query.
+ *
+ * @param  {String}   query Post query
+ * @return {Function}       Action thunk
+ */
+export function requestPosts( query = {} ) {
+	return requestSitePosts( null, query );
 }

@@ -7,7 +7,8 @@ import React from 'react';
  * Internal dependencies
  */
 import notices from 'notices';
-import { translate } from 'lib/mixins/i18n'
+import { translate } from 'lib/mixins/i18n';
+import support from 'lib/url/support';
 
 export const displayResponseError = ( responseError ) => {
 	const errorMessages = {
@@ -35,7 +36,7 @@ export const displayResponseError = ( responseError ) => {
 					args: errorMessages[ responseError.error ],
 					components: {
 						strong: <strong />,
-						a: <a href="https://support.wordpress.com/contact/" target="_blank"/>
+						a: <a href={ support.CONTACT } target="_blank"/>
 					}
 				}
 			)
@@ -48,7 +49,7 @@ export const displayResponseError = ( responseError ) => {
 				'to have trouble.',
 				{
 					components: {
-						a: <a href="https://support.wordpress.com/contact/" target="_blank"/>
+						a: <a href={ support.CONTACT } target="_blank"/>
 					}
 				}
 			)
@@ -77,48 +78,5 @@ export const displayRequestTransferCodeResponseNotice = ( responseError, domainS
 				'If you don\'t receive the email shortly, please check your spam folder.'
 			)
 		);
-	}
-};
-
-/**
- * Converts async (wpcom) calls to promises by pushing a callback handler to the arguments list. The handler will resolve or
- * reject depending on the value.
- *
- * This only works with functions with the following convention:
- * - Accepts a callback as the last argument
- * - Calls the callback with arguments like (error, result) similar to node.JS style
- *
- * E.g.
- * Previous:
- * wpcom.undocumented().getSitePlans( siteId, ( error, data ) => {
- * 	if ( error ) {
- * 		debug( 'Fetching site plans failed: ', error );
- * 	} else {
- * 		dispatch( fetchSitePlansCompleted( siteId, data ) );
- * 	}
- * 	resolve();
- * } );
- *
- * promisy( wpcom.undocumented().getSitePlans )( siteId ).then( ( data ) => {
- * 	dispatch( fetchSitePlansCompleted( siteId, data ) );
- * }, ( error ) => {
- * 	debug( 'Fetching site plans failed: ', error );
- * } );
- *
- * @param {Function} fn - Function to be wrapped
- * @returns {Function} Wrapped function which returns a Promise
- */
-export const promisy = ( fn ) => {
-	return function( ...args ) {
-		return new Promise( function( resolve, reject ) {
-			args.push( function( error, res ) {
-				if ( error ) {
-					reject( error )
-				} else {
-					resolve( res )
-				}
-			} );
-			fn.apply( fn, args );
-		} );
 	}
 };

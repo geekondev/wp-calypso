@@ -2,6 +2,7 @@
  * External dependencies
  */
 import { expect } from 'chai';
+import deepFreeze from 'deep-freeze';
 
 /**
  * Internal dependencies
@@ -9,12 +10,13 @@ import { expect } from 'chai';
 import {
 	PUBLICIZE_CONNECTIONS_REQUEST,
 	PUBLICIZE_CONNECTIONS_RECEIVE,
-	PUBLICIZE_CONNECTIONS_REQUEST_FAILURE
+	PUBLICIZE_CONNECTIONS_REQUEST_FAILURE,
+	DESERIALIZE,
+	SERIALIZE
 } from 'state/action-types';
 import {
 	fetchingConnections,
-	connections,
-	connectionsBySiteId
+	connections
 } from '../reducer';
 
 describe( '#fetchingConnections()', () => {
@@ -43,6 +45,30 @@ describe( '#fetchingConnections()', () => {
 		} );
 
 		expect( state[ 2916284 ] ).to.be.false;
+	} );
+
+	describe( 'persistence', () => {
+		it( 'never loads persisted data', () => {
+			const persistedState = deepFreeze( {
+				2916284: false,
+				123456: undefined
+			} );
+			const state = fetchingConnections( persistedState, {
+				type: DESERIALIZE
+			} );
+			expect( state ).to.eql( {} );
+		} );
+
+		it( 'never persists data', () => {
+			const state = deepFreeze( {
+				2916284: false,
+				123456: undefined
+			} );
+			const persistedState = fetchingConnections( state, {
+				type: SERIALIZE
+			} );
+			expect( persistedState ).to.eql( {} );
+		} );
 	} );
 } );
 
@@ -94,60 +120,26 @@ describe( '#connections()', () => {
 			1: connection
 		} );
 	} );
-} );
 
-describe( '#connectionsBySiteId()', () => {
-	it( 'should map site ID to connection IDs', () => {
-		const state = connectionsBySiteId( null, {
-			type: PUBLICIZE_CONNECTIONS_RECEIVE,
-			siteId: 2916284,
-			data: {
-				connections: [
-					{ ID: 1, site_ID: 2916284 },
-					{ ID: 2, site_ID: 2916284 }
-				]
-			}
+	describe( 'persistence', () => {
+		it( 'does not persist data because this is not implemented yet', () => {
+			const state = deepFreeze( {
+				1: { ID: 1, site_ID: 2916284 },
+				2: { ID: 2, site_ID: 2916284 }
+			} );
+			const persistedState = connections( state, { type: SERIALIZE } );
+			expect( persistedState ).to.eql( {} );
 		} );
 
-		expect( state ).to.eql( {
-			2916284: [ 1, 2 ]
-		} );
-	} );
-
-	it( 'should replace previous known connections for site', () => {
-		const state = connectionsBySiteId( {
-			2916284: [ 1, 2 ]
-		}, {
-			type: PUBLICIZE_CONNECTIONS_RECEIVE,
-			siteId: 2916284,
-			data: {
-				connections: [
-					{ ID: 1, site_ID: 2916284 }
-				]
-			}
-		} );
-
-		expect( state ).to.eql( {
-			2916284: [ 1 ]
-		} );
-	} );
-
-	it( 'should not replace known connections for unrelated sites', () => {
-		const state = connectionsBySiteId( {
-			77203074: [ 1, 2 ]
-		}, {
-			type: PUBLICIZE_CONNECTIONS_RECEIVE,
-			siteId: 2916284,
-			data: {
-				connections: [
-					{ ID: 1, site_ID: 2916284 }
-				]
-			}
-		} );
-
-		expect( state ).to.eql( {
-			77203074: [ 1, 2 ],
-			2916284: [ 1 ]
+		it( 'does not load persisted data because this is not implemented yet', () => {
+			const persistedState = deepFreeze( {
+				1: { ID: 1, site_ID: 2916284 },
+				2: { ID: 2, site_ID: 2916284 }
+			} );
+			const state = connections( persistedState, {
+				type: DESERIALIZE
+			} );
+			expect( state ).to.eql( {} );
 		} );
 	} );
 } );

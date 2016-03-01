@@ -4,11 +4,12 @@
 import React from 'react';
 import LinkedStateMixin from 'react-addons-linked-state-mixin';
 import PureRenderMixin from 'react-pure-render/mixin';
-import isEqual from 'lodash/lang/isEqual';
+import isEqual from 'lodash/isEqual';
 
 /**
  * Internal dependencies
  */
+import analytics from 'analytics';
 import FormLabel from 'components/forms/form-label';
 import SegmentedControl from 'components/segmented-control';
 import ControlItem from 'components/segmented-control/item';
@@ -79,7 +80,7 @@ module.exports = React.createClass( {
 	},
 
 	componentWillReceiveProps: function( nextProps ) {
-		if ( isEqual( nextProps.valueLink.value, this.state ) ) {
+		if ( ! nextProps.valueLink.value || isEqual( nextProps.valueLink.value, this.state ) ) {
 			return;
 		}
 
@@ -92,6 +93,17 @@ module.exports = React.createClass( {
 
 	setSite: function( siteSlug ) {
 		this.setState( { siteSlug } );
+	},
+
+	trackClickStats: function( selectionName, selectedOption ) {
+		const tracksEvent = {
+			howCanWeHelp: 'calypso_help_how_can_we_help_click',
+			howYouFeel: 'calypso_help_how_you_feel_click'
+		}[ selectionName ];
+
+		if ( tracksEvent ) {
+			analytics.tracks.recordEvent( tracksEvent, { selected_option: selectedOption } );
+		}
 	},
 
 	/**
@@ -116,7 +128,8 @@ module.exports = React.createClass( {
 				value: option.value,
 				title: option.label,
 				onClick: () => {
-					this.setState( { [ selectionName ]: option.value } )
+					this.setState( { [ selectionName ]: option.value } );
+					this.trackClickStats( selectionName, option.value );
 				}
 			}
 		} ) );

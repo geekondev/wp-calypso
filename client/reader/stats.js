@@ -1,5 +1,7 @@
 import { mc, ga, tracks } from 'analytics';
 
+import SubscriptionStore from 'lib/reader-feed-subscriptions';
+
 export function recordAction( action ) {
 	mc.bumpStat( 'reader_actions', action );
 }
@@ -27,11 +29,11 @@ function getLocation() {
 	if ( path.indexOf( '/tag/' ) === 0 ) {
 		return 'topic_page';
 	}
-	if ( path.indexOf( '/read/blog/' ) === 0 ) {
-		return 'blog_page';
-	}
-	if ( path.indexOf( '/read/post/' ) === 0 ) {
+	if ( path.match( /^\/read\/(blogs|feeds)\/([0-9]+)\/posts\/([0-9]+)$/i ) ) {
 		return 'single_post';
+	}
+	if ( path.match( /^\/read\/(blogs|feeds)\/([0-9]+)$/i ) ) {
+		return 'blog_page';
 	}
 	if ( path.indexOf( '/read/list/' ) === 0 ) {
 		return 'list';
@@ -59,7 +61,7 @@ export function recordFollow( url ) {
 	mc.bumpStat( 'reader_follows', source );
 	recordAction( 'followed_blog' );
 	recordGaEvent( 'Clicked Follow Blog', source )
-	tracks.recordEvent( 'calypso_reader_site_followed', {
+	recordTrack( 'calypso_reader_site_followed', {
 		url,
 		source
 	} );
@@ -70,12 +72,16 @@ export function recordUnfollow( url ) {
 	mc.bumpStat( 'reader_unfollows', source );
 	recordAction( 'unfollowed_blog' );
 	recordGaEvent( 'Clicked Unfollow Blog', source )
-	tracks.recordEvent( 'calypso_reader_site_unfollowed', {
+	recordTrack( 'calypso_reader_site_unfollowed', {
 		url,
 		source
 	} );
 }
 
 export function recordTrack( eventName, eventProperties ) {
+	const subCount = SubscriptionStore.getTotalSubscriptions();
+	if ( subCount != null ) {
+		eventProperties = Object.assign( { subscription_count: subCount }, eventProperties );
+	}
 	tracks.recordEvent( eventName, eventProperties );
 }

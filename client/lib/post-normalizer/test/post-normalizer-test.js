@@ -6,7 +6,7 @@ require( 'lib/react-test-env-setup' )();
 
 // Uncomment this require to use the blanket coverage tests.
 //require( 'blanket' )( {
-//	pattern: /post-normalizer\//
+//  pattern: /post-normalizer\//
 //} );
 
 const assert = require( 'chai' ).assert,
@@ -15,6 +15,7 @@ const assert = require( 'chai' ).assert,
  * Internal dependencies
  */
 let normalizer = require( '../' ),
+	safeImageUrlFake = require( 'lib/safe-image-url' ),
 	allTransforms = [
 		normalizer.decodeEntities,
 		normalizer.stripHTML,
@@ -30,6 +31,7 @@ let normalizer = require( '../' ),
 			normalizer.content.detectEmbeds,
 			normalizer.content.wordCountAndReadingTime
 		] ),
+		normalizer.createBetterExcerpt,
 		normalizer.waitForImagesToLoad,
 		normalizer.pickCanonicalImage,
 		normalizer.keepValidImages( 1, 1 )
@@ -215,12 +217,24 @@ describe( 'post-normalizer', function() {
 				featured_media: {
 					uri: 'http://example.com/media.jpg',
 					type: 'image'
+				},
+				attachments: {
+					1234: {
+						mime_type: 'image/png',
+						URL: 'http://example.com/media.jpg'
+					},
+					3456: {
+						mime_type: 'text/text',
+						URL: 'http://example.com/media.jpg'
+					}
 				}
 			};
 			normalizer( post, [ normalizer.safeImageProperties( 200 ) ], function( err, normalized ) {
 				assert.strictEqual( normalized.author.avatar_URL, 'http://example.com/me.jpg-SAFE?w=200&quality=80&strip=info' );
 				assert.strictEqual( normalized.featured_image, 'http://foo.bar/-SAFE?w=200&quality=80&strip=info' );
 				assert.strictEqual( normalized.featured_media.uri, 'http://example.com/media.jpg-SAFE?w=200&quality=80&strip=info' );
+				assert.strictEqual( normalized.attachments['1234'].URL, 'http://example.com/media.jpg-SAFE?w=200&quality=80&strip=info' )
+				assert.strictEqual( normalized.attachments['3456'].URL, 'http://example.com/media.jpg' );
 				done( err );
 			} );
 		} );
@@ -241,40 +255,40 @@ describe( 'post-normalizer', function() {
 	describe( 'pickPrimaryTag', function() {
 		it( 'can pick the primary tag by taking the tag with the highest post_count as the primary', function( done ) {
 			var post = {
-				tags: [
-					{
+				tags: {
+					first: {
 						name: 'first',
 						post_count: 2
 					},
-					{
+					second: {
 						name: 'second',
 						post_count: 200
 					}
-				]
+				}
 			};
 
 			normalizer( post, [ normalizer.pickPrimaryTag ], function( err, normalized ) {
-				assert.deepEqual( normalized.primary_tag, post.tags[ 1 ] );
+				assert.deepEqual( normalized.primary_tag, post.tags.second );
 				done( err );
 			} );
 		} );
 
 		it( 'can pick the primary tag by taking the first tag as primary if there is a tie', function( done ) {
 			var post = {
-				tags: [
-					{
+				tags: {
+					first: {
 						name: 'first',
 						post_count: 200
 					},
-					{
+					second: {
 						name: 'second',
 						post_count: 200
 					}
-				]
+				}
 			};
 
 			normalizer( post, [ normalizer.pickPrimaryTag ], function( err, normalized ) {
-				assert.deepEqual( normalized.primary_tag, post.tags[ 0 ] );
+				assert.deepEqual( normalized.primary_tag, post.tags.first );
 				done( err );
 			} );
 		} );
@@ -427,6 +441,20 @@ describe( 'post-normalizer', function() {
 					done( err );
 				}
 			);
+		} );
+
+		it( 'can remove images that cannot be made safe', function( done ) {
+			safeImageUrlFake.setReturns( null );
+			normalizer(
+				{
+					content: '<img width="700" height="700" src="http://example.com/example.jpg?nope">'
+				},
+				[ normalizer.withContentDOM( [ normalizer.content.safeContentImages( 400 ) ] ) ], function( err, normalized ) {
+					assert.equal( normalized.content, '' );
+					done( err );
+				}
+			);
+			safeImageUrlFake.undoReturns();
 		} );
 
 		it( 'removes event handlers from content images', function( done ) {
@@ -825,6 +853,48 @@ describe( 'post-normalizer', function() {
 					done( err );
 				}
 			);
+		} );
+		it( 'links to embedded Polldaddy polls', function( done ) {
+			normalizer(
+				{
+					content: '<a name="pd_a_8980420"></a>' +
+					'<div class="PDS_Poll" id="PDI_container8980420" style="display:inline-block;"></div>' +
+					'<div id="PD_superContainer"></div>' +
+					'<script type="text/javascript" charset="UTF-8" src="//static.polldaddy.com/p/8980420.js"></script>' +
+					'<noscript><a href="http://polldaddy.com/poll/8980420">Take Our Poll</a></noscript>',
+				},
+				[
+					normalizer.withContentDOM( [ normalizer.content.detectPolls ] )
+				], function( err, normalized ) {
+					assert.include( normalized.content, '<p><a rel="external" target="_blank" href="http://polldaddy.com/poll/8980420">Take our poll</a></p>' );
+					done( err );
+				}
+			);
+		} );
+	} );
+	describe( 'The fancy excerpt creator', function() {
+		function assertExcerptBecomes( source, expected, done ) {
+			normalizer( { content: source }, [ normalizer.createBetterExcerpt ], function( err, normalized ) {
+				assert.strictEqual( normalized.better_excerpt, expected );
+				done( err );
+			} );
+		}
+
+		it( 'strips empty elements and leading and trailing brs', function( done ) {
+			assertExcerptBecomes( `<br>
+<p>&nbsp;</p>
+<p class="wp-caption-text">caption</p>
+<p><img src="http://example.com/image.jpg"></p>
+<p><a href="http://wikipedia.org">Giraffes</a> are <br>great</p>
+<p></p>`, '<p>Giraffes are <br>great</p>', done );
+		} );
+
+		it( 'limits the excerpt to 3 elements', function( done ) {
+			assertExcerptBecomes( '<p>one</p><p>two</p><p>three</p><p>four</p>', '<p>one</p><p>two</p><p>three</p>', done );
+		} );
+
+		it( 'limits the excerpt to 3 elements after trimming', function( done ) {
+			assertExcerptBecomes( '<br /><p></p><p>one</p><p>two</p><p></p><br><p>three</p><p>four</p><br><p></p>', '<p>one</p><p>two</p><br>', done );
 		} );
 	} );
 } );

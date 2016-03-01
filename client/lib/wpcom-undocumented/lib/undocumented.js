@@ -2,12 +2,12 @@
  * External dependencies.
  */
 var debug = require( 'debug' )( 'calypso:wpcom-undocumented:undocumented' ),
-	isPlainObject = require( 'lodash/lang/isPlainObject' ),
-	clone = require( 'lodash/lang/clone' ),
-	omit = require( 'lodash/object/omit' ),
-	camelCase = require( 'lodash/string/camelCase' ),
-	snakeCase = require( 'lodash/string/snakeCase' ),
-	pick = require( 'lodash/object/pick' );
+	isPlainObject = require( 'lodash/isPlainObject' ),
+	clone = require( 'lodash/clone' ),
+	omit = require( 'lodash/omit' ),
+	camelCase = require( 'lodash/camelCase' ),
+	snakeCase = require( 'lodash/snakeCase' ),
+	pick = require( 'lodash/pick' );
 
 /**
  * Internal dependencies.
@@ -304,6 +304,14 @@ Undocumented.prototype.sendInvites = function( siteId, usernamesOrEmails, role, 
 	}, fn );
 };
 
+Undocumented.prototype.createInviteValidation = function( siteId, usernamesOrEmails, role, fn ) {
+	debug( '/sites/:site_id:/invites/validate query' );
+	this.wpcom.req.post( '/sites/' + siteId + '/invites/validate', {}, {
+		invitees: usernamesOrEmails,
+		role: role
+	}, fn );
+};
+
 /**
  * GET/POST site settings
  *
@@ -328,18 +336,18 @@ Undocumented.prototype.settings = function( siteId, method, data, fn ) {
 };
 
 Undocumented.prototype._sendRequestWithLocale = function( originalParams, fn ) {
-	var locale = i18n.getLocaleSlug(),
-		updatedParams;
+	const { apiVersion, body = {}, method } = originalParams,
+		locale = i18n.getLocaleSlug(),
+		updatedParams = omit( originalParams, [ 'apiVersion', 'method' ] );
 
-	updatedParams = clone( originalParams );
-	if ( originalParams.body ) {
-		updatedParams.body = clone( originalParams.body );
-		updatedParams.body.locale = locale;
+	updatedParams.body = Object.assign( {}, body, { locale } );
+
+	if ( apiVersion ) {
+		// TODO: temporary solution for apiVersion until https://github.com/Automattic/wpcom.js/issues/152 is resolved
+		this.wpcom.req[ method.toLowerCase() ]( updatedParams, { apiVersion }, fn );
 	} else {
-		updatedParams.body = { locale: locale };
+		this.wpcom.req[ method.toLowerCase() ]( updatedParams, fn );
 	}
-
-	this.wpcom.req[ updatedParams.method.toLowerCase() ]( updatedParams, fn );
 };
 
 /**
@@ -526,7 +534,8 @@ Undocumented.prototype.getPlans = function( fn ) {
 	debug( '/plans query' );
 	this._sendRequestWithLocale( {
 		path: '/plans',
-		method: 'get'
+		method: 'get',
+		apiVersion: '1.2'
 	}, fn );
 };
 
@@ -1461,13 +1470,22 @@ Undocumented.prototype.themes = function( site, query, fn ) {
 	}, fn );
 };
 
+Undocumented.prototype.themeDetails = function( themeId, fn ) {
+	const path = `/themes/${ themeId }`;
+	debug( '/themes/:theme_id' );
+	this.wpcom.req.get( path, {
+		apiVersion: '1.1',
+		extended: 'true',
+	}, fn );
+};
+
 Undocumented.prototype.activeTheme = function( siteId, fn ) {
-	debug( '/site/:site_id/themes/mine' );
+	debug( '/sites/:site_id/themes/mine' );
 	this.wpcom.req.get( { path: '/sites/' + siteId + '/themes/mine' }, fn );
 };
 
 Undocumented.prototype.activateTheme = function( theme, siteId, fn ) {
-	debug( '/site/:site_id/themes/mine' );
+	debug( '/sites/:site_id/themes/mine' );
 	this.wpcom.req.post( {
 		path: '/sites/' + siteId + '/themes/mine',
 		body: { theme: theme.id }
@@ -1607,9 +1625,15 @@ Undocumented.prototype.requestTransferCode = function( options, fn ) {
 	this.wpcom.req.post( '/domains/' + domainName + '/transfer', data, fn );
 };
 
-Undocumented.prototype.enableDomainLocking = function( domainName, fn ) {
+Undocumented.prototype.enableDomainLocking = function( { domainName, enablePrivacy, declineTransfer }, fn ) {
 	var data = {
-		domainStatus: JSON.stringify( { command: 'lock-domain' } )
+		domainStatus: JSON.stringify( {
+			command: 'lock-domain',
+			payload: {
+				enable_privacy: enablePrivacy,
+				decline_transfer: declineTransfer
+			}
+		} )
 	};
 
 	this.wpcom.req.post( '/domains/' + domainName + '/transfer', data, fn );
@@ -1801,12 +1825,12 @@ Undocumented.prototype.cancelPlanTrial = function( planId, fn ) {
 	}, fn );
 };
 
-Undocumented.prototype.submitKayakoTicket = function( subject, message, locale, fn ) {
+Undocumented.prototype.submitKayakoTicket = function( subject, message, locale, client, fn ) {
 	debug( 'submitKayakoTicket' );
 
 	this.wpcom.req.post( {
 		path: '/help/tickets/kayako/new',
-		body: { subject, message, locale }
+		body: { subject, message, locale, client }
 	}, fn );
 };
 
@@ -1816,19 +1840,65 @@ Undocumented.prototype.submitKayakoTicket = function( subject, message, locale, 
  * @param {Function} fn The callback function
  * @api public
  */
-Undocumented.prototype.getOlarkConfiguration = function( fn ) {
+Undocumented.prototype.getOlarkConfiguration = function( client, fn ) {
 	this.wpcom.req.get( {
 		apiVersion: '1.1',
-		path: '/help/olark/mine'
+		path: '/help/olark/mine',
+		body: { client }
 	}, fn );
 };
 
-Undocumented.prototype.submitSupportForumsTopic = function( subject, message, fn ) {
+Undocumented.prototype.submitSupportForumsTopic = function( subject, message, client, fn ) {
 	this.wpcom.req.post( {
 		path: '/help/forums/support/topics/new',
-		body: { subject, message }
+		body: { subject, message, client }
 	}, fn );
 };
+
+/**
+ * Get the available export configuration settings for a site
+ *
+ * @param {int}       siteId            The site ID
+ * @param {Function}  fn                The callback function
+ * @returns {Promise} A promise that resolves when the request completes
+ * @api public
+ */
+Undocumented.prototype.getExportSettings = function( siteId, fn ) {
+	return this.wpcom.req.get( {
+		apiVersion: '1.1',
+		path: `/sites/${ siteId }/exports/settings`
+	}, fn );
+};
+
+/*
+ * Start an export
+ *
+ * @param {int}       siteId            The site ID
+ * @param {Object}    advancedSettings  Advanced export configuration
+ * @param {Function}  fn                The callback function
+ * @returns {Promise}                   A promise that resolves when the export started
+ */
+Undocumented.prototype.startExport = function( siteId, advancedSettings, fn ) {
+	return this.wpcom.req.post( {
+		apiVersion: '1.1',
+		path: `/sites/${ siteId }/exports/start`
+	}, advancedSettings, fn );
+};
+
+/**
+ * Check the status of an export
+ *
+ * @param {int}       siteId            The site ID
+ * @param {Object}    exportId          Export ID (for future use)
+ * @param {Function}  fn                The callback function
+ * @returns {Promise}
+ */
+Undocumented.prototype.getExport = function( siteId, exportId, fn ) {
+	return this.wpcom.req.get( {
+		apiVersion: '1.1',
+		path: `/sites/${ siteId }/exports/${ exportId }`
+	}, fn );
+}
 
 /**
  * Expose `Undocumented` module

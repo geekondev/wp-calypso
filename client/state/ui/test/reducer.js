@@ -6,10 +6,30 @@ import { expect } from 'chai';
 /**
  * Internal dependencies
  */
-import { SELECTED_SITE_SET } from 'state/action-types';
-import { selectedSiteId } from '../reducer';
+import {
+	SELECTED_SITE_SET,
+	SERIALIZE,
+	DESERIALIZE
+} from 'state/action-types';
+import reducer, { selectedSiteId } from '../reducer';
 
 describe( 'reducer', () => {
+	it( 'should refuse to persist any state', () => {
+		const state = reducer( {
+			selectedSiteId: 2916284
+		}, { type: SERIALIZE } );
+
+		expect( state ).to.eql( {} );
+	} );
+
+	it( 'should refuse to restore any persisted state', () => {
+		const state = reducer( {
+			selectedSiteId: 2916284
+		}, { type: DESERIALIZE } );
+
+		expect( state ).to.eql( {} );
+	} );
+
 	describe( '#selectedSiteId()', () => {
 		it( 'should default to null', () => {
 			const state = selectedSiteId( undefined, {} );

@@ -1,43 +1,42 @@
 /**
- * External dependencies
- */
-var page = require( 'page' ),
-	transform = require( 'lodash/object/transform' );
-
-/**
  * Internal dependencies
  */
-var config = require( 'config' ),
-	user = require( 'lib/user' )(),
-	controller = require( 'my-sites/controller' ),
-	themesController = require( './controller' );
+import config from 'config';
+import userFactory from 'lib/user';;
+import { navigation, siteSelection } from 'my-sites/controller';
+import { singleSite, multiSite, loggedOut, details, makeLoggedOutLayout } from './controller';
 
-const routing = {
-	routes: [
-		{ value: '/design/:site_id', enableLoggedOut: false },
-		{ value: '/design/type/:tier/:site_id', enableLoggedOut: false },
-		{ value: '/design/type/:tier', enableLoggedOut: true },
-		{ value: '/design', enableLoggedOut: true },
-	],
-	middlewares: [
-		{ value: controller.navigation, enableLoggedOut: false },
-		{ value: controller.siteSelection, enableLoggedOut: false },
-		{ value: themesController.themes, enableLoggedOut: true },
-	]
-};
+const user = userFactory();
 
-function getRouting( isLoggedIn ) {
-	const testKey = isLoggedIn ? 'value' : 'enableLoggedOut';
-	return transform( routing, ( acc, collection, collectionName ) => {
-		acc[ collectionName ] = collection
-			.filter( item => item[ testKey ] )
-			.map( item => item.value );
-	} );
-}
+const isLoggedIn = !! user.get();
 
-module.exports = function() {
-	if ( config.isEnabled( 'manage/themes' ) ) {
-		const { routes, middlewares } = getRouting( user.get() );
-		routes.forEach( route => page( route, ...middlewares ) );
+const designRoutes = isLoggedIn
+	? {
+		'/design': [ multiSite, navigation, siteSelection ],
+		'/design/:site_id': [ singleSite, navigation, siteSelection ],
+		'/design/type/:tier': [ multiSite, navigation, siteSelection ],
+		'/design/type/:tier/:site_id': [ singleSite, navigation, siteSelection ],
 	}
+	: {
+		'/design': [ loggedOut, makeLoggedOutLayout ],
+		'/design/type/:tier': [ loggedOut, makeLoggedOutLayout ]
+	};
+
+const themesRoutes = isLoggedIn
+	? {
+		'/themes/:slug/:section?/:site_id?': [ details ]
+	}
+	: {
+		'/themes/:slug/:section?/:site_id?': [ details, makeLoggedOutLayout ]
+	};
+
+const routes = Object.assign( {},
+	config.isEnabled( 'manage/themes' ) ? designRoutes : {},
+	config.isEnabled( 'manage/themes/details' ) ? themesRoutes : {}
+)
+
+export default function( router ) {
+	Object.keys( routes ).forEach( route => {
+		router( route, ...routes[ route ] );
+	} )
 };

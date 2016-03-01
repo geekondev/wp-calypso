@@ -4,8 +4,8 @@
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	classnames = require( 'classnames' ),
-	noop = require( 'lodash/utility/noop' ),
-	times = require( 'lodash/utility/times' );
+	noop = require( 'lodash/noop' ),
+	times = require( 'lodash/times' );
 
 /**
  * Internal dependencies
@@ -232,8 +232,7 @@ module.exports = React.createClass( {
 	},
 
 	isPostFullScreen: function() {
-		return window.location.href.indexOf( '/read/post/feed/' ) > -1 ||
-			window.location.href.indexOf( '/read/post/id' ) > -1;
+		return !! window.location.pathname.match( /^\/read\/(blogs|feeds)\/([0-9]+)\/posts\/([0-9]+)$/i );
 	},
 
 	selectNextItem: function() {
@@ -333,9 +332,9 @@ module.exports = React.createClass( {
 		}
 		var method = options && options.replaceHistory ? 'replace' : 'show';
 		if ( post.feed_ID && post.feed_item_ID ) {
-			page[ method ]( '/read/post/feed/' + post.feed_ID + '/' + post.feed_item_ID + hashtag );
+			page[ method ]( '/read/feeds/' + post.feed_ID + '/posts/' + post.feed_item_ID + hashtag );
 		} else {
-			page[ method ]( '/read/post/id/' + post.site_ID + '/' + post.ID + hashtag );
+			page[ method ]( '/read/blogs/' + post.site_ID + '/posts/' + post.ID + hashtag );
 		}
 	},
 
@@ -411,11 +410,13 @@ module.exports = React.createClass( {
 	render: function() {
 		var store = this.props.store,
 			hasNoPosts = store.isLastPage() && ( ( ! this.state.posts ) || this.state.posts.length === 0 ),
-			body;
+			header, body;
 
-		if ( hasNoPosts ) {
+		if ( hasNoPosts || store.hasRecentError( 'invalid_tag' ) ) {
+			header = null;
 			body = this.props.emptyContent || ( <EmptyContent /> );
 		} else {
+			header = this.props.children;
 			body = ( <InfiniteList
 			ref={ ( c ) => this._list = c }
 			className="reader__content"
@@ -438,7 +439,7 @@ module.exports = React.createClass( {
 
 				<UpdateNotice count={ this.state.updateCount } onClick={ this.handleUpdateClick } />
 
-				{ this.props.children }
+				{ header }
 
 				{ body }
 

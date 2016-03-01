@@ -3,8 +3,8 @@
  */
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
-	filter = require( 'lodash/collection/filter' ),
-	map = require( 'lodash/collection/map' ),
+	filter = require( 'lodash/filter' ),
+	map = require( 'lodash/map' ),
 	classNames = require( 'classnames' );
 
 /**
@@ -68,7 +68,8 @@ var SegmentedControl = React.createClass( {
 		var segmentedClasses = {
 			'segmented-control': true,
 			'keyboard-navigation': this.state.keyboardNavigation,
-			'is-compact': this.props.compact
+			'is-compact': this.props.compact,
+			'is-primary': this.props.primary
 		};
 
 		if ( this.props.className ) {

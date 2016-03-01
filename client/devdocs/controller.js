@@ -4,8 +4,9 @@
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	qs = require( 'qs' ),
-	debounce = require( 'lodash/function/debounce' ),
+	debounce = require( 'lodash/debounce' ),
 	page = require( 'page' ),
+	ReduxProvider = require( 'react-redux' ).Provider,
 	setSection = require( 'state/ui/actions' ).setSection,
 	EmptyContent = require( 'components/empty-content' );
 
@@ -100,9 +101,11 @@ var devdocs = {
 		context.store.dispatch( setSection( 'devdocs' ) );
 
 		ReactDom.render(
-			React.createElement( AppComponents, {
-				component: context.params.component
-			} ),
+			React.createElement( ReduxProvider, { store: context.store },
+				React.createElement( AppComponents, {
+					component: context.params.component
+				} )
+			),
 			document.getElementById( 'primary' )
 		);
 	},

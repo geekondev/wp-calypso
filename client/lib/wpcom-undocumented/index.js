@@ -3,7 +3,7 @@
  */
 import wpcomFactory from 'wpcom-unpublished';
 import inherits from 'inherits';
-import assign from 'lodash/object/assign';
+import assign from 'lodash/assign';
 import debugFactory from 'debug';
 
 /**
@@ -29,7 +29,7 @@ function WPCOMUndocumented( token, reqHandler ) {
 	if ( 'function' === typeof token ) {
 		reqHandler = token;
 		token = null;
-	} else {
+	} else if ( token ) {
 		this.loadToken( token );
 	}
 

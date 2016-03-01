@@ -7,13 +7,13 @@ var React = require( 'react' ),
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
+var abtest = require( 'lib/abtest' ).abtest,
+	analytics = require( 'analytics' ),
 	config = require( 'config' ),
 	productsValues = require( 'lib/products-values' ),
 	isFreePlan = productsValues.isFreePlan,
 	isBusiness = productsValues.isBusiness,
 	isEnterprise = productsValues.isEnterprise,
-	getABTestVariation = require( 'lib/abtest' ).getABTestVariation,
 	cartItems = require( 'lib/cart-values' ).cartItems,
 	puchasesPaths = require( 'me/purchases/paths' );
 
@@ -163,10 +163,6 @@ module.exports = React.createClass( {
 	},
 
 	shouldOfferFreeTrial: function() {
-		if ( getABTestVariation( 'freeTrials' ) !== 'offered' ) {
-			return false;
-		}
-
 		if ( ! this.props.enableFreeTrials ) {
 			return false;
 		}
@@ -253,7 +249,7 @@ module.exports = React.createClass( {
 	},
 
 	freePlanExpiration: function() {
-		if ( ! this.planHasCost() ) {
+		if ( ! this.planHasCost() && abtest( 'plansFeatureList' ) !== 'list' ) {
 			return (
 				<span className="plan-actions__plan-expiration">{ this.translate( 'Never expires', { context: 'Expiration info for free plan in /plans/' } ) }</span>
 			);

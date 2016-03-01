@@ -2,13 +2,13 @@
  * External dependencies
  */
 import React, { PropTypes } from 'react';
-import partialRight from 'lodash/function/partialRight';
+import partialRight from 'lodash/partialRight';
 import page from 'page';
 
 /**
  * Internal dependencies
  */
-import Helper from 'lib/themes/helpers';
+import Helper from './helpers';
 import ThemesSearchCard from './themes-search-card';
 import ThemesData from 'components/data/themes-list-fetcher';
 import ThemesList from 'components/themes-list';

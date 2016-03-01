@@ -2,18 +2,15 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	some = require( 'lodash/collection/some' );
+	some = require( 'lodash/some' );
 
 /**
  * Internal dependencies
  */
-var SidebarMenuItem = require( './sidebar-menu-item' ),
+var SidebarItem = require( 'layout/sidebar/item' ),
 	config = require( 'config' ),
 	postTypesList = require( 'lib/post-types-list' )();
 
-/**
- * Component
- */
 var PublishMenu = React.createClass( {
 
 	propTypes: {
@@ -163,7 +160,7 @@ var PublishMenu = React.createClass( {
 		}
 
 		return (
-			<SidebarMenuItem key={ menuItem.name }
+			<SidebarItem key={ menuItem.name }
 				label={ menuItem.label }
 				className={ className }
 				link={ link }

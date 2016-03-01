@@ -2,52 +2,138 @@
  * External dependencies
  */
 import { combineReducers } from 'redux';
-import Immutable from 'immutable';
 
 /**
  * Internal dependencies
  */
 import {
+	EXPORT_ADVANCED_SETTINGS_FAIL,
+	EXPORT_ADVANCED_SETTINGS_FETCH,
+	EXPORT_ADVANCED_SETTINGS_RECEIVE,
 	SET_EXPORT_POST_TYPE,
-	REQUEST_START_EXPORT,
-	REPLY_START_EXPORT,
-	FAIL_EXPORT,
-	COMPLETE_EXPORT
+	SERIALIZE,
+	DESERIALIZE,
+	EXPORT_CLEAR,
+	EXPORT_COMPLETE,
+	EXPORT_START_REQUEST,
+	EXPORT_STARTED,
+	EXPORT_FAILURE
 } from 'state/action-types';
 
 import { States } from './constants';
 
-const initialUIState = Immutable.fromJS( {
-	exportingState: States.READY,
-	postType: null
-} );
+export function selectedPostType( state = null, action ) {
+	switch ( action.type ) {
+		case SET_EXPORT_POST_TYPE:
+			return action.postType;
+		case SERIALIZE:
+			return null;
+		case DESERIALIZE:
+			return null;
+	}
+	return state;
+}
 
 /**
- * Reducer for managing the exporter UI
- *
- * @param  {Object} state  Current state
+ * Tracks the state of the exporter for each site ID
+ * @param  {Object} state  The current state
+ * @param  {Object} action Action object
+ * @return {Object}        Updated state
+ */
+export function exportingState( state = {}, { type, siteId } ) {
+	switch ( type ) {
+		case EXPORT_START_REQUEST:
+			return Object.assign( {}, state, {
+				[ siteId ]: States.STARTING
+			} );
+		case EXPORT_STARTED:
+			return Object.assign( {}, state, {
+				[ siteId ]: States.EXPORTING
+			} );
+		case EXPORT_COMPLETE:
+			return Object.assign( {}, state, {
+				[ siteId ]: States.COMPLETE
+			} );
+		case EXPORT_FAILURE:
+			return Object.assign( {}, state, {
+				[ siteId ]: States.FAILED
+			} );
+		case EXPORT_CLEAR:
+			return Object.assign( {}, state, {
+				[ siteId ]: States.READY
+			} );
+		case SERIALIZE:
+			return {};
+		case DESERIALIZE:
+			return {};
+	}
+	return state;
+}
+
+/**
+ * Tracks whether the advanced settings for a site are currently being fetched
+ * @param  {Object} state  Current global state tree
  * @param  {Object} action Action payload
  * @return {Object}        Updated state
  */
-export function ui( state = initialUIState, action ) {
+export function fetchingAdvancedSettings( state = {}, action ) {
 	switch ( action.type ) {
-		case SET_EXPORT_POST_TYPE:
-			return state.set( 'postType', action.postType );
+		case EXPORT_ADVANCED_SETTINGS_FETCH:
+			return Object.assign( {}, state, {
+				[ action.siteId ]: true
+			} );
+		case EXPORT_ADVANCED_SETTINGS_FAIL:
+		case EXPORT_ADVANCED_SETTINGS_RECEIVE:
+			return Object.assign( {}, state, {
+				[ action.siteId ]: false
+			} );
+		case SERIALIZE:
+			return {};
+		case DESERIALIZE:
+			return {};
+	}
+	return state;
+}
 
-		case REQUEST_START_EXPORT:
-			return state.set( 'exportingState', States.STARTING );
+/**
+ * Tracks available advanced settings for sites.
+ * @param  {Object} state  Current global state tree
+ * @param  {Object} action Action payload
+ * @return {Object}        Updated state
+ */
+export function advancedSettings( state = {}, action ) {
+	switch ( action.type ) {
+		case EXPORT_ADVANCED_SETTINGS_RECEIVE:
+			return Object.assign( {}, state, {
+				[ action.siteId ]: action.advancedSettings
+			} );
+		case SERIALIZE:
+			return {};
+		case DESERIALIZE:
+			return {};
+	}
+	return state;
+}
 
-		case REPLY_START_EXPORT:
-			return state.set( 'exportingState', States.EXPORTING );
-
-		case FAIL_EXPORT:
-		case COMPLETE_EXPORT:
-			return state.set( 'exportingState', States.READY );
+export function downloadURL( state = null, action ) {
+	switch ( action.type ) {
+		case EXPORT_COMPLETE:
+			return action.downloadURL;
+		case EXPORT_CLEAR:
+			return null;
+		case SERIALIZE:
+			return null;
+		case DESERIALIZE:
+			return null;
 	}
 
 	return state;
 }
 
 export default combineReducers( {
-	ui
+	selectedPostType,
+	exportingState,
+	fetchingAdvancedSettings,
+	advancedSettings,
+	downloadURL,
 } );

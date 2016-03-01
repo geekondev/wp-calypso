@@ -7,9 +7,11 @@ import LinkedStateMixin from 'react-addons-linked-state-mixin';
 import i18n from 'lib/mixins/i18n';
 import Debug from 'debug';
 import emailValidator from 'email-validator';
-import _debounce from 'lodash/function/debounce';
-import _map from 'lodash/collection/map';
-import _size from 'lodash/collection/size';
+import debounce from 'lodash/debounce';
+import map from 'lodash/map';
+import size from 'lodash/size';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 /**
  * Internal dependencies
@@ -35,12 +37,12 @@ import ReauthRequired from 'me/reauth-required';
 import twoStepAuthorization from 'lib/two-step-authorization';
 import Notice from 'components/notice';
 import NoticeAction from 'components/notice/notice-action';
-import notices from 'notices';
 import observe from 'lib/mixins/data-observe';
 import eventRecorder from 'me/event-recorder';
 import Main from 'components/main';
-import SectionHeader from 'components/section-header';
 import SitesDropdown from 'components/sites-dropdown';
+import { successNotice, errorNotice } from 'state/notices/actions';
+import { getLanguage } from 'lib/i18n-utils';
 
 import _sites from 'lib/sites-list';
 import _user from 'lib/user';
@@ -53,7 +55,7 @@ const user = _user();
  */
 let debug = new Debug( 'calypso:me:account' );
 
-module.exports = React.createClass( {
+const Account = React.createClass( {
 
 	displayName: 'Account',
 
@@ -73,7 +75,7 @@ module.exports = React.createClass( {
 
 	componentDidMount() {
 		debug( this.constructor.displayName + ' component is mounted.' );
-		this.debouncedUsernameValidate = _debounce( this.validateUsername, 600 );
+		this.debouncedUsernameValidate = debounce( this.validateUsername, 600 );
 	},
 
 	componentWillUnmount() {
@@ -108,7 +110,9 @@ module.exports = React.createClass( {
 	},
 
 	communityTranslator() {
-		if ( config.isEnabled( 'community-translator' ) ) {
+		const userLocale = this.props.userSettings.getSetting( 'language' );
+		const showTranslator = userLocale && userLocale !== 'en';
+		if ( config.isEnabled( 'community-translator' ) && showTranslator ) {
 			return (
 				<FormFieldset>
 					<FormLegend>{ this.translate( 'Community Translator' ) }</FormLegend>
@@ -136,21 +140,42 @@ module.exports = React.createClass( {
 		}
 	},
 
-	getOptoutText( website ) {
-		return this.translate( '%(website)s opt-out', {
-			args: { website: website },
-			context: 'A website address, formatted to look like "Website.com"'
-		} );
+	thankTranslationContributors() {
+		let locale = this.props.userSettings.getSetting( 'language' );
+		if ( ! locale || locale === 'en' ) {
+			return;
+		}
+
+		const language = getLanguage( locale );
+		if ( ! language ) {
+			return;
+		}
+
+		// Config names are like 'fr - Francais', so strip the slug off
+		const languageName = language.name.replace( /^[a-zA-Z-]* - /, '' );
+		const url = 'https://en.support.wordpress.com/translators/?contributor_locale=' + locale;
+
+		return ( <FormSettingExplanation> {
+			this.translate( 'Thanks to {{a}}all our community members who helped translate to {{language/}}{{/a}}!', {
+				components: {
+					a: <a
+							target="_blank"
+							href={ url }
+					/>,
+					language: <span>{ languageName }</span>
+				}
+			} ) }
+		</FormSettingExplanation> );
 	},
 
 	cancelEmailChange() {
 		this.props.userSettings.cancelPendingEmailChange( ( error, response ) => {
 			if ( error ) {
 				debug( 'Error canceling email change: ' + JSON.stringify( error ) );
-				notices.error( this.translate( 'There was a problem canceling the email change. Please, try again.' ) );
+				this.props.errorNotice( this.translate( 'There was a problem canceling the email change. Please, try again.' ) );
 			} else {
 				debug( JSON.stringify( 'Email change canceled successfully' + response ) );
-				notices.success( this.translate( 'The email change has been successfully canceled.' ) );
+				this.props.successNotice( this.translate( 'The email change has been successfully canceled.' ) );
 			}
 		} );
 	},
@@ -199,7 +224,7 @@ module.exports = React.createClass( {
 		this.props.username.change( username, action, ( error ) => {
 			this.setState( { submittingForm: false } );
 			if ( error ) {
-				notices.error( this.props.username.getValidationFailureMessage() );
+				this.props.errorNotice( this.props.username.getValidationFailureMessage() );
 			} else {
 				this.markSaved();
 
@@ -455,6 +480,7 @@ module.exports = React.createClass( {
 						onFocus={ this.recordFocusEvent( 'Interface Language Field' ) }
 						valueKey="langSlug"
 						valueLink={ this.updateLanguage() } />
+					{ this.thankTranslationContributors() }
 				</FormFieldset>
 
 				{ this.communityTranslator() }
@@ -478,7 +504,7 @@ module.exports = React.createClass( {
 		 * If there are no actions or if there is only one action,
 		 * which we assume is the 'none' action, we ignore the actions.
 		 */
-		if ( _size( actions ) <= 1 ) {
+		if ( size( actions ) <= 1 ) {
 			return;
 		}
 
@@ -487,7 +513,7 @@ module.exports = React.createClass( {
 				<FormLegend>{ this.translate( 'Would you like a matching blog address too?' ) }</FormLegend>
 				{
 					// message is translated in the API
-					_map( actions, function( message, key ) {
+					map( actions, function( message, key ) {
 						return (
 							<FormLabel key={ key }>
 								<FormRadio
@@ -499,7 +525,7 @@ module.exports = React.createClass( {
 								<span>{ message }</span>
 							</FormLabel>
 						);
-					}, this )
+					}.bind( this ) )
 				}
 			</FormFieldset>
 		);
@@ -610,21 +636,20 @@ module.exports = React.createClass( {
 						</FormFieldset>
 
 						{ /* This is how we animate showing/hiding the form field sections */ }
-						<ReactCSSTransitionGroup transitionName="account__username-form-toggle">
+						<ReactCSSTransitionGroup
+							transitionName="account__username-form-toggle"
+							transitionEnterTimeout={ 500 }
+							transitionLeaveTimeout={ 10 }>
 							{ renderUsernameForm ? this.renderUsernameFields() : this.renderAccountFields() }
 						</ReactCSSTransitionGroup>
 					</form>
-				</Card>
-				<SectionHeader label={ this.translate( 'Privacy' ) } />
-				<Card>
-					<p>{ this.translate( "We use some third party tools to collect data about how users interact with our site. You can find more information about how we use these tools in our privacy policy. If you'd prefer that we not track your interactions you may opt out by using the following link: " ) }</p>
-					<p>
-						<a href="https://www.inspectlet.com/optout" target="_blank" onClick={ this.recordClickEvent( 'Inspectlet Opt-out Link' ) }>
-							{ this.getOptoutText( 'Inspectlet.com' ) }
-						</a>
-					</p>
 				</Card>
 			</Main>
 		);
 	}
 } );
+
+export default connect(
+	null,
+	dispatch => bindActionCreators( { successNotice, errorNotice }, dispatch )
+)( Account );

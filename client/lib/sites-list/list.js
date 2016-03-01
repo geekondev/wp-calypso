@@ -3,10 +3,10 @@
  */
 var debug = require( 'debug' )( 'calypso:sites-list' ),
 	store = require( 'store' ),
-	assign = require( 'lodash/object/assign' ),
-	find = require( 'lodash/collection/find' ),
-	isEmpty = require( 'lodash/lang/isEmpty' ),
-	some = require( 'lodash/collection/some' );
+	assign = require( 'lodash/assign' ),
+	find = require( 'lodash/find' ),
+	isEmpty = require( 'lodash/isEmpty' ),
+	some = require( 'lodash/some' );
 
 /**
  * Internal dependencies
@@ -16,7 +16,6 @@ var wpcom = require( 'lib/wp' ),
 	JetpackSite = require( 'lib/site/jetpack' ),
 	Searchable = require( 'lib/mixins/searchable' ),
 	Emitter = require( 'lib/mixins/emitter' ),
-	isBusiness = require( 'lib/products-values' ).isBusiness,
 	isPlan = require( 'lib/products-values' ).isPlan,
 	PreferencesActions = require( 'lib/preferences/actions' ),
 	PreferencesStore = require( 'lib/preferences/store' ),
@@ -38,8 +37,7 @@ function SitesList() {
 	this.selected = null;
 	this.lastSelected = null;
 	this.propagateChange = this.propagateChange.bind( this );
-
-	PreferencesActions.fetch();
+	this.starred = PreferencesStore.get( 'starredSites' ) || [];
 	this.recentlySelected = PreferencesStore.get( 'recentSites' ) || [];
 }
 
@@ -389,13 +387,46 @@ SitesList.prototype.isSelected = function( site ) {
 };
 
 /**
+ * Is the site starred?
+ *
+ * @api public
+ */
+SitesList.prototype.isStarred = function( site ) {
+	return this.starred.indexOf( site.ID ) > -1;
+};
+
+SitesList.prototype.toggleStarred = function( siteID ) {
+	if ( ! siteID ) {
+		return;
+	}
+
+	// do not add duplicates
+	if ( this.starred.indexOf( siteID ) === -1 ) {
+		this.starred.unshift( siteID );
+	} else {
+		this.starred.splice( this.starred.indexOf( siteID ), 1 );
+	}
+
+	PreferencesActions.set( 'starredSites', this.starred );
+
+	this.emit( 'change' );
+};
+
+SitesList.prototype.getStarred = function() {
+	// Disable stars
+	return false;
+	this.starred = PreferencesStore.get( 'starredSites' ) || [];
+	return this.get().filter( this.isStarred, this );
+};
+
+/**
  * Set recently selected site
  *
  * @param {number} Site ID
  * @api private
  */
 SitesList.prototype.setRecentlySelectedSite = function( siteID ) {
-	if ( ! this.recentlySelected.length ) {
+	if ( ! this.recentlySelected ) {
 		this.recentlySelected = PreferencesStore.get( 'recentSites' ) || [];
 	}
 
@@ -403,24 +434,29 @@ SitesList.prototype.setRecentlySelectedSite = function( siteID ) {
 		return;
 	}
 
+	const index = this.recentlySelected.indexOf( siteID );
+
 	// do not add duplicates
-	if ( this.recentlySelected.indexOf( siteID ) === -1 ) {
-		this.recentlySelected.unshift( siteID );
+	if ( index === -1 ) {
+		if ( ! this.isStarred( this.getSite( siteID ) ) ) {
+			this.recentlySelected.unshift( siteID );
+		}
 	} else {
-		this.recentlySelected.splice( this.recentlySelected.indexOf( siteID ), 1 );
-		this.recentlySelected.unshift( siteID );
+		this.recentlySelected.splice( index, 1 );
+		if ( ! this.isStarred( this.getSite( siteID ) ) ) {
+			this.recentlySelected.unshift( siteID );
+		}
 	}
 
-	if ( this.recentlySelected.length > 3 ) {
-		this.recentlySelected.pop();
-	}
-
-	PreferencesActions.set( 'recentSites', this.recentlySelected );
+	const sites = this.recentlySelected.slice( 0, 3 );
+	PreferencesActions.set( 'recentSites', sites );
 
 	this.emit( 'change' );
 };
 
 SitesList.prototype.getRecentlySelected = function() {
+	this.recentlySelected = PreferencesStore.get( 'recentSites' ) || [];
+
 	if ( ! this.recentlySelected.length || ! this.initialized ) {
 		return false;
 	}
@@ -433,7 +469,8 @@ SitesList.prototype.getRecentlySelected = function() {
 		}, this )[0];
 	}, this );
 
-	return sites;
+	// remove undefined sites
+	return sites.filter( site => site );
 };
 
 /**
@@ -530,8 +567,28 @@ SitesList.prototype.getVisible = function() {
  * @api public
  **/
 SitesList.prototype.getVisibleAndNotRecent = function() {
+	this.recentlySelected = PreferencesStore.get( 'recentSites' ) || [];
 	return this.get().filter( function( site ) {
-		return site.visible === true && this.recentlySelected.indexOf( site.ID ) === -1;
+		if ( user.get().visible_site_count < 12 ) {
+			return site.visible === true;
+		}
+
+		return site.visible === true && this.recentlySelected && this.recentlySelected.indexOf( site.ID ) === -1;
+	}, this );
+};
+
+/**
+ * Get sites that are marked as visible and not recently selected
+ *
+ * @api public
+ **/
+SitesList.prototype.getVisibleAndNotRecentNorStarred = function() {
+	return this.get().filter( function( site ) {
+		if ( user.get().visible_site_count < 12 ) {
+			return site.visible === true && ! this.isStarred( site );
+		}
+
+		return site.visible === true && this.recentlySelected && this.recentlySelected.indexOf( site.ID ) === -1 && ! this.isStarred( site );
 	}, this );
 };
 
@@ -554,7 +611,7 @@ SitesList.prototype.getSelectedOrAllWithPlugins = function() {
 	return this.getSelectedOrAll().filter( site => {
 		return site.capabilities &&
 			site.capabilities.manage_options &&
-			( isBusiness( site.plan ) || site.jetpack ) &&
+			site.jetpack &&
 			( site.visible || this.selected )
 	} );
 };
@@ -624,19 +681,6 @@ SitesList.prototype.canUpdateFiles = function() {
  */
 SitesList.prototype.canManageSelectedOrAll = function() {
 	return this.getSelectedOrAll().some( function( site ) {
-		if ( site.capabilities && site.capabilities.manage_options ) {
-			return true;
-		} else {
-			return false;
-		}
-	} );
-};
-/**
- * Whether the user has any jetpack site that the user can manage
- * @return bool
- */
-SitesList.prototype.canManageAnyJetpack = function() {
-	return this.getJetpack().some( function( site ) {
 		if ( site.capabilities && site.capabilities.manage_options ) {
 			return true;
 		} else {

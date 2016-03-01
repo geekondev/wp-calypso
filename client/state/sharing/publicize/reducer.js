@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { combineReducers } from 'redux';
-import indexBy from 'lodash/collection/indexBy';
+import keyBy from 'lodash/keyBy';
 
 /**
  * Internal dependencies
@@ -10,7 +10,9 @@ import indexBy from 'lodash/collection/indexBy';
 import {
 	PUBLICIZE_CONNECTIONS_REQUEST,
 	PUBLICIZE_CONNECTIONS_RECEIVE,
-	PUBLICIZE_CONNECTIONS_REQUEST_FAILURE
+	PUBLICIZE_CONNECTIONS_REQUEST_FAILURE,
+	SERIALIZE,
+	DESERIALIZE
 } from 'state/action-types';
 
 /**
@@ -29,10 +31,13 @@ export function fetchingConnections( state = {}, action ) {
 		case PUBLICIZE_CONNECTIONS_RECEIVE:
 		case PUBLICIZE_CONNECTIONS_REQUEST_FAILURE:
 			const { type, siteId } = action;
-			state = Object.assign( {}, state, {
+			return Object.assign( {}, state, {
 				[ siteId ]: PUBLICIZE_CONNECTIONS_REQUEST === type
 			} );
-			break;
+		case SERIALIZE:
+			return {};
+		case DESERIALIZE:
+			return {};
 	}
 
 	return state;
@@ -48,29 +53,11 @@ export function fetchingConnections( state = {}, action ) {
 export function connections( state = {}, action ) {
 	switch ( action.type ) {
 		case PUBLICIZE_CONNECTIONS_RECEIVE:
-			state = Object.assign( {}, state, indexBy( action.data.connections, 'ID' ) );
-			break;
-	}
-
-	return state;
-}
-
-/**
- * Tracks known connections for a site. Maps site ID to an array of connection
- * IDs. When new connections are received, existing known connections for the
- * site ID contained in the action payload are destroyed.
- *
- * @param  {Object} state  Current state
- * @param  {Object} action Action payload
- * @return {Object}        Updated state
- */
-export function connectionsBySiteId( state = {}, action ) {
-	switch ( action.type ) {
-		case PUBLICIZE_CONNECTIONS_RECEIVE:
-			state = Object.assign( {}, state, {
-				[ action.siteId ]: action.data.connections.map( ( connection ) => connection.ID )
-			} );
-			break;
+			return Object.assign( {}, state, keyBy( action.data.connections, 'ID' ) );
+		case SERIALIZE:
+			return {};
+		case DESERIALIZE:
+			return {};
 	}
 
 	return state;
@@ -78,6 +65,5 @@ export function connectionsBySiteId( state = {}, action ) {
 
 export default combineReducers( {
 	fetchingConnections,
-	connections,
-	connectionsBySiteId
+	connections
 } );

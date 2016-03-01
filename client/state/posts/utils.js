@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-import omit from 'lodash/object/omit';
+import omit from 'lodash/omit';
+import omitBy from 'lodash/omitBy';
 
 /**
  * Internal dependencies
@@ -16,27 +17,36 @@ import { DEFAULT_POST_QUERY } from './constants';
  * @return {Object}       Normalized posts query
  */
 export function getNormalizedPostsQuery( query ) {
-	return omit( query, ( value, key ) => DEFAULT_POST_QUERY[ key ] === value );
+	return omitBy( query, ( value, key ) => DEFAULT_POST_QUERY[ key ] === value );
 }
 
 /**
  * Returns a serialized posts query, used as the key in the
- * `state.posts.siteQueries` state object.
+ * `state.posts.queries` state object.
  *
- * @param  {Object} query Posts query
- * @return {String}       Serialized posts query
+ * @param  {Object} query  Posts query
+ * @param  {Number} siteId Optional site ID
+ * @return {String}        Serialized posts query
  */
-export function getSerializedPostsQuery( query = {} ) {
-	return JSON.stringify( getNormalizedPostsQuery( query ) ).toLowerCase();
+export function getSerializedPostsQuery( query = {}, siteId ) {
+	const normalizedQuery = getNormalizedPostsQuery( query );
+	const serializedQuery = JSON.stringify( normalizedQuery ).toLocaleLowerCase();
+
+	if ( siteId ) {
+		return [ siteId, serializedQuery ].join( ':' );
+	}
+
+	return serializedQuery;
 }
 
 /**
  * Returns a serialized posts query, excluding any page parameter, used as the
- * key in the `state.posts.siteQueriesLastPage` state object.
+ * key in the `state.posts.queriesLastPage` state object.
  *
- * @param  {Object} query Posts query
- * @return {String}       Serialized posts query
+ * @param  {Object} query  Posts query
+ * @param  {Number} siteId Optional site ID
+ * @return {String}        Serialized posts query
  */
-export function getSerializedPostsQueryWithoutPage( query ) {
-	return JSON.stringify( omit( getNormalizedPostsQuery( query ), 'page' ) ).toLowerCase();
+export function getSerializedPostsQueryWithoutPage( query, siteId ) {
+	return getSerializedPostsQuery( omit( query, 'page' ), siteId );
 }

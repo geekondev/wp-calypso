@@ -3,7 +3,7 @@
  */
 var React = require( 'react' ),
 	classNames = require( 'classnames' ),
-	compact = require( 'lodash/array/compact' );
+	compact = require( 'lodash/compact' );
 
 /**
  * Internal dependencies
@@ -26,9 +26,9 @@ module.exports = React.createClass( {
 
 	getSecondaryPluginSites: function( site ) {
 		let secondarySites = allSites.getNetworkSites( site );
-		let secondaryPluginSites = site.plugin ?
-			PluginsStore.getSites( secondarySites, this.props.plugin.slug ) :
-			secondarySites;
+		let secondaryPluginSites = site.plugin
+			? PluginsStore.getSites( secondarySites, this.props.plugin.slug )
+			: secondarySites;
 		return compact( secondaryPluginSites );
 	},
 

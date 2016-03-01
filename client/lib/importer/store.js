@@ -2,7 +2,7 @@
  * External dependencies
  */
 import Immutable from 'immutable';
-import partial from 'lodash/function/partial';
+import partial from 'lodash/partial';
 
 /**
  * Internal dependencies
@@ -121,6 +121,8 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 			}
 
 			if ( action.importerStatus.importerState === appStates.DEFUNCT ) {
+				newState = newState
+					.deleteIn( [ 'importers', action.importerStatus.importerId ] );
 				break;
 			}
 
@@ -150,7 +152,7 @@ const ImporterStore = createReducerStore( function( state, payload ) {
 
 		case actionTypes.START_IMPORTING:
 			newState = state
-				.setIn( [ 'importers', action.importerId, 'importerState' ], appStates.UPLOADING );
+				.setIn( [ 'importers', action.importerId, 'importerState' ], appStates.IMPORTING );
 			break;
 
 		case actionTypes.START_UPLOAD:

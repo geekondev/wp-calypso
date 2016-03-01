@@ -4,13 +4,15 @@
 var ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	PureRenderMixin = require( 'react-pure-render/mixin' ),
-	assign = require( 'lodash/object/assign' ),
+	defer = require( 'lodash/defer' ),
 	classes = require( 'component-classes' ),
 	debug = require( 'debug' )( 'calypso:reader-full-post' ), //eslint-disable-line no-unused-vars
 	moment = require( 'moment' ),
-	omit = require( 'lodash/object/omit' ),
+	omit = require( 'lodash/omit' ),
 	twemoji = require( 'twemoji' ),
-	page = require( 'page' );
+	page = require( 'page' ),
+	bindActionCreators = require( 'redux' ).bindActionCreators,
+	connect = require( 'react-redux' ).connect;
 
 /**
  * Internal Dependencies
@@ -33,6 +35,8 @@ var analytics = require( 'analytics' ),
 	SiteState = require( 'lib/reader-site-store/constants' ).state,
 	SiteStore = require( 'lib/reader-site-store' ),
 	SiteStoreActions = require( 'lib/reader-site-store/actions' ),
+	FeedStore = require( 'lib/feed-store' ),
+	FeedStoreActions = require( 'lib/feed-store/actions' ),
 	FollowButton = require( 'reader/follow-button' ),
 	utils = require( 'reader/utils' ),
 	LikeHelper = require( 'reader/like-helper' ),
@@ -42,7 +46,11 @@ var analytics = require( 'analytics' ),
 	ShareHelper = require( 'reader/share/helper' ),
 	DiscoverHelper = require( 'reader/discover/helper' ),
 	DiscoverVisitLink = require( 'reader/discover/visit-link' ),
-	readerRoute = require( 'reader/route' );
+	readerRoute = require( 'reader/route' ),
+	showReaderFullPost = require( 'state/ui/reader/fullpost/actions' ).showReaderFullPost,
+	smartSetState = require( 'lib/react-smart-set-state' );
+
+import PostExcerpt from 'components/post-excerpt';
 
 var loadingPost = {
 		URL: '',
@@ -144,6 +152,7 @@ FullPostView = React.createClass( {
 		var post = this.props.post,
 			site = this.props.site,
 			siteish = utils.siteishFromSiteAndPost( site, post ),
+			feed = this.props.feed,
 			hasFeaturedImage = post &&
 				post.canonical_image &&
 				! ( post.display_type & DISPLAY_TYPES.CANONICAL_IN_CONTENT ),
@@ -184,12 +193,6 @@ FullPostView = React.createClass( {
 
 		articleClasses = articleClasses.join( ' ' );
 
-		if ( post.use_excerpt ) {
-			postContent = post.excerpt;
-		} else {
-			postContent = post.content;
-		}
-
 		/*eslint-disable react/no-danger*/
 		return (
 			<div>
@@ -203,7 +206,7 @@ FullPostView = React.createClass( {
 							onSelect={ this.pickSite }
 							onClick={ this.handleSiteClick } />
 
-						<FollowButton siteUrl={ post.site_URL } />
+						{ feed && feed.feed_URL && <FollowButton siteUrl={ feed && feed.feed_URL } /> }
 					</div>
 
 					{ hasFeaturedImage
@@ -216,7 +219,10 @@ FullPostView = React.createClass( {
 
 					<PostByline post={ post } site={ site } icon={ true }/>
 
-					<div className="reader__full-post-content" dangerouslySetInnerHTML={ { __html: postContent } }></div>
+					{ post.use_excerpt ?
+						<PostExcerpt content={ post.better_excerpt ? post.better_excerpt : post.excerpt } /> :
+						<div className="reader__full-post-content" dangerouslySetInnerHTML={{ __html: post.content }}></div> //eslint-disable-line react/no-danger
+					}
 
 					{ shouldShowExcerptOnly && ! isDiscoverPost ? <PostExcerptLink siteName={ siteName } postUrl={ post.URL } /> : null }
 					{ isDiscoverPost ? <DiscoverVisitLink siteName={ discoverSiteName } siteUrl={ discoverSiteUrl } /> : null }
@@ -312,7 +318,7 @@ FullPostDialog = React.createClass( {
 			shouldShowLikes = LikeHelper.shouldShowLikes( post );
 			shouldShowShare = ShareHelper.shouldShowShare( post );
 
-			buttons.push( <PostOptions key="post-options" post={ post } site={ site } onBlock={ this.props.onClose } /> );
+			buttons.push( <PostOptions key="post-options" position="bottom left" post={ post } site={ site } onBlock={ this.props.onClose } /> );
 
 			if ( shouldShowLikes ) {
 				buttons.push( <LikeButton key="like-button" siteId={ post.site_ID } postId={ post.ID } tagName="div" forceCounter={ true } /> );
@@ -346,6 +352,7 @@ FullPostDialog = React.createClass( {
 					ref="fullPost"
 					post={ this.props.post }
 					site={ this.props.site }
+					feed={ this.props.feed }
 					shouldShowComments={ shouldShowComments } />
 			</Dialog>
 		);
@@ -369,16 +376,26 @@ function getSite( siteId ) {
 	return site;
 }
 
+function getFeed( feedId ) {
+	var feed = FeedStore.get( feedId );
+	if ( ! feed ) {
+		FeedStoreActions.fetch( feedId );
+	}
+	return feed;
+}
+
 FullPostContainer = React.createClass( {
 
 	mixins: [ PureRenderMixin ],
 
+	smartSetState: smartSetState,
+
 	getInitialState: function() {
-		return assign( { isVisible: false }, this.getStateFromStores() );
+		return this.getStateFromStores();
 	},
 
 	getStateFromStores: function( props ) {
-		var post, site, title, commentCount;
+		var post, site, feed, title, commentCount;
 
 		props = props || this.props;
 
@@ -410,7 +427,11 @@ FullPostContainer = React.createClass( {
 			site = getSite( post.site_ID );
 		}
 
-		return { post, site, title, commentCount };
+		if ( post && post.feed_ID ) {
+			feed = getFeed( post.feed_ID );
+		}
+
+		return { post, site, feed, title, commentCount };
 	},
 
 	attemptToSendPageView: function() {
@@ -428,7 +449,7 @@ FullPostContainer = React.createClass( {
 		}
 
 		if ( ! this.hasLoaded && post && post._state !== 'pending' ) {
-			analytics.tracks.recordEvent( 'calypso_reader_article_opened', {
+			stats.recordTrack( 'calypso_reader_article_opened', {
 				blog_id: ! post.is_external && post.site_ID > 0 ? post.site_ID : undefined,
 				post_id: ! post.is_external && post.ID > 0 ? post.ID : undefined,
 				feed_id: post.feed_ID > 0 ? post.feed_ID : undefined,
@@ -444,6 +465,7 @@ FullPostContainer = React.createClass( {
 		PostStore.on( 'change', this._onChange );
 		CommentStore.on( 'change', this._onChange );
 		SiteStore.on( 'change', this._onChange );
+		FeedStore.on( 'change', this._onChange );
 
 		this.hasSentPageView = false;
 		this.hasLoaded = false;
@@ -452,13 +474,11 @@ FullPostContainer = React.createClass( {
 
 		// This is a trick to make the dialog animations happy. We have to initially render the dialog
 		// as hidden, then set it to visible to trigger the animation.
-		process.nextTick( function() {
-			this.setState( { isVisible: true } ); //eslint-disable-line react/no-did-mount-set-state
-		}.bind( this ) );
+		defer( this.props.showReaderFullPost );
 	},
 
 	componentWillReceiveProps: function( nextProps ) {
-		this.setState( this.getStateFromStores( nextProps ) );
+		this.smartSetState( this.getStateFromStores( nextProps ) );
 	},
 
 	componentDidUpdate: function( prevProps ) {
@@ -476,12 +496,12 @@ FullPostContainer = React.createClass( {
 		PostStore.off( 'change', this._onChange );
 		CommentStore.off( 'change', this._onChange );
 		SiteStore.off( 'change', this._onChange );
+		FeedStore.off( 'change', this._onChange );
 	},
 
 	_onChange: function() {
 		var newState = this.getStateFromStores();
-		if ( newState.post !== this.state.post || newState.site !== this.state.site || newState.title !== this.state.title ) {
-			this.setState( newState );
+		if ( this.smartSetState( newState ) ) {
 			this.attemptToSendPageView();
 		}
 	},
@@ -489,20 +509,31 @@ FullPostContainer = React.createClass( {
 	render: function() {
 		var passedProps = omit( this.props, [ 'postId', 'feedId' ] );
 
-		if ( this.props.setPageTitle && this.state.isVisible ) { // only set the title if we're visible
+		if ( this.props.setPageTitle && this.props.isVisible ) { // only set the title if we're visible
 			this.props.setPageTitle( this.state.title );
 		}
 
 		return (
 
 			<FullPostDialog {...passedProps }
-				isVisible={ this.state.isVisible }
+				isVisible={ this.props.isVisible }
 				post={ this.state.post }
 				commentCount={ this.state.commentCount }
-				site={ this.state.site } />
+				site={ this.state.site }
+				feed={ this.state.feed }/>
 		);
 	}
 
 } );
 
-module.exports = FullPostContainer;
+export default connect(
+	( state, props ) => Object.assign( {},
+		props,
+		{
+			isVisible: state.ui.reader.fullpost.isVisible
+		}
+	),
+	( dispatch ) => bindActionCreators( {
+		showReaderFullPost
+	}, dispatch )
+)( FullPostContainer );

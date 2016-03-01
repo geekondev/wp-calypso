@@ -4,16 +4,15 @@
 var React = require( 'react' ),
 	debug = require( 'debug' )( 'calypso:components:themes:more-button' ), // eslint-disable-line no-unused-vars
 	classNames = require( 'classnames' ),
-	isFunction = require( 'lodash/lang/isFunction' ),
-	map = require( 'lodash/collection/map' );
+	isFunction = require( 'lodash/isFunction' ),
+	map = require( 'lodash/map' );
 
 /**
  * Internal dependencies
  */
 var PopoverMenu = require( 'components/popover/menu' ),
 	PopoverMenuItem = require( 'components/popover/menu-item' ),
-	isOutsideCalypso = require( 'lib/url' ).isOutsideCalypso,
-	getSignupUrl = require( 'lib/themes/helpers' ).getSignupUrl;
+	isOutsideCalypso = require( 'lib/url' ).isOutsideCalypso;
 
 /**
  * Component
@@ -85,22 +84,21 @@ var ThemeMoreButton = React.createClass( {
 									onMouseOver={ this.focus }
 									key={ option.label }
 									href={ url }
-									target={ ( isOutsideCalypso( url ) &&
-										// We don't want to open a new tab for the signup flow
-										// TODO: Remove this hack once we can just hand over
-										// to Calypso's signup flow with a theme selected.
-										url !== getSignupUrl( this.props.theme ) )
-										? '_blank' : null }>
+									target={ isOutsideCalypso( url ) ? '_blank' : null }>
 									{ option.label }
 								</a>
 							);
 						}
-						return (
-							<PopoverMenuItem key={ option.label } action={ option.action }>
-								{ option.label }
-							</PopoverMenuItem>
-						);
-					}, this ) }
+						if ( option.action ) {
+							return (
+								<PopoverMenuItem key={ option.label } action={ option.action }>
+									{ option.label }
+								</PopoverMenuItem>
+							);
+						}
+						// If neither getUrl() nor action() are specified, filter this option.
+						return null;
+					}.bind( this ) ) }
 
 				</PopoverMenu>
 			</span>

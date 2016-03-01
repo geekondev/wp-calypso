@@ -4,7 +4,7 @@
 var React = require( 'react' ),
 	page = require( 'page' ),
 	toTitleCase = require( 'to-title-case' ),
-	trim = require( 'lodash/string/trim' );
+	trim = require( 'lodash/trim' );
 
 /**
  * Internal dependencies
@@ -14,7 +14,6 @@ var SearchCard = require( 'components/search-card' ),
 	Notices = require( 'components/notice/docs/example' ),
 	Buttons = require( 'components/button/docs/example' ),
 	ButtonGroups = require( 'components/button-group/docs/example' ),
-	AddNewButtons = require( 'components/add-new-button/docs/example' ),
 	Accordions = require( 'components/accordion/docs/example' ),
 	Gridicons = require( 'components/gridicon/docs/example' ),
 	SocialLogos = require( 'components/social-logo/docs/example' ),
@@ -174,7 +173,6 @@ module.exports = React.createClass( {
 					<Notices />
 					<Buttons />
 					<ButtonGroups />
-					<AddNewButtons />
 					<Gridicons />
 					<SocialLogos />
 					<Accordions />
@@ -190,7 +188,7 @@ module.exports = React.createClass( {
 					<Gauge />
 					<SearchDemo />
 					<Headers />
-					<DropZones />
+					<DropZones searchKeywords="drag" />
 					<FormFields searchKeywords="input textbox textarea radio"/>
 					<ClipboardButtons />
 					<ClipboardButtonInput />
@@ -200,14 +198,14 @@ module.exports = React.createClass( {
 					<ExternalLink />
 					<FeatureGate />
 					<DatePicker />
-					<Spinners />
+					<Spinners searchKeywords="loading" />
 					<InputChrono />
-					<TimezoneDropdown />
-					<FoldableCard />
 					<PaymentLogo />
 					<BulkSelect />
 					<SectionHeader />
 					<SectionNav />
+					<TimezoneDropdown />
+					<FoldableCard />
 				</Collection>
 			</div>
 		);

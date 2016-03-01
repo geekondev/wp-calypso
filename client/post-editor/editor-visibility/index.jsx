@@ -3,8 +3,10 @@
  */
 import ReactDom from 'react-dom';
 import React from 'react';
-import includes from 'lodash/collection/includes';
+import includes from 'lodash/includes';
 import classNames from 'classnames';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 /**
  * Internal dependencies
@@ -23,19 +25,33 @@ import Tooltip from 'components/tooltip';
 import postActions from 'lib/posts/actions';
 import { recordEvent, recordStat } from 'lib/posts/stats';
 import accept from 'lib/accept';
+import {
+	setPostPassword,
+	setPostPasswordProtected,
+	setPostPrivate,
+	setPostPublic
+} from 'state/ui/editor/post/actions';
 
-module.exports = React.createClass( {
+const EditorVisibility = React.createClass( {
 
 	displayName: 'EditorVisibility',
 	showingAcceptDialog: false,
 
 	getDefaultProps() {
 		return {
-			isPrivateSite: false
+			isPrivateSite: false,
+			setPostPassword: () => {},
+			setPostPasswordProtected: () => {},
+			setPostPrivate: () => {},
+			setPostPublic: () => {},
 		};
 	},
 
 	propTypes: {
+		setPostPassword: React.PropTypes.func,
+		setPostPasswordProtected: React.PropTypes.func,
+		setPostPrivate: React.PropTypes.func,
+		setPostPublic: React.PropTypes.func,
 		visibility: React.PropTypes.string,
 		onPrivatePublish: React.PropTypes.func,
 		isPrivateSite: React.PropTypes.bool,
@@ -56,10 +72,20 @@ module.exports = React.createClass( {
 		};
 	},
 
-	componentWillReceiveProps: function( nextProps ) {
-		if ( this.props.visibility !== this.state.visibility && this.state.passwordIsValid ) {
+	componentWillMount() {
+		this.setVisibility( this.props );
+	},
+
+	componentWillReceiveProps( nextProps ) {
+		if ( this.state.passwordIsValid ) {
+			this.setVisibility( nextProps );
+		}
+	},
+
+	setVisibility( props ) {
+		if ( props.visibility !== this.state.visibility ) {
 			this.setState( {
-				visibility: this.props.visibility
+				visibility: props.visibility
 			} );
 		}
 	},
@@ -160,10 +186,12 @@ module.exports = React.createClass( {
 		switch ( newVisibility ) {
 			case 'public':
 				postEdits.password = '';
+				this.props.setPostPublic();
 				break;
 
 			case 'password':
 				postEdits.password = this.props.savedPassword || ' ';
+				this.props.setPostPasswordProtected( postEdits.password );
 				break;
 		}
 
@@ -172,6 +200,7 @@ module.exports = React.createClass( {
 		recordStat( 'visibility-set-' + newVisibility );
 		recordEvent( 'Changed visibility', newVisibility );
 
+		// TODO: REDUX - remove flux actions when whole post-editor is reduxified
 		postActions.edit( postEdits );
 	},
 
@@ -191,6 +220,7 @@ module.exports = React.createClass( {
 	},
 
 	setPostToPrivate() {
+		// TODO: REDUX - remove flux actions when whole post-editor is reduxified
 		postActions.edit( {
 			password: '',
 			status: 'private'
@@ -200,6 +230,8 @@ module.exports = React.createClass( {
 
 		recordStat( 'visibility-set-private' );
 		recordEvent( 'Changed visibility', 'private' );
+
+		this.props.setPostPrivate();
 	},
 
 	onPrivatePublish() {
@@ -237,9 +269,12 @@ module.exports = React.createClass( {
 	onPasswordChange( event ) {
 		var newPassword = event.target.value.trim();
 
+		// TODO: REDUX - remove flux actions when whole post-editor is reduxified
 		postActions.edit( { password: newPassword } );
 
 		this.setState( { passwordIsValid: newPassword.length > 0 } );
+
+		this.props.setPostPassword( newPassword );
 	},
 
 	renderPasswordInput() {
@@ -390,3 +425,13 @@ module.exports = React.createClass( {
 	}
 
 } );
+
+export default connect(
+	null,
+	dispatch => bindActionCreators( {
+		setPostPassword,
+		setPostPasswordProtected,
+		setPostPrivate,
+		setPostPublic
+	}, dispatch )
+)( EditorVisibility );

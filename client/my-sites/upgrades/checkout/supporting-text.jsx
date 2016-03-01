@@ -6,9 +6,11 @@ var React = require( 'react' );
  * Internal dependencies
  */
 var cartValues = require( 'lib/cart-values' ),
+	support = require( 'lib/url/support' ),
 	getRefundPolicy = cartValues.getRefundPolicy,
 	cartItems = cartValues.cartItems,
-	hasFreeTrial = cartItems.hasFreeTrial;
+	hasFreeTrial = cartItems.hasFreeTrial,
+	abtest = require( 'lib/abtest' ).abtest;
 
 var SupportingText = React.createClass( {
 
@@ -25,7 +27,7 @@ var SupportingText = React.createClass( {
 	refundText: function() {
 		var refundDocsLink = (
 			<a className="credit-card-supporting-text__refund-link"
-				href="https://en.support.wordpress.com/refunds/"
+				href={ support.REFUNDS }
 				target="_blank" />
 		);
 
@@ -70,6 +72,10 @@ var SupportingText = React.createClass( {
 	},
 
 	render: function() {
+		if ( abtest( 'checkoutFooter' ) === 'noFooter' ) {
+			return null;
+		}
+
 		return hasFreeTrial( this.props.cart )
 		? null : (
 				<ul className="supporting-text">

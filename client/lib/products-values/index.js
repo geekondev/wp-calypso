@@ -1,10 +1,12 @@
+/** @ssr-ready **/
+
 /**
  * External dependencies
  */
-var assign = require( 'lodash/object/assign' ),
-	difference = require( 'lodash/array/difference' ),
-	isEmpty = require( 'lodash/lang/isEmpty' ),
-	pick = require( 'lodash/object/pick' );
+var assign = require( 'lodash/assign' ),
+	difference = require( 'lodash/difference' ),
+	isEmpty = require( 'lodash/isEmpty' ),
+	pick = require( 'lodash/pick' );
 
 /**
  * Internal dependencies
@@ -36,17 +38,19 @@ function assertValidProduct( product ) {
 function formatProduct( product ) {
 	return assign( {}, product, {
 		product_slug: product.product_slug || product.productSlug,
+		product_type: product.product_type || product.productType,
 		is_domain_registration: product.is_domain_registration !== undefined
 			? product.is_domain_registration
-			: product.isDomainRegistration
+			: product.isDomainRegistration,
+		free_trial: product.free_trial || product.freeTrial
 	} );
 }
 
-function isJpphpBundle( product ) {
+function isChargeback( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return product.product_slug === 'host-bundle';
+	return product.product_slug === 'chargeback';
 }
 
 function isFreePlan( product ) {
@@ -54,6 +58,13 @@ function isFreePlan( product ) {
 	assertValidProduct( product );
 
 	return product.product_slug === 'free_plan';
+}
+
+function isFreeJetpackPlan( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return product.product_slug === 'jetpack_free';
 }
 
 function isFreeTrial( product ) {
@@ -88,6 +99,34 @@ function isEnterprise( product ) {
 	return product.product_slug === 'wpcom-enterprise';
 }
 
+function isJetpackPlan( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return 'jetpack' === product.product_type;
+}
+
+function isJetpackBusiness( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return isBusiness( product ) && isJetpackPlan( product );
+}
+
+function isJetpackPremium( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return isPremium( product ) && isJetpackPlan( product );
+}
+
+function isJpphpBundle( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return product.product_slug === 'host-bundle';
+}
+
 function isPlan( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
@@ -112,9 +151,9 @@ function isDomainProduct( product ) {
 	assertValidProduct( product );
 
 	return (
+		isDomainMapping( product ) ||
 		isDomainRegistration( product ) ||
-		product.product_slug === 'domain_map' ||
-		product.product_slug === 'private_whois'
+		isPrivateRegistration( product )
 	);
 }
 
@@ -164,9 +203,9 @@ function getDomainProductRanking( product ) {
 
 	if ( isDomainRegistration( product ) ) {
 		return 0;
-	} else if ( product.product_slug === 'domain_map' ) {
+	} else if ( isDomainMapping( product ) ) {
 		return 1;
-	} else if ( product.product_slug === 'private_whois' ) {
+	} else if ( isPrivateRegistration( product ) ) {
 		return 2;
 	}
 }
@@ -255,6 +294,7 @@ module.exports = {
 	formatProduct,
 	getDomainProductRanking,
 	isBusiness,
+	isChargeback,
 	isCredits,
 	isCustomDesign,
 	isDependentProduct,
@@ -263,9 +303,13 @@ module.exports = {
 	isDomainRedemption,
 	isDomainRegistration,
 	isEnterprise,
+	isFreeJetpackPlan,
 	isFreePlan,
 	isFreeTrial,
 	isGoogleApps,
+	isJetpackBusiness,
+	isJetpackPlan,
+	isJetpackPremium,
 	isJpphpBundle,
 	isNoAds,
 	isPlan,

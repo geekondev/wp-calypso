@@ -10,16 +10,6 @@
 	padding: 0;
 	position: relative;
 
-	// Show lock icon on private sites
-	&.is-private {
-		.site__title::before {
-			@include noticon( '\f470', 16px );
-			color: $gray;
-			margin: 0 3px 2px 0;
-			vertical-align: bottom;
-		}
-	}
-
 	&.is-redirect {
 		.site__title::before {
 			@include noticon( '\f458', 16px );
@@ -39,6 +29,11 @@
 			animation: pulse-light 0.8s ease-in-out infinite;
 			background-color: lighten( $gray, 30% );
 			color: transparent;
+			width: 95%;
+
+			&::after {
+				display: none;
+			}
 		}
 
 		.notouch .sites-popover &:hover {
@@ -56,7 +51,7 @@
 	display: flex;
 	justify-content: space-between;
 	overflow: hidden;
-	padding: 16px;
+	padding: 16px 4px 16px 16px;
 	position: relative;
 	width: 100%;
 
@@ -75,7 +70,7 @@
 	width: 30px;
 	overflow: hidden;
 	align-self: center;
-	margin-right: 12px;
+	margin-right: 8px;
 }
 
 // The group of site title and domain
@@ -96,41 +91,37 @@
 	color: $gray;
 	display: block;
 	max-width: 95%;
-	font: {
-		size: 11px;
-		style: italic;
-	}
+	font-size: 11px;
 	line-height: 1.4;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
 .site__title,
 .site__domain {
 	overflow: hidden;
-	text-overflow: ellipsis;
 	white-space: nowrap;
+	&::after {
+		@include long-content-fade();
+	}
 }
 
 .site__home {
-	align-self: center;
 	background: $blue-medium;
-	border-radius: 50%;
 	color: $white;
 	display: block;
-	width: 28px;
-	height: 28px;
+	width: 32px;
+	height: 32px;
 	text-align: center;
 	text-transform: none;
 	overflow: initial;
 	opacity: 0;
 	transition: opacity 0.2s;
 	transform: translate3d(0, 0, 0);
+	position: absolute;
+		left: 17px;
+		top: 17px;
 
 	.gridicon {
-		line-height: 28px;
-		margin: 1px 0 0 -1px;
+		margin-top: 5px;
 		vertical-align: middle;
 	}
 
@@ -156,4 +147,85 @@
 
 .site__content:hover .site__home {
 	opacity: 1;
+}
+
+.site__toggle-more-options {
+	color: $gray;
+	cursor: pointer;
+	padding-right: 16px;
+	line-height: 0;
+	.gridicon {
+		transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+	&:hover {
+		.gridicon {
+			color: darken( $gray, 20% );
+		}
+	}
+}
+
+.site.is-toggled {
+	.site__toggle-more-options .gridicon {
+		transform: rotate( 90deg );
+	}
+	.site-indicator {
+		display: none;
+	}
+}
+
+.site.is-toggled.has-edit-capabilities {
+	.site-icon {
+		border: 1px dashed $gray-dark;
+		opacity: 0.8;
+	}
+}
+
+.site__actions {
+	align-items: center;
+	display: flex;
+	flex: 1 0 0;
+	justify-content: flex-end;
+	animation: appear .3s ease-in-out;
+}
+
+.site__edit-icon-text {
+	animation: appear .3s ease-in-out;
+}
+
+.site__edit-icon,
+.site__edit-icon:visited {
+	color: darken( $gray, 10% );
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	display: flex;
+	align-items: center;
+	&:hover {
+		color: $blue-medium;
+	}
+	.gridicons-external {
+		top: -1px;
+	}
+}
+
+.site__star {
+	color: $gray;
+	cursor: pointer;
+	line-height: 0;
+
+	&:hover .gridicons-star-outline {
+		color: $alert-yellow;
+	}
+
+	.gridicons-star {
+		color: $alert-yellow;
+	}
+}
+
+.site__badge {
+	color: $gray;
+	padding-right: 4px;
+	line-height: 0;
+	position: relative;
+	vertical-align: middle;
 }

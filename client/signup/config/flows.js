@@ -1,22 +1,41 @@
 /**
  * External dependencies
  */
-var assign = require( 'lodash/object/assign' ),
-	reject = require( 'lodash/collection/reject' );
+var assign = require( 'lodash/assign' ),
+	includes = require( 'lodash/includes' ),
+	reject = require( 'lodash/reject' );
 
 /**
 * Internal dependencies
 */
 var config = require( 'config' ),
 	stepConfig = require( './steps' ),
+	abtest = require( 'lib/abtest' ).abtest,
+	getABTestVariation = require( 'lib/abtest' ).getABTestVariation,
 	user = require( 'lib/user' )();
 
-function getCheckoutDestination( dependencies ) {
-	if ( dependencies.cartItem || dependencies.domainItem ) {
-		return '/checkout/' + dependencies.siteSlug;
+function getCheckoutUrl( dependencies ) {
+	return '/checkout/' + dependencies.siteSlug;
+}
+
+function dependenciesContainCartItem( dependencies ) {
+	return dependencies.cartItem || dependencies.domainItem || dependencies.themeItem;
+}
+
+function getSiteDestination( dependencies ) {
+	if ( dependenciesContainCartItem( dependencies ) ) {
+		return getCheckoutUrl( dependencies );
 	}
 
 	return 'https://' + dependencies.siteSlug;
+}
+
+function getPostsDestination( dependencies ) {
+	if ( dependenciesContainCartItem( dependencies ) ) {
+		return getCheckoutUrl( dependencies );
+	}
+
+	return '/posts/' + dependencies.siteSlug;
 }
 
 const flows = {
@@ -47,11 +66,65 @@ const flows = {
 		lastModified: '2016-01-21'
 	},
 
+	businessv2: {
+		steps: ['domains', 'user' ],
+		destination: function( dependencies ) {
+			return '/plans/select/business/' + dependencies.siteSlug;
+		},
+		description: 'Made for CT CMO trial project. Create an account and a blog, without theme selection, and then add the business plan to the users cart.',
+		lastModified: '2016-02-26'
+	},
+
+	premiumv2: {
+		steps: ['domains', 'user' ],
+		destination: function( dependencies ) {
+			return '/plans/select/premium/' + dependencies.siteSlug;
+		},
+		description: 'Made for CT CMO trial project. Create an account and a blog, without theme selection, and then add the business plan to the users cart.',
+		lastModified: '2016-02-26'
+	},
+
+	'with-theme': {
+		steps: [ 'domains', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'Preselect a theme to activate/buy from an external source',
+		lastModified: '2016-01-27'
+	},
+
 	main: {
 		steps: [ 'themes', 'domains', 'plans', 'user' ],
-		destination: getCheckoutDestination,
+		destination: getSiteDestination,
 		description: 'The current best performing flow in AB tests',
 		lastModified: '2015-09-03'
+	},
+
+	plan: {
+		steps: [ 'themes', 'domains', 'select-plan', 'user' ],
+		destination: getSiteDestination,
+		description: '',
+		lastModified: '2016-02-02'
+	},
+
+	upgrade: {
+		steps: [ 'themes', 'domains', 'select-plan-or-skip', 'user' ],
+		destination: getSiteDestination,
+		description: '',
+		lastModified: '2016-02-02'
+	},
+
+	/* WP.com homepage flows */
+	website: {
+		steps: [ 'survey', 'themes', 'domains', 'plans', 'survey-user' ],
+		destination: getSiteDestination,
+		description: 'This flow is used for the users who clicked "Create Website" on the two-button homepage.',
+		lastModified: '2016-01-28'
+	},
+
+	blog: {
+		steps: [ 'survey', 'themes', 'domains', 'plans', 'survey-user' ],
+		destination: getSiteDestination,
+		description: 'This flow is used for the users who clicked "Create Blog" on the two-button homepage.',
+		lastModified: '2016-01-28'
 	},
 
 	/* On deck flows*/
@@ -64,13 +137,6 @@ const flows = {
 		lastModified: '2015-09-22'
 	},
 
-	verticals: {
-		steps: [ 'survey', 'themes', 'domains', 'plans', 'survey-user' ],
-		destination: getCheckoutDestination,
-		description: 'Categorizing blog signups for Verticals Survey',
-		lastModified: '2015-12-10'
-	},
-
 	'delta-discover': {
 		steps: [ 'user' ],
 		destination: '/',
@@ -80,21 +146,21 @@ const flows = {
 
 	'delta-blog': {
 		steps: [ 'themes', 'domains', 'plans', 'user' ],
-		destination: getCheckoutDestination,
+		destination: getSiteDestination,
 		description: 'A copy of the `main` flow for the Delta email campaigns',
 		lastModified: null
 	},
 
 	'delta-site': {
 		steps: [ 'themes', 'domains', 'plans', 'user' ],
-		destination: getCheckoutDestination,
+		destination: getSiteDestination,
 		description: 'A copy of the `main` flow for the Delta email campaigns',
 		lastModified: null
 	},
 
 	'delta-bloggingu': {
 		steps: [ 'themes', 'domains', 'plans', 'user' ],
-		destination: getCheckoutDestination,
+		destination: getSiteDestination,
 		description: 'A copy of the `main` flow for the Delta Blogging U email campaign',
 		lastModified: null
 	},
@@ -106,16 +172,23 @@ const flows = {
 		lastModified: '2015-10-30'
 	},
 
+	headstart: {
+		steps: [ 'themes-headstart', 'domains-with-theme', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'Regular flow but with Headstart enabled to pre-populate site content',
+		lastModified: '2015-02-01'
+	},
+
 	desktop: {
-		steps: [ 'themes', 'site', 'user' ],
-		destination: '/me/next?welcome',
+		steps: [ 'themes', 'domains', 'plans', 'user' ],
+		destination: getPostsDestination,
 		description: 'Signup flow for desktop app',
 		lastModified: '2015-11-05'
 	},
 
 	layout: {
 		steps: [ 'design-type', 'themes', 'domains', 'plans', 'user' ],
-		destination: getCheckoutDestination,
+		destination: getSiteDestination,
 		description: 'Theme trifurcation flow',
 		lastModified: '2015-12-14'
 	},
@@ -134,10 +207,24 @@ const flows = {
 
 	'free-trial': {
 		steps: [ 'themes', 'site', 'plans', 'user' ],
-		destination: getCheckoutDestination,
+		destination: getSiteDestination,
 		description: 'Signup flow for free trials',
 		lastModified: '2015-12-18'
-	}
+	},
+
+	'website-altthemes': {
+		steps: [ 'survey', 'altthemes', 'domains', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'Alternative theme selection for the users who clicked "Create Website" on the two-button homepage.',
+		lastModified: '2016-02-12'
+	},
+
+	'blog-altthemes': {
+		steps: [ 'survey', 'altthemes', 'domains', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'Alternative theme selection for the users who clicked "Create blog" on the two-button homepage.',
+		lastModified: '2016-02-12'
+	},
 };
 
 function removeUserStepFromFlow( flow ) {
@@ -150,13 +237,39 @@ function removeUserStepFromFlow( flow ) {
 	} );
 }
 
-function getCurrentFlowNameFromTest() {
-	// No tests currently running
-	return 'main';
+function filterFlowName( flowName ) {
+	const headstartFlows = [ 'blog', 'website' ];
+	if ( includes( headstartFlows, flowName ) && 'headstart' === abtest( 'headstart' ) ) {
+		return 'headstart';
+	}
+
+	const altThemesFlows = [ 'blog', 'website' ];
+	if ( includes( altThemesFlows, flowName ) && 'notTested' === getABTestVariation( 'headstart' ) ) {
+		if ( 'altThemes' === abtest( 'altThemes' ) ) {
+			return ( 'blog' === flowName ) ? 'blog-altthemes' : 'website-altthemes';
+		}
+	}
+
+	let isInPreviousTest = false;
+
+	if ( getABTestVariation( 'headstart' ) && getABTestVariation( 'headstart' ) !== 'notTested' ) {
+		isInPreviousTest = true;
+	}
+
+	if ( getABTestVariation( 'altThemes' ) && getABTestVariation( 'altThemes' ) !== 'notTested' ) {
+		isInPreviousTest = true;
+	}
+
+	const freePlansTestFlows = [ 'blog', 'website', 'main' ];
+	if ( includes( freePlansTestFlows, flowName ) && ! isInPreviousTest ) {
+		return 'skipForFree' === abtest( 'freePlansDefault' ) ? 'upgrade' : flowName;
+	}
+
+	return flowName;
 }
 
 module.exports = {
-	currentFlowName: getCurrentFlowNameFromTest(),
+	filterFlowName: filterFlowName,
 
 	defaultFlowName: 'main',
 

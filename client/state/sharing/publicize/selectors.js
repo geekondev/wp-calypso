@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import filter from 'lodash/filter';
+
+/**
  * Returns an array of known connections for the given site ID.
  *
  * @param  {Object} state  Global state tree
@@ -6,31 +11,22 @@
  * @return {Array}         Site connections
  */
 export function getConnectionsBySiteId( state, siteId ) {
-	const { connectionsBySiteId, connections } = state.sharing.publicize;
-
-	if ( ! connectionsBySiteId[ siteId ] ) {
-		return [];
-	}
-
-	return connectionsBySiteId[ siteId ].map( ( connectionId ) => {
-		return connections[ connectionId ];
-	} );
+	return filter( state.sharing.publicize.connections, { site_ID: siteId } );
 }
 
 /**
  * Returns an array of known connections for the given site ID
- * that are available to the current user
+ * that are available to the specified user ID.
  *
- * @param  {Object} state         Global state tree
- * @param  {Number} siteId        Site ID
- * @param  {Number} currentUserID ID of the current user
- * @return {Array}                Site connections
+ * @param  {Object} state  Global state tree
+ * @param  {Number} siteId Site ID
+ * @param  {Number} userId User ID to filter
+ * @return {Array}         User connections
  */
-export function getConnectionsBySiteIdAvailableToCurrentUser( state, siteId, currentUserID ) {
-	const connectionsBySiteId = getConnectionsBySiteId( state, siteId );
-
-	return connectionsBySiteId.filter( connection => {
-		return connection.shared || connection.keyring_connection_user_ID === currentUserID;
+export function getSiteUserConnections( state, siteId, userId ) {
+	return filter( state.sharing.publicize.connections, ( connection ) => {
+		const { site_ID, shared, keyring_connection_user_ID } = connection;
+		return site_ID === siteId && ( shared || keyring_connection_user_ID === userId );
 	} );
 }
 

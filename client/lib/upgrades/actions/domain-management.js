@@ -4,6 +4,7 @@
 import { action as ActionTypes } from '../constants';
 import { isInitialized as isDomainInitialized } from 'lib/domains';
 import Dispatcher from 'dispatcher';
+import DnsStore from 'lib/domains/dns/store';
 import domainsAssembler from 'lib/domains/assembler';
 import DomainsStore from 'lib/domains/store';
 import EmailForwardingStore from 'lib/domains/email-forwarding/store';
@@ -116,6 +117,7 @@ function deleteEmailForwarding( domainName, mailbox, onComplete ) {
 	} );
 }
 
+let _activefetchDomainsForSite = {};
 function fetchDomains( siteId ) {
 	if ( ! isDomainInitialized( DomainsStore.get(), siteId ) ) {
 		Dispatcher.handleViewAction( {
@@ -129,7 +131,12 @@ function fetchDomains( siteId ) {
 		siteId
 	} );
 
+	if ( _activefetchDomainsForSite[ siteId ] ) {
+		return;
+	}
+	_activefetchDomainsForSite[ siteId ] = true;
 	wpcom.site( siteId ).domains( function( error, data ) {
+		delete _activefetchDomainsForSite[ siteId ];
 		if ( error ) {
 			Dispatcher.handleServerAction( {
 				type: ActionTypes.DOMAINS_FETCH_FAILED,
@@ -192,44 +199,67 @@ function updateWhois( domainName, contactInformation, onComplete ) {
 }
 
 function fetchDns( domainName ) {
+	const dns = DnsStore.getByDomainName( domainName );
+
+	if ( dns.isFetching || dns.hasLoadedFromServer ) {
+		return;
+	}
+
 	Dispatcher.handleViewAction( {
 		type: ActionTypes.DNS_FETCH,
 		domainName
 	} );
 
 	wpcom.fetchDns( domainName, ( error, data ) => {
-		Dispatcher.handleServerAction( {
-			type: ActionTypes.DNS_FETCH_COMPLETED,
-			records: data && data.records,
-			domainName,
-			error
-		} );
+		if ( ! error ) {
+			Dispatcher.handleServerAction( {
+				type: ActionTypes.DNS_FETCH_COMPLETED,
+				records: data && data.records,
+				domainName
+			} );
+		} else {
+			Dispatcher.handleServerAction( {
+				type: ActionTypes.DNS_FETCH_FAILED,
+				domainName
+			} );
+		}
 	} );
 }
 
 function addDns( domainName, record, onComplete ) {
+	Dispatcher.handleServerAction( {
+		type: ActionTypes.DNS_ADD,
+		domainName,
+		record
+	} );
+
 	wpcom.addDns( domainName, record, ( error ) => {
-		if ( ! error ) {
-			Dispatcher.handleServerAction( {
-				type: ActionTypes.DNS_ADD_COMPLETED,
-				domainName,
-				record,
-			} );
-		}
+		const type = ! error ? ActionTypes.DNS_ADD_COMPLETED : ActionTypes.DNS_ADD_FAILED;
+		Dispatcher.handleServerAction( {
+			type,
+			domainName,
+			record
+		} );
 
 		onComplete( error );
 	} );
 }
 
 function deleteDns( domainName, record, onComplete ) {
+	Dispatcher.handleServerAction( {
+		type: ActionTypes.DNS_DELETE,
+		domainName,
+		record,
+	} );
+
 	wpcom.deleteDns( domainName, record, ( error ) => {
-		if ( ! error ) {
-			Dispatcher.handleServerAction( {
-				type: ActionTypes.DNS_DELETE_COMPLETED,
-				domainName,
-				record,
-			} );
-		}
+		const type = ! error ? ActionTypes.DNS_DELETE_COMPLETED : ActionTypes.DNS_DELETE_FAILED;
+
+		Dispatcher.handleServerAction( {
+			type,
+			domainName,
+			record,
+		} );
 
 		onComplete( error );
 	} );
@@ -440,8 +470,8 @@ function requestTransferCode( options, onComplete ) {
 	} );
 }
 
-function enableDomainLocking( domainName, onComplete ) {
-	wpcom.enableDomainLocking( domainName, ( error ) => {
+function enableDomainLocking( options, onComplete ) {
+	wpcom.enableDomainLocking( options, ( error ) => {
 		if ( error ) {
 			onComplete( error );
 			return;
@@ -449,8 +479,16 @@ function enableDomainLocking( domainName, onComplete ) {
 
 		Dispatcher.handleServerAction( {
 			type: ActionTypes.DOMAIN_LOCKING_ENABLE_COMPLETED,
-			domainName
+			domainName: options.domainName
 		} );
+
+		if ( options.enablePrivacy ) {
+			Dispatcher.handleServerAction( {
+				type: ActionTypes.PRIVACY_PROTECTION_ENABLE_COMPLETED,
+				siteId: options.siteId,
+				domainName: options.domainName
+			} );
+		}
 
 		onComplete( null );
 	} );

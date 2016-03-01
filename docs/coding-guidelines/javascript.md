@@ -366,15 +366,12 @@ var component = <div className="post"></div>;
 
 ## Switch Statements
 
-The usage of switch statements is generally discouraged, but can be useful when there are a large
-number of cases – especially when multiple cases can be handled by the same block, or fall-through
-logic (the default case) can be leveraged.
+Switch statements can be useful when there are a large number of cases – especially when multiple cases can be handled by the same block (using fall-through), or the default case can be leveraged.
 
 When using switch statements:
 
-- Use a break for each case other than default. When allowing statements to “fall through,” note that explicitly.
+- Note intentional cases of fall-through explicitly, as it is a common error to omit a break by accident.
 - Indent case statements one tab within the switch.
-
 
 ```js
 switch ( event.keyCode ) {
@@ -389,28 +386,6 @@ switch ( event.keyCode ) {
         break;
     default:
         z();
-}
-```
-It is not recommended to return a value from within a switch statement: use the case blocks to set values, then return those values at the end.
-
-
-```js
-function getKeyCode( keyCode ) {
-    var result;
-
-    switch ( event.keyCode ) {
-        case constants.keyCode.ENTER:
-        case constants.keyCode.SPACE:
-            result = 'commit';
-            break;
-        case constants.keyCode.ESCAPE:
-            result = 'exit';
-            break;
-        default:
-            result = 'default';
-    }
-
-    return result;
 }
 ```
 
@@ -1004,7 +979,7 @@ More about:
 
 ## ESLint
 
-To help encourages folks to follow the coding standards, there is a [ESLint](http://eslint.org/) configuration file ```.eslintrc``` that configures ESLint to detect code that doesn't follow the guidelines. ESLint also catches basic syntax errors, and natively supports both ES6 and JSX. It can be extended by plugins, such as [eslint-plugin-react](https://github.com/yannickcr/eslint-plugin-react), which we use in our configuration.
+To help encourages folks to follow the coding standards, there is a [ESLint](http://eslint.org/) configuration file ```.eslintrc``` that configures ESLint to detect code that doesn't follow the guidelines. ESLint also catches basic syntax errors, and natively supports both ES6 and JSX. It can be extended by plugins, such as [`eslint-plugin-wpcalypso`](https://github.com/yannickcr/eslint-plugin-wpcalypso), which we use in our configuration.
 
 There are [integrations](http://eslint.org/docs/user-guide/integrations) for many editors that will automatically detect the configuration file and run the checks.
 
@@ -1069,7 +1044,7 @@ If you are using Sublime Text, you can use the `SublimeLinter-eslint` plugin to 
 Before following these instructions, you'll want to globally install ESLint and related dependencies by running the following command in your terminal:
 
 ```bash
-npm install -g eslint eslint-plugin-react babel-eslint
+npm install -g eslint eslint-plugin-wpcalypso eslint-plugin-react babel-eslint
 ```
 
 #### Identifying Spaces with Sublime Text

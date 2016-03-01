@@ -1,83 +1,30 @@
 /**
- * External Dependencies
- */
-import React from 'react'
-
-/**
  * Internal Dependencies
  */
-import PluginItem from 'my-sites/plugins/plugin-item/plugin-item'
 import sitesList from 'lib/sites-list'
 import i18n from 'lib/mixins/i18n'
 import config from 'config'
-import analytics from 'analytics'
-import { isBusiness } from 'lib/products-values'
 import notices from 'notices'
-import { abtest } from 'lib/abtest'
 
-let sites = sitesList();
+const sites = sitesList();
 
 const hasErrorCondition = ( site, type ) => {
 	const errorConditions = {
-		noBusinessPlan: site && ! site.jetpack && ! isBusiness( site.plan ),
 		notMinimumJetpackVersion: site && ! site.hasMinimumJetpackVersion && site.jetpack,
 		notRightsToManagePlugins: sites.initialized && ! sites.canManageSelectedOrAll()
 	};
 	return errorConditions[ type ];
-}
+};
 
-const getMockBusinessPluginItems = () => {
-	const plugins = [ {
-		slug: 'ecwid',
-		name: 'Ecwid',
-		wpcom: true,
-		icon: '/calypso/images/upgrades/plugins/ecwid.png'
-	}, {
-		slug: 'gumroad',
-		name: 'Gumroad',
-		wpcom: true,
-		icon: '/calypso/images/upgrades/plugins/gumroad.png'
-	}, {
-		slug: 'shopify',
-		name: 'Shopify',
-		wpcom: true,
-		icon: '/calypso/images/upgrades/plugins/shopify-store.png'
-	} ];
-	const selectedSite = {
-		slug: 'no-slug',
-		canUpdateFiles: true,
-		name: 'Not a real site'
-	}
-
-	return plugins.map( plugin => {
-		return React.createElement( PluginItem, {
-			key: 'plugin-item-mock-' + plugin.slug,
-			plugin: plugin,
-			sites: [],
-			selectedSite: selectedSite,
-			progress: [],
-			isMock: true }
-		);
-	} );
-}
-
-const getWpcomPluginPageError = ( siteSlug = '' ) => {
+const getWpcomPluginPageError = () => {
 	return {
-		title: i18n.translate( 'Want to add a store to your site?' ),
-		line: i18n.translate( 'Support for Shopify, Ecwid, and Gumroad is now available for WordPress.com Business.' ),
-		action: i18n.translate( 'Upgrade Now' ),
-		actionURL: '/plans/' + siteSlug,
-		illustration: '/calypso/images/drake/drake-whoops.svg',
-		actionCallback: () => {
-			analytics.tracks.recordEvent( 'calypso_upgrade_nudge_cta_click', { cta_name: 'business_plugins' } );
-		},
-		featureExample: getMockBusinessPluginItems()
+		title: i18n.translate( 'Oops! Not supported' ),
+		line: i18n.translate( 'This site doesn\'t support installing plugins. Switch to a self-hosted site to install and manage plugins' ),
+		illustration: '/calypso/images/drake/drake-whoops.svg'
 	};
-}
+};
 
 const hasRestrictedAccess = ( site ) => {
-	let pluginPageError;
-
 	site = site || sites.getSelectedSite();
 
 	// Display a 404 to users that don't have the rights to manage plugins
@@ -104,26 +51,9 @@ const hasRestrictedAccess = ( site ) => {
 		);
 	}
 
-	if ( hasErrorCondition( site, 'noBusinessPlan' ) ) {
-		switch ( abtest( 'businessPluginsNudge' ) ) {
-			case 'nudge':
-				pluginPageError = {
-					abtest: 'nudge'
-				};
-				break;
-
-			case 'drake':
-			default:
-				pluginPageError = getWpcomPluginPageError( site.slug );
-				break;
-		}
-	}
-
 	if ( ! sites.hasSiteWithPlugins() ) {
-		pluginPageError = getWpcomPluginPageError();
+		return getWpcomPluginPageError();
 	}
-
-	return pluginPageError;
-}
+};
 
 export default { hasRestrictedAccess };

@@ -4,7 +4,6 @@
 import React from 'react';
 import ReactDom from 'react-dom';
 import page from 'page';
-import noop from 'lodash/utility/noop';
 import classNames from 'classnames';
 
 /**
@@ -19,8 +18,10 @@ import SitePlaceholder from 'my-sites/site/placeholder';
 import Search from 'components/search';
 import userModule from 'lib/user';
 import config from 'config';
+import PreferencesData from 'components/data/preferences-data';
 
 const user = userModule();
+const noop = () => {};
 
 export default React.createClass( {
 	displayName: 'SiteSelector',
@@ -63,25 +64,15 @@ export default React.createClass( {
 		this.setState( { search: terms } );
 	},
 
-	onKeyDown( event ) {
-		var filteredSites;
-
-		if ( event.keyCode === 13 ) {
-			// enter key
-			filteredSites = this.getFilteredSites();
-
-			if ( filteredSites.length === 1 && this.props.siteBasePath ) {
-				this.onSiteSelect( filteredSites[ 0 ].slug, event );
-				page( this.getSiteBasePath( filteredSites[ 0 ] ) + '/' + filteredSites[ 0 ].slug );
-			}
-		}
-	},
-
 	onSiteSelect( siteSlug, event ) {
 		this.closeSelector();
 		this.props.onSiteSelect( siteSlug );
 		this.props.onClose( event );
-		ReactDom.findDOMNode( this.refs.selector ).scrollTop = 0;
+
+		let node = ReactDom.findDOMNode( this.refs.selector );
+		if ( node ) {
+			node.scrollTop = 0;
+		}
 
 		// ignore mouse events as the default page() click event will handle navigation
 		if ( this.props.siteBasePath && event.type !== 'mouseup' ) {
@@ -90,7 +81,6 @@ export default React.createClass( {
 	},
 
 	closeSelector() {
-		this.refs.siteSearch.clear();
 		this.refs.siteSearch.blur();
 	},
 
@@ -127,41 +117,32 @@ export default React.createClass( {
 		return siteBasePath;
 	},
 
-	getFilteredSites() {
-		var sites;
-
-		if ( this.state.search ) {
-			sites = this.props.sites.search( this.state.search );
-		} else {
-			sites = this.shouldShowGroups() ? this.props.sites.getVisibleAndNotRecent() : this.props.sites.getVisible();
-		}
-
-		if ( this.props.filter ) {
-			sites = sites.filter( this.props.filter );
-		}
-
-		return sites;
-	},
-
 	isSelected( site ) {
 		var selectedSite = this.props.selected || this.props.sites.selected;
 		return selectedSite === site.domain || selectedSite === site.slug;
 	},
 
 	shouldShowGroups() {
-		if ( ! config.isEnabled( 'show-site-groups' ) ) {
-			return false;
-		}
-
-		return this.props.groups && user.get().visible_site_count > 14;
+		return this.props.groups;
 	},
 
 	renderSites() {
-		var sites = this.getFilteredSites(),
-			siteElements;
+		var sites, siteElements;
 
 		if ( ! this.props.sites.initialized ) {
 			return <SitePlaceholder key="site-placeholder" />;
+		}
+
+		if ( this.state.search ) {
+			sites = this.props.sites.search( this.state.search );
+		} else {
+			sites = this.shouldShowGroups()
+				? this.props.sites.getVisibleAndNotRecent()
+				: this.props.sites.getVisible();
+		}
+
+		if ( this.props.filter ) {
+			sites = sites.filter( this.props.filter );
 		}
 
 		// Render sites
@@ -197,7 +178,7 @@ export default React.createClass( {
 		if ( this.shouldShowGroups() && ! this.state.search ) {
 			return (
 				<div>
-					<span className="site-selector__heading">{ this.translate( 'Sites' ) }</span>
+					{ user.get().visible_site_count > 12 && this.renderRecentSites() }
 					{ siteElements }
 				</div>
 			);
@@ -234,7 +215,9 @@ export default React.createClass( {
 			return null;
 		}
 
-		const recentSites = sites.map( function( site ) {
+		const recentSites = sites.filter( function( site ) {
+			return ! this.props.sites.isStarred( site );
+		}, this ).map( function( site ) {
 			var siteHref;
 
 			if ( this.props.siteBasePath ) {
@@ -242,10 +225,6 @@ export default React.createClass( {
 			}
 
 			const isSelected = this.isSelected( site );
-
-			if ( isSelected && this.props.hideSelected ) {
-				return;
-			}
 
 			return (
 				<Site
@@ -259,10 +238,42 @@ export default React.createClass( {
 			);
 		}, this );
 
+		if ( ! recentSites ) {
+			return null;
+		}
+
+		return <div className="site-selector__recent">{ recentSites }</div>;
+	},
+
+	renderStarredSites() {
+		const sites = this.props.sites.getStarred();
+
+		if ( ! sites || this.state.search || ! this.shouldShowGroups() || ! this.props.sites.starred.length ) {
+			return null;
+		}
+
+		const starredSites = sites.map( function( site ) {
+			var siteHref;
+
+			if ( this.props.siteBasePath ) {
+				siteHref = this.getSiteBasePath( site ) + '/' + site.slug;
+			}
+
+			return (
+				<Site
+					site={ site }
+					href={ siteHref }
+					key={ 'site-' + site.ID }
+					indicator={ this.props.indicator }
+					onSelect={ this.onSiteSelect.bind( this, site.slug ) }
+					isSelected={ this.isSelected( site ) }
+				/>
+			);
+		}, this );
+
 		return (
-			<div>
-				<span className="site-selector__heading">{ this.translate( 'Recent Sites' ) }</span>
-				{ recentSites }
+			<div className="site-selector__starred">
+				{ starredSites }
 			</div>
 		);
 	},
@@ -274,21 +285,22 @@ export default React.createClass( {
 		} );
 
 		return (
-			<div className={ selectorClass }>
-				<Search
-					ref="siteSearch"
-					onSearch={ this.onSearch }
-					onKeyDown={ this.onKeyDown }
-					autoFocus={ this.props.autoFocus }
-					disabled={ ! this.props.sites.initialized }
-				/>
-				<div className="site-selector__sites" ref="selector">
-					{ this.renderAllSites() }
-					{ this.renderRecentSites() }
-					{ this.renderSites() }
+			<PreferencesData>
+				<div className={ selectorClass }>
+					<Search
+						ref="siteSearch"
+						onSearch={ this.onSearch }
+						autoFocus={ this.props.autoFocus }
+						disabled={ ! this.props.sites.initialized }
+					/>
+					<div className="site-selector__sites" ref="selector">
+						{ this.renderAllSites() }
+						{ this.renderStarredSites() }
+						{ this.renderSites() }
+					</div>
+					{ this.props.showAddNewSite && this.addNewSite() }
 				</div>
-				{ this.props.showAddNewSite && this.addNewSite() }
-			</div>
+			</PreferencesData>
 		);
 	}
 } );

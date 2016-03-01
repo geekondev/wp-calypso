@@ -3,13 +3,13 @@
  */
 import React, { PropTypes } from 'react';
 import PureRenderMixin from 'react-pure-render/mixin';
-import mapKeys from 'lodash/object/mapKeys';
-import snakeCase from 'lodash/string/snakeCase';
+import mapKeys from 'lodash/mapKeys';
+import snakeCase from 'lodash/snakeCase';
 
 /**
  * Internal dependencies
  */
-import PostSelectorPagination from './pagination';
+import PostSelectorPosts from './selector';
 
 export default React.createClass( {
 	displayName: 'PostSelector',
@@ -27,7 +27,8 @@ export default React.createClass( {
 		emptyMessage: PropTypes.string,
 		createLink: PropTypes.string,
 		orderBy: PropTypes.oneOf( [ 'title', 'date', 'modified', 'comment_count', 'ID' ] ),
-		order: PropTypes.oneOf( [ 'ASC', 'DESC' ] )
+		order: PropTypes.oneOf( [ 'ASC', 'DESC' ] ),
+		showTypeLabels: PropTypes.bool
 	},
 
 	getDefaultProps() {
@@ -64,6 +65,20 @@ export default React.createClass( {
 		} );
 	},
 
+	componentWillReceiveProps( nextProps ) {
+		const isChangingQuery = [
+			'type',
+			'status',
+			'excludeTree',
+			'orderBy',
+			'order'
+		].some( ( prop ) => nextProps[ prop ] !== this.props[ prop ] );
+
+		if ( isChangingQuery ) {
+			this.setState( { page: 1 } );
+		}
+	},
+
 	incrementPage() {
 		this.setState( {
 			page: this.state.page + 1
@@ -71,10 +86,10 @@ export default React.createClass( {
 	},
 
 	render() {
-		const { siteId, multiple, onChange, emptyMessage, createLink, selected } = this.props;
+		const { siteId, multiple, onChange, emptyMessage, createLink, selected, showTypeLabels } = this.props;
 
 		return (
-			<PostSelectorPagination
+			<PostSelectorPosts
 				siteId={ siteId }
 				query={ this.getQuery() }
 				onNextPage={ this.incrementPage }
@@ -84,6 +99,7 @@ export default React.createClass( {
 				emptyMessage={ emptyMessage }
 				createLink={ createLink }
 				selected={ selected }
+				showTypeLabels={ showTypeLabels }
 			/>
 		);
 	}

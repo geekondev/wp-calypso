@@ -4,14 +4,16 @@
 var React = require( 'react' ),
 	store = require( 'store' ),
 	ReactInjection = require( 'react/lib/ReactInjection' ),
-	some = require( 'lodash/collection/some' ),
-	startsWith = require( 'lodash/string/startsWith' ),
+	some = require( 'lodash/some' ),
+	startsWith = require( 'lodash/startsWith' ),
 	classes = require( 'component-classes' ),
 	debug = require( 'debug' )( 'calypso' ),
 	page = require( 'page' ),
 	url = require( 'url' ),
+	Path = require( 'path-parser' ),
 	qs = require( 'querystring' ),
-	injectTapEventPlugin = require( 'react-tap-event-plugin' );
+	injectTapEventPlugin = require( 'react-tap-event-plugin' ),
+	createReduxStoreFromPersistedInitialState = require( 'state/initial-state' ).default;
 
 /**
  * Internal dependencies
@@ -40,16 +42,20 @@ var config = require( 'config' ),
 	setRouteAction = require( 'state/notices/actions' ).setRoute,
 	accessibleFocus = require( 'lib/accessible-focus' ),
 	TitleStore = require( 'lib/screen-title/store' ),
-	createReduxStore = require( 'state' ).createReduxStore,
+	syncHandler = require( 'lib/wp/sync-handler' ),
 	renderWithReduxStore = require( 'lib/react-helpers' ).renderWithReduxStore,
-	// The following mixins require i18n content, so must be required after i18n is initialized
-	Layout,
-	LoggedOutLayout;
+	bindWpLocaleState = require( 'lib/wp/localization' ).bindState,
+	supportUser = require( 'lib/user/support-user-interop' ),
+	// The following components require the i18n mixin, so must be required after i18n is initialized
+	Layout;
 
 function init() {
 	var i18nLocaleStringsObject = null;
 
 	debug( 'Starting Calypso. Let\'s do this.' );
+
+	// prune sync-handler records more than two days old
+	syncHandler.pruneRecordsFrom( '2 days' );
 
 	// Initialize i18n
 	if ( window.i18nLocaleStrings ) {
@@ -88,7 +94,6 @@ function setUpContext( layout, reduxStore ) {
 	page( '*', function( context, next ) {
 		var parsed = url.parse( location.href, true );
 
-		context.layout = layout;
 		context.store = reduxStore;
 
 		// Break routing and do full page load for logout link in /me
@@ -140,8 +145,6 @@ function loadDevModulesAndBoot() {
 }
 
 function boot() {
-	var layoutSection, layout, layoutElement, reduxStore, validSections = [];
-
 	init();
 
 	// When the user is bootstrapped, we also bootstrap the
@@ -154,14 +157,19 @@ function boot() {
 		i18n.setLocaleSlug( user.get().localeSlug );
 	} );
 
-	// Temporary support for development of the Support User feature
-	if ( config.isEnabled( 'support-user' ) ) {
-		require( 'lib/user/dev-support-user' )( user );
-	}
-
 	translatorJumpstart.init();
 
-	reduxStore = createReduxStore();
+	createReduxStoreFromPersistedInitialState( reduxStoreReady );
+}
+
+function reduxStoreReady( reduxStore ) {
+	let layoutSection, layout, layoutElement, validSections = [];
+
+	bindWpLocaleState( reduxStore );
+
+	supportUser.setReduxStore( reduxStore );
+
+	Layout = require( 'layout' );
 
 	if ( user.get() ) {
 		// When logged in the analytics module requires user and superProps objects
@@ -173,8 +181,6 @@ function boot() {
 		reduxStore.dispatch( setCurrentUserId( user.get().ID ) );
 
 		// Create layout instance with current user prop
-		Layout = require( 'layout' );
-
 		layoutElement = React.createElement( Layout, {
 			user: user,
 			sites: sites,
@@ -183,17 +189,31 @@ function boot() {
 			translatorInvitation: translatorInvitation
 		} );
 	} else {
+		let props = {};
 		analytics.setSuperProps( superProps );
 
-		if ( config.isEnabled( 'oauth' ) ) {
-			LoggedOutLayout = require( 'layout/logged-out-oauth' );
+		// TODO(ehg): Delete this mini-router when we have an isomorphic, single render tree routing solution
+		if ( config.isEnabled( 'manage/themes/details' ) ) {
+			const themesRoutes = [
+				{ name: 'design', path: new Path( '/design' ) },
+				{ name: 'themes', path: new Path( '/themes/:theme_slug' ) },
+			];
+
+			const matchedRoutes = themesRoutes
+				.map( r => ( Object.assign( {}, r, { match: r.path.partialMatch( window.location.pathname ) } ) ) )
+				.filter( r => r.match !== null );
+
+			if ( matchedRoutes.length ) {
+				props = { routeName: matchedRoutes[0].name, match: matchedRoutes[0].match };
+				Layout = require( 'layout/logged-out' );
+			}
 		} else if ( startsWith( window.location.pathname, '/design' ) ) {
-			LoggedOutLayout = require( 'layout/logged-out-design' );
-		} else {
-			LoggedOutLayout = require( 'layout/logged-out' );
+			Layout = require( 'layout/logged-out' );
 		}
 
-		layoutElement = React.createElement( LoggedOutLayout );
+		layoutElement = React.createElement( Layout, Object.assign( {}, props, {
+			focus: layoutFocus
+		} ) );
 	}
 
 	if ( config.isEnabled( 'perfmon' ) ) {
@@ -345,6 +365,10 @@ function boot() {
 
 	if ( config.isEnabled( 'desktop' ) ) {
 		require( 'lib/desktop' ).init();
+	}
+
+	if ( config.isEnabled( 'rubberband-scroll-disable' ) ) {
+		require( 'lib/rubberband-scroll-disable' )( document.body );
 	}
 
 	detectHistoryNavigation.start();

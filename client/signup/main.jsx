@@ -6,21 +6,22 @@ const debug = debugModule( 'calypso:signup' );
 import React from 'react';
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 import page from 'page';
-import startsWith from 'lodash/string/startsWith';
-import sortBy from 'lodash/collection/sortBy';
-import last from 'lodash/array/last';
-import find from 'lodash/collection/find';
-import some from 'lodash/collection/some';
-import defer from 'lodash/function/defer';
-import delay from 'lodash/function/delay';
-import assign from 'lodash/object/assign';
-import matchesProperty from 'lodash/utility/matchesProperty';
-import indexOf from 'lodash/array/indexOf';
-import reject from 'lodash/collection/reject';
+import startsWith from 'lodash/startsWith';
+import sortBy from 'lodash/sortBy';
+import last from 'lodash/last';
+import find from 'lodash/find';
+import some from 'lodash/some';
+import defer from 'lodash/defer';
+import delay from 'lodash/delay';
+import assign from 'lodash/assign';
+import matchesProperty from 'lodash/matchesProperty';
+import indexOf from 'lodash/indexOf';
+import reject from 'lodash/reject';
 
 /**
  * Internal dependencies
  */
+import config from 'config';
 import SignupDependencyStore from 'lib/signup/dependency-store';
 import SignupProgressStore from 'lib/signup/progress-store';
 import SignupFlowController from 'lib/signup/flow-controller';
@@ -35,6 +36,7 @@ const user = userModule();
 import analytics from 'analytics';
 import SignupProcessingScreen from 'signup/processing-screen';
 import utils from './utils';
+import * as oauthToken from 'lib/oauth-token';
 
 /**
  * Constants
@@ -144,12 +146,21 @@ const Signup = React.createClass( {
 
 		analytics.tracks.recordEvent( 'calypso_signup_complete', { flow: this.props.flowName } );
 
-		if ( user.get() ) {
+		const userIsLoggedIn = Boolean( user.get() );
+
+		if ( userIsLoggedIn ) {
 			// deferred in case the user is logged in and the redirect triggers a dispatch
 			defer( function() {
 				page( destination );
 			}.bind( this ) );
-		} else {
+		}
+
+		if ( ! userIsLoggedIn && config.isEnabled( 'oauth' ) ) {
+			oauthToken.setToken( dependencies.bearer_token );
+			window.location.href = destination;
+		}
+
+		if ( ! userIsLoggedIn && ! config.isEnabled( 'oauth' ) ) {
 			this.setState( {
 				bearerToken: dependencies.bearer_token,
 				username: dependencies.username,
@@ -300,6 +311,7 @@ const Signup = React.createClass( {
 					<CurrentComponent
 						path={ this.props.path }
 						step={ currentStepProgress }
+						stepName={ this.props.stepName }
 						goToNextStep={ this.goToNextStep }
 						flowName={ this.props.flowName }
 						signupProgressStore={ this.state.progress }

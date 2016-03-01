@@ -3,13 +3,12 @@
  */
 import ReactDom from 'react-dom';
 import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
 import classNames from 'classnames';
-import debounce from 'lodash/function/debounce';
-import sortBy from 'lodash/collection/sortBy';
-import filter from 'lodash/collection/filter';
-import camelCase from 'lodash/string/camelCase';
-import clone from 'lodash/lang/clone';
-import throttle from 'lodash/function/throttle';
+import debounce from 'lodash/debounce';
+import camelCase from 'lodash/camelCase';
+import throttle from 'lodash/throttle';
+import get from 'lodash/get';
 
 /**
  * Internal dependencies
@@ -17,47 +16,31 @@ import throttle from 'lodash/function/throttle';
 import NoResults from './no-results';
 import analytics from 'analytics';
 import Search from './search';
-import TreeConvert from 'lib/tree-convert';
+import { decodeEntities } from 'lib/formatting';
+import {
+	getSitePostsForQueryIgnoringPage,
+	getSitePostsHierarchyForQueryIgnoringPage,
+	isRequestingSitePostsForQuery,
+	isSitePostsLastPageForQuery
+} from 'state/posts/selectors';
+import { getPostTypes } from 'state/post-types/selectors';
+import QueryPostTypes from 'components/data/query-post-types';
+import QueryPosts from 'components/data/query-posts';
 
 /**
 * Constants
 */
 const SEARCH_DEBOUNCE_TIME_MS = 500;
 const SCROLL_THROTTLE_TIME_MS = 400;
-const treeConverter = new TreeConvert( 'ID' );
 
-function sortBranch( items ) {
-	let menuOrders = filter( items, function( item ) {
-		return item.menu_order > 0;
-	} );
-
-	return sortBy( items, function( item ) {
-		if ( menuOrders.length ) {
-			return item.menu_order;
-		}
-
-		return item.title.toLowerCase();
-	} );
-}
-
-function buildTree( items ) {
-	const sortedPosts = [];
-
-	// clone objects to prevent mutating store data, set parent to number
-	items.forEach( function( item ) {
-		let post = clone( item );
-		post.parent = post.parent ? post.parent.ID : 0;
-		sortedPosts.push( post );
-	} );
-
-	return treeConverter.treeify( sortedPosts );
-}
-
-export default React.createClass( {
+const PostSelectorPosts = React.createClass( {
 	displayName: 'PostSelectorPosts',
 
 	propTypes: {
+		siteId: PropTypes.number.isRequired,
+		query: PropTypes.object,
 		posts: PropTypes.array,
+		postsHierarchy: PropTypes.array,
 		page: PropTypes.number,
 		lastPage: PropTypes.bool,
 		loading: PropTypes.bool,
@@ -67,13 +50,12 @@ export default React.createClass( {
 		onSearch: PropTypes.func,
 		onChange: PropTypes.func,
 		onNextPage: PropTypes.func,
-		multiple: PropTypes.bool
+		multiple: PropTypes.bool,
+		showTypeLabel: PropTypes.bool
 	},
 
 	getInitialState() {
-		return {
-			searchTerm: null
-		};
+		return { searchTerm: null };
 	},
 
 	getDefaultProps() {
@@ -121,19 +103,29 @@ export default React.createClass( {
 		const checked = this.props.selected === item.ID;
 		const inputType = this.props.multiple ? 'checkbox' : 'radio';
 		const domId = camelCase( this.props.analyticsPrefix ) + '-option-' + itemId;
+		const postType = get( this.props.postTypes, [ item.type, 'labels', 'singular_name' ], '' );
 
 		const input = (
-			<input id={ domId } type={ inputType } name='posts'
+			<input
+				id={ domId }
+				type={ inputType }
+				name="posts"
 				value={ itemId }
 				onChange={ this.props.onChange.bind( null, item ) }
-				checked={ checked } />
+				checked={ checked }
+				className="post-selector__input" />
 		);
 
 		return (
 			<li key={ 'post-' + itemId } className="post-selector__list-item">
 				<label>
 					{ input }
-					<span className="post-selector__label">{ name }</span>
+					<span className="post-selector__label">
+						{ decodeEntities( name ) }
+						<span className="post-selector__label-type">
+							{ decodeEntities( postType ) }
+						</span>
+					</span>
 				</label>
 				{ item.items ? this.renderHierarchy( item.items, true ) : null }
 			</li>
@@ -155,12 +147,11 @@ export default React.createClass( {
 	},
 
 	renderHierarchy( items, isRecursive ) {
-		const sortedItems = this.props.lastPage ? sortBranch( items ) : items;
 		const listClass = isRecursive ? 'post-selector__nested-list' : 'post-selector__list';
 
 		return (
 			<ul className={ listClass }>
-				{ sortedItems.map( this.renderItem, this ) }
+				{ items.map( this.renderItem, this ) }
 				{
 					this.props.loading && ! isRecursive ?
 					this.renderPlaceholderItem() :
@@ -175,8 +166,8 @@ export default React.createClass( {
 
 		return (
 			<li>
-				<input className='placeholder-text' type={ inputType } name='posts' disabled={ true } />
-				<label><span className='placeholder-text'>Loading list of options...</span></label>
+				<input className="post-selector__input" type={ inputType } name="posts" disabled={ true } />
+				<label><span className="placeholder-text">Loading list of options...</span></label>
 			</li>
 		);
 	},
@@ -196,23 +187,27 @@ export default React.createClass( {
 	render() {
 		const numberPosts = this.props.posts ? this.props.posts.length : 0;
 		const showSearch = ( numberPosts > this.props.searchThreshold ) || this.state.searchTerm;
-		let posts;
 
-		if ( this.props.posts ) {
-			// Only build tree if all pages are loaded, and not searching
-			posts = ( this.props.lastPage && ! this.state.searchTerm ) ? buildTree( this.props.posts ) : this.props.posts;
+		let showTypeLabels;
+		if ( 'boolean' === typeof this.props.showTypeLabels ) {
+			showTypeLabels = this.props.showTypeLabels;
+		} else {
+			showTypeLabels = 'any' === this.props.query.type;
 		}
 
 		const classes = classNames(
 			'post-selector',
 			this.props.className, {
 				'is-loading': this.props.loading,
-				'is-compact': ! showSearch && ! this.props.loading
+				'is-compact': ! showSearch && ! this.props.loading,
+				'is-type-labels-visible': showTypeLabels
 			}
 		);
 
 		return (
 			<div className={ classes } onScroll={ this.checkScrollPosition }>
+				<QueryPosts siteId={ this.props.siteId } query={ this.props.query } />
+				{ showTypeLabels && <QueryPostTypes siteId={ this.props.siteId } /> }
 				{ showSearch ?
 					<Search searchTerm={ this.state.searchTerm } onSearch={ this.onSearch } /> :
 					null
@@ -227,10 +222,23 @@ export default React.createClass( {
 					<span className='is-empty-content'>{ this.props.emptyMessage }</span> :
 					null
 				}
-				<form>
-					{ posts ? this.renderHierarchy( posts ) : this.renderPlaceholder() }
+				<form className="post-selector__results">
+					{ this.props.postsHierarchy
+						? this.renderHierarchy( this.props.postsHierarchy )
+						: this.renderPlaceholder() }
 				</form>
 			</div>
 		);
 	}
 } );
+
+export default connect( ( state, ownProps ) => {
+	const { siteId, query } = ownProps;
+	return {
+		posts: getSitePostsForQueryIgnoringPage( state, siteId, query ),
+		postsHierarchy: getSitePostsHierarchyForQueryIgnoringPage( state, siteId, query ),
+		lastPage: isSitePostsLastPageForQuery( state, siteId, query ),
+		loading: isRequestingSitePostsForQuery( state, siteId, query ),
+		postTypes: getPostTypes( state, siteId )
+	};
+} )( PostSelectorPosts );

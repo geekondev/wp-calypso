@@ -5,14 +5,21 @@ var store = require( 'store' ),
 	debug = require( 'debug' )( 'calypso:user' ),
 	config = require( 'config' ),
 	qs = require( 'qs' ),
-	isEqual = require( 'lodash/lang/isEqual' );
+	isEqual = require( 'lodash/isEqual' );
 
 /**
  * Internal dependencies
  */
 var wpcom = require( 'lib/wp' ),
 	Emitter = require( 'lib/mixins/emitter' ),
-	userUtils = require( './shared-utils' );
+	userUtils = require( './shared-utils' ),
+	supportUser = require( 'lib/user/support-user-interop' ),
+	getLocalForage = require( 'lib/localforage' ).getLocalForage;
+
+/**
+ * Module variables
+ */
+var localforage = getLocalForage();
 
 /**
  * User component
@@ -38,6 +45,14 @@ User.prototype.initialize = function() {
 	debug( 'Initializing User' );
 	this.fetching = false;
 	this.initialized = false;
+
+	if ( supportUser.shouldBootToSupportUser() ) {
+		supportUser.boot();
+		this.fetch();
+
+		// We're booting into support user mode, skip initialization of the main user.
+		return;
+	}
 
 	if ( config( 'wpcom_user_bootstrap' ) ) {
 		this.data = window.currentUser || false;
@@ -207,6 +222,9 @@ User.prototype.clear = function() {
 	this.data = [];
 	delete this.settings;
 	store.clear();
+	if ( config.isEnabled( 'persist-redux' ) ) {
+		localforage.removeItem( 'redux-state' );
+	}
 };
 
 /**
@@ -236,25 +254,6 @@ User.prototype.set = function( attributes ) {
 	}
 
 	return changed;
-};
-
-User.prototype.changeUser = function( username, password, callback ) {
-	if ( config.isEnabled( 'support-user' ) ) {
-		wpcom.changeUser( username, password, function( error ) {
-			if ( ! error ) {
-				this.fetch();
-			}
-			callback( error );
-		}.bind( this ) );
-	}
-};
-
-User.prototype.restoreUser = function() {
-	if ( config.isEnabled( 'support-user' ) ) {
-		wpcom.restoreUser();
-
-		this.fetch();
-	}
 };
 
 /**

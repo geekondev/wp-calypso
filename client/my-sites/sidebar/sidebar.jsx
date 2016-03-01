@@ -1,30 +1,30 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
+var analytics = require( 'analytics' ),
 	classNames = require( 'classnames' ),
 	debug = require( 'debug' )( 'calypso:my-sites:sidebar' ),
-	analytics = require( 'analytics' ),
-	startsWith = require( 'lodash/string/startsWith' ),
-	has = require( 'lodash/object/has' ),
-	contains = require( 'lodash/collection/contains' );
+	has = require( 'lodash/has' ),
+	includes = require( 'lodash/includes' ),
+	React = require( 'react' ),
+	startsWith = require( 'lodash/startsWith' );
 
 /**
  * Internal dependencies
  */
-var config = require( 'config' ),
-	Sidebar = require( 'layout/sidebar' ),
-	CurrentSite = require( 'my-sites/current-site' ),
-	PublishMenu = require( './publish-menu' ),
-	SiteStatsStickyLink = require( 'components/site-stats-sticky-link' ),
-	productsValues = require( 'lib/products-values' ),
-	getCustomizeUrl = require( 'lib/themes/helpers' ).getCustomizeUrl,
-	SidebarMenuItem = require( './sidebar-menu-item' ),
+var abtest = require( 'lib/abtest' ).abtest,
 	AdsUtils = require( 'lib/ads/utils' ),
+	config = require( 'config' ),
+	CurrentSite = require( 'my-sites/current-site' ),
+	getCustomizeUrl = require( '../themes/helpers' ).getCustomizeUrl,
 	Gridicon = require( 'components/gridicon' ),
+	productsValues = require( 'lib/products-values' ),
+	PublishMenu = require( './publish-menu' ),
+	Sidebar = require( 'layout/sidebar' ),
 	SidebarHeading = require( 'layout/sidebar/heading' ),
+	SidebarItem = require( 'layout/sidebar/item' ),
 	SidebarMenu = require( 'layout/sidebar/menu' ),
-	abtest = require( 'lib/abtest' ).abtest;
+	SiteStatsStickyLink = require( 'components/site-stats-sticky-link' );
 
 module.exports = React.createClass( {
 	displayName: 'MySitesSidebar',
@@ -137,13 +137,12 @@ module.exports = React.createClass( {
 		}
 
 		return (
-			<SidebarMenuItem
+			<SidebarItem
 				label={ site.jetpack ? 'AdControl' : 'WordAds' }
 				className={ this.itemLinkClass( '/ads', 'ads' ) }
 				link={ adsLink }
 				onNavigate={ this.onNavigate }
-				icon={ 'speaker' }
-			/>
+				icon={ 'speaker' } />
 		);
 	},
 
@@ -169,7 +168,7 @@ module.exports = React.createClass( {
 		}
 
 		return (
-			<SidebarMenuItem
+			<SidebarItem
 				label={ this.translate( 'Themes' ) }
 				className={ this.itemLinkClass( '/design', 'themes' ) }
 				link={ themesLink }
@@ -177,8 +176,7 @@ module.exports = React.createClass( {
 				buttonLabel={ this.translate( 'Customize' ) }
 				onNavigate={ this.onNavigate }
 				icon={ 'themes' }
-				preloadSectionName="themes"
-			/>
+				preloadSectionName="themes" />
 		);
 	},
 
@@ -221,37 +219,43 @@ module.exports = React.createClass( {
 	plugins: function() {
 		var site = this.getSelectedSite(),
 			pluginsLink = '/plugins' + this.siteSuffix(),
-			pluginsBrowseLink = '/plugins/browse' + this.siteSuffix(),
-			addPluginsButton;
+			addPluginsButton,
+			noticon,
+			target;
 
-		if ( ! this.isSingle() && ! config.isEnabled( 'manage/plugins' ) ) {
+		if ( ! config.isEnabled( 'manage/plugins' ) ) {
+			if ( ! this.isSingle() ) {
+				return null;
+			}
+
+			if ( site.options ) {
+				pluginsLink = site.options.admin_url + 'plugins.php';
+			}
+
+			target = '_blank';
+			noticon = <span className="noticon noticon-external" />;
+		}
+
+		if ( ! this.props.sites.canManageSelectedOrAll() ) {
 			return null;
 		}
 
-		if ( ! this.props.sites.canManageSelectedOrAll()  ) {
+		if ( ! this.props.sites.hasSiteWithPlugins() ) {
 			return null;
-		}
-
-		if ( ! this.props.sites.hasSiteWithPlugins() && ! this.isSingle() ) {
-			return null;
-		}
-
-		if ( ! config.isEnabled( 'manage/plugins' ) && site.options ) {
-			pluginsLink = site.options.admin_url + 'plugins.php';
 		}
 
 		if ( config.isEnabled( 'manage/plugins/browser' ) ) {
-			if ( ( this.isSingle() && site.jetpack ) || ( this.hasJetpackSites() && ! this.isSingle() ) ) {
-				addPluginsButton = <a onClick={ this.onNavigate } href={ pluginsBrowseLink } className="add-new">{ this.translate( 'Add' ) }</a>;
+			if ( ( this.isSingle() && site.jetpack ) || ( ! this.isSingle() && this.hasJetpackSites() ) ) {
+				addPluginsButton = <a onClick={ this.onNavigate } href={ '/plugins/browse' + this.siteSuffix() } className="add-new">{ this.translate( 'Add' ) }</a>;
 			}
 		}
 
 		return (
 			<li className={ this.itemLinkClass( '/plugins', 'plugins' ) }>
-				<a onClick={ this.onNavigate } href={ pluginsLink } target={ ! config.isEnabled( 'manage/plugins' ) ? '_blank' : null }>
+				<a onClick={ this.onNavigate } href={ pluginsLink } target={ target }>
 					<Gridicon icon="plugins" size={ 24 } />
 					<span className="menu-link-text">{ this.translate( 'Plugins' ) }</span>
-					{ ! config.isEnabled( 'manage/plugins' ) ? <span className="noticon noticon-external" /> : null }
+					{ noticon }
 				</a>
 				{ addPluginsButton }
 			</li>
@@ -260,12 +264,15 @@ module.exports = React.createClass( {
 
 	upgrades: function() {
 		var site = this.getSelectedSite(),
-			target = null,
 			domainsLink = '/domains' + this.siteSuffix(),
 			addDomainLink = '/domains/add' + this.siteSuffix(),
 			addDomainButton = '';
 
-		if ( ! site ) {
+		if ( ! config.isEnabled( 'manage/plans' ) ) {
+			return null;
+		}
+
+		if ( ! this.isSingle() ) {
 			return null;
 		}
 
@@ -274,14 +281,6 @@ module.exports = React.createClass( {
 		}
 
 		if ( site.capabilities && ! site.capabilities.manage_options ) {
-			return null;
-		}
-
-		if ( ! this.isSingle() && ! config.isEnabled( 'manage/plans' ) ) {
-			return null;
-		}
-
-		if ( ! config.isEnabled( 'manage/plans' ) ) {
 			return null;
 		}
 
@@ -294,9 +293,9 @@ module.exports = React.createClass( {
 		}
 
 		return (
-			 <li className={ this.itemLinkClass( [ '/domains' ], 'domains' ) }>
-				<a onClick={ this.onNavigate } href={ domainsLink } target={ target }>
-					<Gridicon icon="cart" size={ 24 } />
+			<li className={ this.itemLinkClass( [ '/domains' ], 'domains' ) }>
+				<a onClick={ this.onNavigate } href={ domainsLink }>
+					<Gridicon icon="globe" size={ 24 } />
 					<span className="menu-link-text">{ this.translate( 'Domains' ) }</span>
 				</a>
 				{ addDomainButton }
@@ -334,9 +333,26 @@ module.exports = React.createClass( {
 		let planName = site.plan.product_name_short,
 			labelClass = 'plan-name';
 
-		if ( abtest( 'plansUpgradeButton' ) === 'button' && productsValues.isFreePlan( site.plan ) ) {
+		const testVariation = abtest( 'plansUpgradeButton' );
+
+		if ( testVariation !== 'original' && productsValues.isFreePlan( site.plan ) ) {
 			labelClass = 'add-new';
-			planName = 'More'; // TODO: translate this string if the test is removed
+
+			if ( testVariation === 'free' ) {
+				planName = 'Free'; // TODO: translate this string if the test is removed
+			}
+
+			if ( testVariation === 'add' ) {
+				planName = 'Add'; // TODO: translate this string if the test is removed
+			}
+
+			if ( testVariation === 'info' ) {
+				planName = 'Info'; // TODO: translate this string if the test is removed
+			}
+
+			if ( testVariation === 'change' ) {
+				planName = 'Change'; // TODO: translate this string if the test is removed
+			}
 		}
 
 		if ( productsValues.isFreeTrial( site.plan ) ) {
@@ -483,7 +499,7 @@ module.exports = React.createClass( {
 				return null;
 			}
 
-			if ( ! contains( currentUser.meta.data.flags.active_flags, 'wpcom-use-wpadmin-flows' ) ) {
+			if ( ! includes( currentUser.meta.data.flags.active_flags, 'wpcom-use-wpadmin-flows' ) ) {
 				return null;
 			}
 		}
@@ -504,13 +520,14 @@ module.exports = React.createClass( {
 	},
 
 	vip: function() {
+		var site, viplink;
 
 		if ( ! config.isEnabled( 'vip' ) ) {
 			return null;
 		}
 
-		var site = this.getSelectedSite(),
-			viplink = '/vip/updates' + this.siteSuffix();
+		site = this.getSelectedSite();
+		viplink = '/vip/updates' + this.siteSuffix();
 
 		if ( ! site ) {
 			return null;
@@ -526,13 +543,14 @@ module.exports = React.createClass( {
 	},
 
 	vipDeploys: function() {
+		var site, viplink;
 
 		if ( ! config.isEnabled( 'vip/deploys' ) ) {
 			return null;
 		}
 
-		var site = this.getSelectedSite(),
-			viplink = '/vip/deploys' + this.siteSuffix();
+		site = this.getSelectedSite();
+		viplink = '/vip/deploys' + this.siteSuffix();
 
 		if ( ! site ) {
 			return null;
@@ -548,13 +566,14 @@ module.exports = React.createClass( {
 	},
 
 	vipBilling: function() {
+		var site, viplink;
 
 		if ( ! config.isEnabled( 'vip/billing' ) ) {
 			return null;
 		}
 
-		var site = this.getSelectedSite(),
-			viplink = '/vip/billing' + this.siteSuffix();
+		site = this.getSelectedSite();
+		viplink = '/vip/billing' + this.siteSuffix();
 
 		if ( ! site ) {
 			return null;
@@ -570,12 +589,13 @@ module.exports = React.createClass( {
 	},
 
 	vipSupport: function() {
+		var viplink;
 
 		if ( ! config.isEnabled( 'vip/support' ) ) {
 			return null;
 		}
 
-		var viplink = '/vip/support' + this.siteSuffix();
+		viplink = '/vip/support' + this.siteSuffix();
 
 		return (
 			<li className={ this.itemLinkClass( '/vip/support', 'sidebar__vip-support' ) }>
@@ -587,13 +607,14 @@ module.exports = React.createClass( {
 	},
 
 	vipBackups: function() {
+		var site, viplink;
 
 		if ( ! config.isEnabled( 'vip/backups' ) ) {
 			return null;
 		}
 
-		var site = this.getSelectedSite(),
-			viplink = '/vip/backups' + this.siteSuffix();
+		site = this.getSelectedSite();
+		viplink = '/vip/backups' + this.siteSuffix();
 
 		if ( ! site ) {
 			return null;
@@ -609,13 +630,14 @@ module.exports = React.createClass( {
 	},
 
 	vipLogs: function() {
+		var site, viplink;
 
 		if ( ! config.isEnabled( 'vip/logs' ) ) {
 			return null;
 		}
 
-		var site = this.getSelectedSite(),
-			viplink = '/vip/logs' + this.siteSuffix();
+		site = this.getSelectedSite();
+		viplink = '/vip/logs' + this.siteSuffix();
 
 		if ( ! site ) {
 			return null;
@@ -650,50 +672,54 @@ module.exports = React.createClass( {
 					</ul>
 				</SidebarMenu>
 
-				{ vip ?
-				<SidebarMenu>
-					<SidebarHeading>VIP</SidebarHeading>
-					<ul>
-						{ this.vip() }
-						{ this.vipDeploys() }
-						{ this.vipBilling() }
-						{ this.vipSupport() }
-						{ this.vipBackups() }
-						{ this.vipLogs() }
-					</ul>
-				</SidebarMenu>
-				: null }
+				{ vip
+					? <SidebarMenu>
+						<SidebarHeading>VIP</SidebarHeading>
+						<ul>
+							{ this.vip() }
+							{ this.vipDeploys() }
+							{ this.vipBilling() }
+							{ this.vipSupport() }
+							{ this.vipBackups() }
+							{ this.vipLogs() }
+						</ul>
+					</SidebarMenu>
+					: null
+				}
 
-				{ publish ?
-				<SidebarMenu>
-					<SidebarHeading>{ this.translate( 'Publish' ) }</SidebarHeading>
-					{ this.publish() }
-				</SidebarMenu>
-				: null }
+				{ publish
+					? <SidebarMenu>
+						<SidebarHeading>{ this.translate( 'Publish' ) }</SidebarHeading>
+						{ this.publish() }
+					</SidebarMenu>
+					: null
+				}
 
-				{ appearance ?
-				<SidebarMenu>
-					<SidebarHeading>{ this.translate( 'Personalize' ) }</SidebarHeading>
-					<ul>
-						{ this.themes() }
-						{ this.menus() }
-					</ul>
-				</SidebarMenu>
-				: null }
+				{ appearance
+					? <SidebarMenu>
+						<SidebarHeading>{ this.translate( 'Personalize' ) }</SidebarHeading>
+						<ul>
+							{ this.themes() }
+							{ this.menus() }
+						</ul>
+					</SidebarMenu>
+					: null
+				}
 
-				{ configuration ?
-				<SidebarMenu>
-					<SidebarHeading>{ this.translate( 'Configure' ) }</SidebarHeading>
-					<ul>
-						{ this.sharing() }
-						{ this.users() }
-						{ this.plugins() }
-						{ this.upgrades() }
-						{ this.siteSettings() }
-						{ this.wpAdmin() }
-					</ul>
-				</SidebarMenu>
-				: null }
+				{ configuration
+					? <SidebarMenu>
+						<SidebarHeading>{ this.translate( 'Configure' ) }</SidebarHeading>
+						<ul>
+							{ this.sharing() }
+							{ this.users() }
+							{ this.plugins() }
+							{ this.upgrades() }
+							{ this.siteSettings() }
+							{ this.wpAdmin() }
+						</ul>
+					</SidebarMenu>
+					: null
+				}
 			</Sidebar>
 		);
 	}

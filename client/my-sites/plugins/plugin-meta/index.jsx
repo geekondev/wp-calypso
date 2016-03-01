@@ -4,7 +4,7 @@
 import React from 'react';
 import classNames from 'classnames';
 import i18n from 'lib/mixins/i18n';
-import some from 'lodash/collection/some';
+import some from 'lodash/some';
 
 /**
  * Internal dependencies
@@ -284,7 +284,6 @@ export default React.createClass( {
 						{ this.renderActions() }
 					</div>
 					{ ! this.props.isMock && <PluginInformation
-						isWpcomPlugin={ this.props.isWpcomPlugin }
 						plugin={ this.props.plugin }
 						isPlaceholder={ this.props.isPlaceholder }
 						site={ this.props.selectedSite }

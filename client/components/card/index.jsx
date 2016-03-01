@@ -1,8 +1,10 @@
+/** @ssr-ready **/
+
 /**
  * External dependencies
  */
 var React = require( 'react' ),
-	assign = require( 'lodash/object/assign' ),
+	assign = require( 'lodash/assign' ),
 	classnames = require( 'classnames' );
 
 /**
@@ -29,7 +31,7 @@ module.exports = React.createClass( {
 		if ( this.props.href ) {
 			element = 'a';
 			linkIndicator = <Gridicon
-				className='card__link-indicator'
+				className="card__link-indicator"
 				icon={ this.props.target ? 'external' : 'chevron-right' } />;
 		}
 

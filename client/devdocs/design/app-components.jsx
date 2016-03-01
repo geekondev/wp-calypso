@@ -4,13 +4,14 @@
 var React = require( 'react' ),
 	page = require( 'page' ),
 	toTitleCase = require( 'to-title-case' ),
-	trim = require( 'lodash/string/trim' );
+	trim = require( 'lodash/trim' );
 
 /**
  * Internal dependencies
  */
 var SearchCard = require( 'components/search-card' ),
 	CommentButtons = require( 'components/comment-button/docs/example' ),
+	PostSelector = require( 'my-sites/post-selector/docs/example' ),
 	LikeButtons = require( 'components/like-button/docs/example' ),
 	FollowButtons = require( 'components/follow-button/docs/example' ),
 	Sites = require( 'lib/sites-list/docs/example' ),
@@ -142,6 +143,7 @@ module.exports = React.createClass( {
 				}
 				<Collection component={ this.props.component } filter={ this.state.filter }>
 					<CommentButtons />
+					<PostSelector />
 					<LikeButtons />
 					<FollowButtons />
 					<Sites />

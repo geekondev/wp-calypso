@@ -6,20 +6,25 @@ var express = require( 'express' ),
 	cookieParser = require( 'cookie-parser' ),
 	i18nUtils = require( 'lib/i18n-utils' ),
 	debug = require( 'debug' )( 'calypso:pages' ),
-	superagent = require( 'superagent' ),
-	includes = require( 'lodash/collection/includes' ),
+	includes = require( 'lodash/includes' ),
 	React = require( 'react' ),
-	ReactDomServer = require( 'react-dom/server' ),
-	Helmet = require( 'react-helmet' );
+	ReduxProvider = require( 'react-redux' ).Provider,
+	pick = require( 'lodash/pick' ),
+	url = require( 'url' );
 
 var config = require( 'config' ),
 	sanitize = require( 'sanitize' ),
 	utils = require( 'bundler/utils' ),
 	sections = require( '../../client/sections' ),
-	LayoutLoggedOutDesign = require( 'layout/logged-out-design' );
-
-var LayoutLoggedOutDesignFactory = React.createFactory( LayoutLoggedOutDesign );
-var cachedDesignMarkup = {};
+	LayoutLoggedOut = require( 'layout/logged-out' ),
+	render = require( 'render' ).render,
+	i18n = require( 'lib/mixins/i18n' ),
+	createReduxStore = require( 'state' ).createReduxStore,
+	setSection = require( 'state/ui/actions' ).setSection,
+	ThemeSheet = require( 'my-sites/themes/sheet' ).default,
+	ThemeDetails = require( 'components/data/theme-details' ),
+	wpcom = require( 'lib/wp' ),
+	ThemesActionTypes = require( 'state/themes/action-types' );
 
 var HASH_LENGTH = 10,
 	URL_BASE_PATH = '/calypso',
@@ -34,7 +39,8 @@ var staticFiles = [
 	{ path: 'style-rtl.css' }
 ];
 
-var chunksByPath = {};
+var chunksByPath = {},
+	themeDetails = new Map();
 
 sections.forEach( function( section ) {
 	section.paths.forEach( function( path ) {
@@ -149,7 +155,8 @@ function getDefaultContext( request ) {
 		jsFile: 'build',
 		faviconURL: '//s1.wp.com/i/favicon.ico',
 		isFluidWidth: !! config.isEnabled( 'fluid-width' ),
-		devDocsURL: '/devdocs'
+		devDocsURL: '/devdocs',
+		catchJsErrors: '/calypso/catch-js-errors-' + 'v2' + '.min.js'
 	};
 
 	context.app = {
@@ -318,14 +325,6 @@ function renderLoggedInRoute( req, res ) {
 	}
 }
 
-function bumpStat( group, name ) {
-	const url = `http://pixel.wp.com/g.gif?v=wpcom-no-pv&x_${ group }=${ name }&t=${ Math.random() }`;
-
-	if ( config( 'env' ) === 'production' ) {
-		superagent.get( url ).end();
-	}
-}
-
 module.exports = function() {
 	var app = express();
 
@@ -380,6 +379,71 @@ module.exports = function() {
 		}
 	} );
 
+	if ( config.isEnabled( 'manage/themes/details' ) ) {
+		app.get( '/themes/:theme_slug/:section?', function( req, res ) {
+			function updateRenderCache( themeSlug ) {
+				wpcom.undocumented().themeDetails( themeSlug, ( error, data ) => {
+					if ( error ) {
+						debug( `Error fetching theme ${ themeSlug } details: `, error.message || error );
+						return;
+					}
+					const themeData = themeDetails.get( themeSlug );
+					if ( ! themeData || ( Date( data.date_updated ) > Date( themeData.date_updated ) ) ) {
+						debug( 'caching', themeSlug );
+						themeDetails.set( themeSlug, data );
+						// update the render cache
+						renderThemeSheet( data );
+					}
+				} );
+			}
+
+			function renderThemeSheet( theme ) {
+				const context = {};
+				const store = createReduxStore();
+				store.dispatch( {
+					type: ThemesActionTypes.RECEIVE_THEME_DETAILS,
+					themeId: theme.id,
+					themeName: theme.name,
+					themeAuthor: theme.author,
+					themeScreenshot: theme.screenshot,
+					themePrice: theme.price ? theme.price.display : undefined,
+					themeDescription: theme.description,
+					themeDescriptionLong: theme.description_long,
+					themeSupportDocumentation: theme.extended ? theme.extended.support_documentation : undefined,
+				} );
+
+				store.dispatch( setSection( 'themes', { hasSidebar: false, isFullScreen: true } ) );
+				context.initialReduxState = pick( store.getState(), 'ui', 'themes' );
+
+				const primary = <ThemeDetails id={ theme.id }><ThemeSheet /></ThemeDetails>;
+
+				const element = (
+					<ReduxProvider store={ store }>
+						<LayoutLoggedOut primary={ primary } />
+					</ReduxProvider>
+				);
+				const path = url.parse( req.url ).path;
+				const key = JSON.stringify( element ) + path + JSON.stringify( context.initialReduxState );
+				Object.assign( context, render( element, key ) );
+				return context;
+			};
+
+			const context = getDefaultContext( req );
+			if ( config.isEnabled( 'server-side-rendering' ) ) {
+				const theme = themeDetails.get( req.params.theme_slug );
+				if ( theme ) {
+					Object.assign( context, renderThemeSheet( theme ) );
+					debug( 'found theme!', theme.id );
+				}
+
+				i18n.initialize();
+				req.params.theme_slug && updateRenderCache( req.params.theme_slug ); // TODO(ehg): We don't want to hit the endpoint for every req. Debounce based on theme arg?
+			}
+
+			res.render( 'index.jade', context );
+		} );
+	}
+
 	app.get( '/design(/type/:themeTier)?', function( req, res ) {
 		if ( req.cookies.wordpress_logged_in || ! config.isEnabled( 'manage/themes/logged-out' ) ) {
 			// the user is probably logged in
@@ -391,37 +455,14 @@ module.exports = function() {
 				: 'all';
 
 			if ( config.isEnabled( 'server-side-rendering' ) ) {
-				try {
-					if ( ! cachedDesignMarkup[ tier ] ) {
-						const cached = cachedDesignMarkup[ tier ] = {};
-						let startTime = Date.now();
-						cached.layout = ReactDomServer.renderToString(
-								LayoutLoggedOutDesignFactory( { tier } ) );
-						let rtsTimeMs = Date.now() - startTime;
+				const store = createReduxStore();
+				i18n.initialize();
+				store.dispatch( setSection( 'design', { hasSidebar: false } ) );
+				context.initialReduxState = pick( store.getState(), 'ui' );
 
-						cached.helmetData = Helmet.rewind();
-
-						if ( rtsTimeMs > 15 ) {
-							// We think that renderToString should generally
-							// never take more than 15ms. We're probably wrong.
-							bumpStat( 'calypso-ssr', 'loggedout-design-over-15ms-rendertostring' );
-						}
-						bumpStat( 'calypso-ssr', 'loggedout-design-cache-miss' );
-					}
-
-					const { layout, helmetData } = cachedDesignMarkup[ tier ];
-
-					Object.assign( context, {
-						layout,
-						helmetTitle: helmetData.title,
-						helmetMeta: helmetData.meta,
-						helmetLink: helmetData.link,
-					} );
-				} catch ( ex ) {
-					if ( config( 'env' ) === 'development' ) {
-						throw ex;
-					}
-				}
+				Object.assign( context,
+					render( <LayoutLoggedOut tier={ tier } store={ store } /> )
+				);
 			}
 
 			res.render( 'index.jade', context );
@@ -459,7 +500,7 @@ module.exports = function() {
 			if ( req.cookies.wordpress_logged_in ) {
 				renderLoggedInRoute( req, res );
 			} else {
-				res.redirect( 'https://discover.wordpress.com' );
+				res.redirect( config( 'discover_logged_out_redirect_url' ) );
 			}
 		} );
 	}
