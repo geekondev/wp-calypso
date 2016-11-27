@@ -12,7 +12,8 @@ var webpack = require( 'webpack' ),
  * Internal dependencies
  */
 var webpackConfig = require( process.cwd() + '/webpack.config' ),
-	utils = require( '../utils' );
+	utils = require( '../utils' ),
+	config = require( '../../config' );
 
 /**
  * Variables
@@ -20,6 +21,7 @@ var webpackConfig = require( process.cwd() + '/webpack.config' ),
 var _children = [],
 	start = new Date().getTime(),
 	CALYPSO_ENV = process.env.CALYPSO_ENV || 'development',
+	bundleEnv = config( 'env' ),
 	outputOptions;
 
 outputOptions = {
@@ -70,6 +72,12 @@ webpack( webpackConfig, function( error, stats ) {
 	}
 
 	process.stdout.write( stats.toString( outputOptions ) + "\n");
+	if ( process.env.WEBPACK_OUTPUT_JSON ) {
+		fs.writeFile(
+			path.join( process.cwd(), 'stats.json' ),
+			JSON.stringify( stats.toJson() )
+		);
+	}
 
 	assets = utils.getAssets( stats.toJson() );
 
@@ -78,9 +86,7 @@ webpack( webpackConfig, function( error, stats ) {
 	files = assets.map( function( chunk ) {
 		return path.join( process.cwd(), 'public', chunk.file );
 	} );
+	files.push( path.join( process.cwd(), 'public', 'vendor.' + bundleEnv + '.js' ) );
 
 	minify( files );
 });
-
-// Minify files outside of webpack
-cp.spawn( path.join( 'node_modules', '.bin', 'uglifyjs' ), [ '--output', 'public/catch-js-errors.js'.replace( '.js', '-v2.min.js' ), 'catch-js-errors.js' ] );

@@ -1,108 +1,137 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	noop = require( 'lodash/noop' );
+import React from 'react';
+import classNames from 'classnames';
 
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
-	SignupActions = require( 'lib/signup/actions' ),
-	ThemesList = require( 'components/themes-list' ),
-	StepWrapper = require( 'signup/step-wrapper' );
+import analytics from 'lib/analytics';
+import SignupActions from 'lib/signup/actions';
+import SignupThemesList from './signup-themes-list';
+import PressableThemeStep from './pressable-theme';
+import StepWrapper from 'signup/step-wrapper';
+import Button from 'components/button';
 
 module.exports = React.createClass( {
 	displayName: 'ThemeSelection',
 
 	propTypes: {
-		themes: React.PropTypes.arrayOf( React.PropTypes.shape( {
-			name: React.PropTypes.string.isRequired,
-			slug: React.PropTypes.string.isRequired
-		} ) ),
+		designType: React.PropTypes.string,
+		goToNextStep: React.PropTypes.func.isRequired,
+		signupDependencies: React.PropTypes.object.isRequired,
+		stepName: React.PropTypes.string.isRequired,
 		useHeadstart: React.PropTypes.bool,
 	},
 
-	getDefaultProps: function() {
+	getInitialState() {
 		return {
-			themes: [
-				{ name: 'Boardwalk', slug: 'boardwalk' },
-				{ name: 'Cubic', slug: 'cubic' },
-				{ name: 'Edin', slug: 'edin' },
-				{ name: 'Cols', slug: 'cols' },
-				{ name: 'Minnow', slug: 'minnow' },
-				{ name: 'Sequential', slug: 'sequential' },
-				{ name: 'Penscratch', slug: 'penscratch' },
-				{ name: 'Intergalactic', slug: 'intergalactic' },
-				{ name: 'Eighties', slug: 'eighties' },
-			],
-
-			useHeadstart: false
+			showPressable: false,
 		};
 	},
 
-	handleScreenshotClick: function( theme ) {
-		var themeSlug = theme.id;
+	getDefaultProps() {
+		return {
+			useHeadstart: true,
+		};
+	},
 
-		if ( true === this.props.useHeadstart && themeSlug ) {
-			analytics.tracks.recordEvent( 'calypso_signup_theme_select', { theme: themeSlug, headstart: true } );
+	pickTheme( theme ) {
+		const repoSlug = `${ theme.repo }/${ theme.slug }`;
 
-			SignupActions.submitSignupStep( {
-				stepName: this.props.stepName,
-				processingMessage: this.translate( 'Adding your theme' ),
-				themeSlug
-			}, null, {
-				theme: 'pub/' + themeSlug
-			} );
-		} else {
-			analytics.tracks.recordEvent( 'calypso_signup_theme_select', { theme: themeSlug, headstart: false } );
+		analytics.tracks.recordEvent( 'calypso_signup_theme_select', {
+			theme: repoSlug,
+			headstart: true
+		} );
 
-			SignupActions.submitSignupStep( {
-				stepName: this.props.stepName,
-				processingMessage: this.translate( 'Adding your theme' ),
-				themeSlug
-			} );
-		}
+		SignupActions.submitSignupStep( {
+			stepName: this.props.stepName,
+			processingMessage: this.translate( 'Adding your theme' ),
+			repoSlug
+		}, null, {
+			theme: repoSlug
+		} );
 
 		this.props.goToNextStep();
 	},
 
-	getThemes() {
-		return this.props.signupDependencies.themes || this.props.themes;
+	handleScreenshotClick( theme ) {
+		this.pickTheme( theme );
 	},
 
-	renderThemesList: function() {
-		var actionLabel = this.translate( 'Pick' ),
-			themes = this.getThemes().map( function( theme ) {
-				return {
-					id: theme.slug,
-					name: theme.name,
-					screenshot: 'https://i1.wp.com/s0.wp.com/wp-content/themes/pub/' + theme.slug + '/screenshot.png?w=660'
-				}
-			} );
+	handleThemeUpload() {
+		this.setState( {
+			showPressable: true
+		} );
+
+		this.scrollUp();
+	},
+
+	renderThemesList() {
 		return (
-			<ThemesList
-				getButtonOptions= { noop }
-				onScreenshotClick= { this.handleScreenshotClick }
-				onMoreButtonClick= { noop }
-				getActionLabel={ function() {
-					return actionLabel;
-				} }
-				{ ...this.props }
-				themes= { themes } />
+			<SignupThemesList
+				surveyQuestion={ this.props.signupDependencies.surveyQuestion }
+				designType={ this.props.designType || this.props.signupDependencies.designType }
+				handleScreenshotClick={ this.handleScreenshotClick }
+				handleThemeUpload={ this.handleThemeUpload }
+			/>
 		);
 	},
 
-	render: function() {
-		const defaultDependencies = this.props.useHeadstart ? { theme: 'pub/twentyfifteen' } : undefined;
+	renderJetpackButton() {
 		return (
-			<StepWrapper
-				fallbackHeaderText={ this.translate( 'Choose a theme.' ) }
-				fallbackSubHeaderText={ this.translate( 'No need to overthink it. You can always switch to a different theme later.' ) }
-				subHeaderText={ this.translate( 'Choose a theme. You can always switch to a different theme later.' ) }
-				stepContent={ this.renderThemesList() }
-				defaultDependencies={ defaultDependencies }
-				{ ...this.props } />
+			<Button compact href="/jetpack/connect">{ this.translate( 'Or Install Jetpack on a Self-Hosted Site' ) }</Button>
+		);
+	},
+
+	scrollUp() {
+		// Didn't use setInterval in order to fix delayed scroll
+		while ( window.pageYOffset > 0 ) {
+			window.scrollBy( 0, -10 );
+		}
+	},
+
+	handleStoreBackClick() {
+		this.setState( {
+			showPressable: false
+		} );
+
+		this.scrollUp();
+	},
+
+	render() {
+		const defaultDependencies = this.props.useHeadstart ? { theme: 'pub/twentysixteen' } : undefined;
+
+		const pressableWrapperClassName = classNames( {
+			'theme-selection__pressable-wrapper': true,
+			'is-hidden': ! this.state.showPressable,
+		} );
+
+		const themesWrapperClassName = classNames( {
+			'theme-selection__themes-wrapper': true,
+			'is-hidden': this.state.showPressable,
+		} );
+
+		return (
+			<div>
+				<div className={ pressableWrapperClassName } >
+					<PressableThemeStep
+						{ ... this.props }
+						onBackClick={ this.handleStoreBackClick }
+					/>
+				</div>
+				<div className={ themesWrapperClassName } >
+					<StepWrapper
+						fallbackHeaderText={ this.translate( 'Choose a theme.' ) }
+						fallbackSubHeaderText={ this.translate( 'No need to overthink it. You can always switch to a different theme later.' ) }
+						subHeaderText={ this.translate( 'Choose a theme. You can always switch to a different theme later.' ) }
+						stepContent={ this.renderThemesList() }
+						defaultDependencies={ defaultDependencies }
+						headerButton={ this.renderJetpackButton() }
+						{ ...this.props } />
+					</div>
+			</div>
 		);
 	}
 } );

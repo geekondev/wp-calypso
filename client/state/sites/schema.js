@@ -25,7 +25,7 @@ export const sitesSchema = {
 					type: 'object',
 					properties: {
 						id: { type: 'number' },
-						sizes: { type: 'array' },
+						sizes: { type: [ 'array', 'object' ] },
 						url: { type: 'string' }
 					}
 				},
@@ -34,7 +34,7 @@ export const sitesSchema = {
 				is_following: { type: 'boolean' },
 				options: { type: 'object' },
 				meta: { type: 'object' },
-				user_can_manager: { type: 'boolean' },
+				user_can_manage: { type: 'boolean' },
 				is_vip: { type: 'boolean' },
 				is_multisite: { type: 'boolean' },
 				capabilities: {
@@ -45,17 +45,17 @@ export const sitesSchema = {
 				},
 				plan: {
 					type: 'object',
+					required: [ 'product_id', 'product_slug', 'expired' ],
 					properties: {
 						product_id: { type: 'number' },
 						product_slug: { type: 'string' },
 						product_name_short: { type: 'string' },
-						free_trial: { type: 'boolean' }
+						free_trial: { type: 'boolean' },
+						expired: { type: 'boolean' },
+						user_is_owner: { type: 'boolean' }
 					}
 				},
-				single_user_site: { type: 'boolean' },
-				domain: { type: 'string' },
-				slug: { type: 'string' },
-				title: { type: 'string' }
+				single_user_site: { type: 'boolean' }
 			}
 		}
 	},

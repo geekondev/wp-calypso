@@ -22,7 +22,6 @@ const Card = require( 'components/card' ),
 	formState = require( 'lib/form-state' ),
 	notices = require( 'notices' ),
 	paths = require( 'my-sites/upgrades/paths' ),
-	statesList = require( 'lib/states-list' ).forDomainRegistrations(),
 	upgradesActions = require( 'lib/upgrades/actions' ),
 	wpcom = require( 'lib/wp' ).undocumented(),
 	successNotice = require( 'state/notices/actions' ).successNotice;
@@ -105,7 +104,7 @@ const EditContactInfoFormCard = React.createClass( {
 					<div className="edit-contact-info-form-card__form-content">
 						{ this.getField( FormInput, {
 							name: 'first-name',
-							autofocus: true,
+							autoFocus: true,
 							label: this.translate( 'First Name', {
 								context: 'Domain Edit Contact Info form.',
 								textOnly: true
@@ -177,7 +176,6 @@ const EditContactInfoFormCard = React.createClass( {
 						} ) }
 						{ this.getField( FormStateSelect, {
 							countryCode: formState.getFieldValue( this.state.form, 'countryCode' ),
-							statesList,
 							name: 'state',
 							label: this.translate( 'State', {
 								context: 'Domain Edit Contact Info form.',
@@ -220,7 +218,7 @@ const EditContactInfoFormCard = React.createClass( {
 				{ ...props }
 				additionalClasses="edit-contact-info-field"
 				disabled={ this.state.formSubmitting || formState.isFieldDisabled( this.state.form, name ) }
-				invalid={ formState.isFieldInvalid( this.state.form, name ) }
+				isError={ formState.isFieldInvalid( this.state.form, name ) }
 				value={ formState.getFieldValue( this.state.form, name ) }
 				onChange={ this.onChange } />
 		);
@@ -258,7 +256,7 @@ const EditContactInfoFormCard = React.createClass( {
 	},
 
 	goToContactsPrivacy() {
-		page( paths.domainManagementContactsPrivacy( this.props.selectedSite.domain, this.props.selectedDomainName ) );
+		page( paths.domainManagementContactsPrivacy( this.props.selectedSite.slug, this.props.selectedDomainName ) );
 	},
 
 	saveContactInfo( event ) {
@@ -289,7 +287,7 @@ const EditContactInfoFormCard = React.createClass( {
 	}
 } );
 
-module.exports =  connect(
+module.exports = connect(
 	null,
 	dispatch => bindActionCreators( { successNotice }, dispatch )
 )( EditContactInfoFormCard );

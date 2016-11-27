@@ -1,20 +1,20 @@
 /**
  * External dependencies
  */
-import nock from 'nock';
 import sinon from 'sinon';
-import sinonChai from 'sinon-chai';
-import Chai, { expect } from 'chai';
+import { expect } from 'chai';
 
 /**
  * Internal dependencies
  */
+import useNock from 'test/helpers/use-nock';
 import {
 	EXPORT_ADVANCED_SETTINGS_FETCH,
 	EXPORT_ADVANCED_SETTINGS_FETCH_FAIL,
 	EXPORT_ADVANCED_SETTINGS_RECEIVE,
 	EXPORT_COMPLETE,
 	EXPORT_FAILURE,
+	EXPORT_POST_TYPE_FIELD_SET,
 	EXPORT_START_REQUEST,
 	EXPORT_STARTED,
 	EXPORT_STATUS_FETCH,
@@ -24,18 +24,14 @@ import {
 	advancedSettingsReceive,
 	advancedSettingsFail,
 	exportStatusFetch,
-	startExport
+	startExport,
+	setPostTypeFieldValue,
 } from '../actions';
 import {
 	SAMPLE_ADVANCED_SETTINGS,
 	SAMPLE_EXPORT_COMPLETE_RESPONSE,
 	SAMPLE_EXPORT_FAILED_RESPONSE,
-} from './sample-data';
-
-/**
- * Test setup
- */
-Chai.use( sinonChai );
+} from './data';
 
 describe( 'actions', () => {
 	const spy = sinon.spy();
@@ -44,13 +40,34 @@ describe( 'actions', () => {
 			fetchingAdvancedSettings: {}
 		} }
 	} );
+	const getStateCustomSettings = () => ( {
+		siteSettings: { exporter: {
+			fetchingAdvancedSettings: {},
+			selectedPostType: 'post',
+			selectedAdvancedSettings: {
+				2916284: {
+					post: {
+						author: 95752520,
+						category: 1
+					},
+					page: {}
+				}
+			}
+		} }
+	} );
 
-	before( () => {
+	useNock( ( nock ) => {
 		nock( 'https://public-api.wordpress.com:443' )
 			.persist()
 			.get( '/rest/v1.1/sites/100658273/exports/settings' )
 			.reply( 200, SAMPLE_ADVANCED_SETTINGS )
-			.post( '/rest/v1.1/sites/2916284/exports/start' )
+			.post( '/rest/v1.1/sites/2916284/exports/start', {
+				author: 95752520,
+				category: 1,
+				post_type: 'post'
+			} )
+			.reply( 200, true )
+			.post( '/rest/v1.1/sites/2916284/exports/start', body => !body )
 			.reply( 200, true )
 			.get( '/rest/v1.1/sites/100658273/exports/0' )
 			.reply( 200, SAMPLE_EXPORT_COMPLETE_RESPONSE )
@@ -60,10 +77,6 @@ describe( 'actions', () => {
 
 	beforeEach( () => {
 		spy.reset();
-	} );
-
-	after( () => {
-		nock.restore();
 	} );
 
 	describe( '#advancedSettingsFetch()', () => {
@@ -127,20 +140,32 @@ describe( 'actions', () => {
 
 	describe( '#startExport()', () => {
 		it( 'should dispatch start export action when thunk triggered', () => {
-			startExport( 2916284 )( spy );
+			startExport( 2916284 )( spy, getState );
 
 			expect( spy ).to.have.been.calledWith( {
 				type: EXPORT_START_REQUEST,
-				siteId: 2916284
+				siteId: 2916284,
+				exportAll: true,
 			} );
 		} );
 
+		it( 'should dispatch custom export action when thunk triggered', ( done ) => {
+			startExport( 2916284, false )( spy, getStateCustomSettings ).then( () => {
+				expect( spy ).to.have.been.calledWith( {
+					type: EXPORT_STARTED,
+					siteId: 2916284,
+				} );
+
+				done();
+			} ).catch( done );
+		} );
+
 		it( 'should dispatch export started action when request completes', ( done ) => {
-			startExport( 2916284 )( spy ).then( () => {
+			startExport( 2916284 )( spy, getState ).then( () => {
 				expect( spy ).to.have.been.calledTwice;
 				expect( spy ).to.have.been.calledWith( {
 					type: EXPORT_STARTED,
-					siteId: 2916284
+					siteId: 2916284,
 				} );
 
 				done();
@@ -148,15 +173,27 @@ describe( 'actions', () => {
 		} );
 
 		it( 'should dispatch export failed action when request fails', ( done ) => {
-			startExport( 77203074 )( spy ).then( () => {
+			startExport( 77203074 )( spy, getState ).then( () => {
 				expect( spy ).to.have.been.calledTwice;
 				expect( spy ).to.have.been.calledWithMatch( {
 					type: EXPORT_FAILURE,
-					siteId: 77203074
+					siteId: 77203074,
 				} );
 
 				done();
 			} ).catch( done );
+		} );
+	} );
+
+	describe( '#setPostTypeFilters()', () => {
+		it( 'should return an action object', () => {
+			expect( setPostTypeFieldValue( 1, 'post', 'author', 2 ) ).to.deep.equal( {
+				type: EXPORT_POST_TYPE_FIELD_SET,
+				siteId: 1,
+				postType: 'post',
+				fieldName: 'author',
+				value: 2,
+			} );
 		} );
 	} );
 

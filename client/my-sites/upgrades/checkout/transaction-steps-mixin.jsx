@@ -3,8 +3,6 @@
  */
 var React = require( 'react' ), // eslint-disable-line no-unused-vars
 	debug = require( 'debug' )( 'calypso:my-sites:upgrades:checkout:transaction-steps-mixin' ),
-	flatten = require( 'lodash/flatten' ),
-	values = require( 'lodash/values' ),
 	pick = require( 'lodash/pick' ),
 	defer = require( 'lodash/defer' ),
 	isEqual = require( 'lodash/isEqual' ),
@@ -13,12 +11,11 @@ var React = require( 'react' ), // eslint-disable-line no-unused-vars
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
-	adTracking = require( 'analytics/ad-tracking' ),
-	notices = require( 'notices' ),
+var analytics = require( 'lib/analytics' ),
+	adTracking = require( 'lib/analytics/ad-tracking' ),
 	isFree = require( 'lib/cart-values' ).isFree,
 	cartItems = require( 'lib/cart-values' ).cartItems,
-	ValidationErrorList = require( 'notices/validation-error-list' ),
+	upgradesNotices = require( 'lib/upgrades/notices' ),
 	upgradesActions = require( 'lib/upgrades/actions' );
 
 var TransactionStepsMixin = {
@@ -50,49 +47,21 @@ var TransactionStepsMixin = {
 		this._finishIfLastStep( cart, selectedSite, step );
 	},
 
-	getErrorFromApi: function( errorMessage ) {
-		if ( errorMessage ) {
-			const errorArray = errorMessage.split( /<a href="(.+)">(.+)<\/a>/ );
-
-			if ( errorArray.length === 4 ) { // This assumes we have only one link
-				const errorText1 = errorArray[ 0 ],
-					errorUrl = errorArray[ 1 ],
-					errorLinkText = errorArray[ 2 ],
-					errorText2 = errorArray[ 3 ];
-
-				return (
-					<span>
-						{ errorText1 } <a href={ errorUrl }>{ errorLinkText }</a> { errorText2 }
-					</span>
-				);
-			}
-
-			return errorMessage;
-		}
-
-		return this.translate( 'There was a problem completing the checkout. Please try again.' );
-	},
-
 	_displayNotices: function( cart, step ) {
 		if ( step.error ) {
-			if ( typeof step.error.message === 'object' ) {
-				notices.error( <ValidationErrorList messages={ flatten( values( step.error.message ) ) } /> );
-			} else {
-				notices.error( this.getErrorFromApi( step.error.message ) )
-			}
-
+			upgradesNotices.displayError( step.error );
 			return;
 		}
 
 		switch ( step.name ) {
 			case 'input-validation':
 				if ( ! cartItems.hasFreeTrial( cart ) ) {
-					notices.info( isFree( cart ) ? this.translate( 'Submitting' ) : this.translate( 'Submitting payment' ) );
+					upgradesNotices.displaySubmitting( { isFreeCart: isFree( cart ) } );
 				}
 				break;
 
 			case 'received-wpcom-response':
-				notices.clearNotices( 'notices' );
+				upgradesNotices.clear();
 				break;
 		}
 	},
@@ -124,7 +93,7 @@ var TransactionStepsMixin = {
 					// Makes sure free trials are not recorded as purchases in ad trackers since they are products with
 					// zero-value cost and would thus lead to a wrong computation of conversions
 					if ( ! cartItems.hasFreeTrial( cartValue ) ) {
-						cartValue.products.map( adTracking.recordPurchase );
+						adTracking.recordOrder( cartValue, step.data.receipt_id );
 					}
 
 					analytics.tracks.recordEvent( 'calypso_checkout_payment_success', {

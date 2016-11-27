@@ -22,7 +22,8 @@ const ContactsPrivacyCard = React.createClass( {
 		selectedSite: React.PropTypes.oneOfType( [
 			React.PropTypes.object,
 			React.PropTypes.bool
-		] ).isRequired
+		] ).isRequired,
+		currentUserCanManage: React.PropTypes.bool.isRequired
 	},
 
 	render() {
@@ -37,13 +38,13 @@ const ContactsPrivacyCard = React.createClass( {
 							'{{a}}Learn more.{{/a}}',
 							{
 								components: {
-									a: <a href={ support.PUBLIC_VS_PRIVATE } target="_blank" />
+									a: <a href={ support.PUBLIC_VS_PRIVATE } target="_blank" rel="noopener noreferrer" />
 								}
 							}
 						) }
 					</p>
 
-					{ this.getNotice() }
+					{ this.props.currentUserCanManage && this.getNotice() }
 
 					<ContactDisplay
 						contactInformation={ this.props.contactInformation } />
@@ -83,7 +84,7 @@ const ContactsPrivacyCard = React.createClass( {
 						}
 					) }
 				</Notice>
-			)
+			);
 		}
 
 		return (

@@ -1,45 +1,41 @@
 Shrinkwrap
 ============
-We use `npm shrinkwrap --dev` to lock down our dependency versions. This allows us to
-freeze all dependencies at the exact version we have installed in our node_modules.
+We use
+[`npm-shrinkwrap.json`](https://github.com/Automattic/wp-calypso/blob/master/npm-shrinkwrap.json)
+to lock down our dependency versions. This allows us to freeze all dependencies at the
+exact version we have installed in our node_modules. Note that we use a couple of other
+tools rather than running `npm shrinkwrap` directly, since we have a mirror `npm` registry
+and therefore need to avoid adding the `from` and `resolved` fields that `npm shrinkwrap`
+[uses by default](https://github.com/npm/npm/issues/6444).
 
-See: [shrinkwrap docs](https://docs.npmjs.com/cli/shrinkwrap)
+See also: [shrinkwrap docs](https://docs.npmjs.com/cli/shrinkwrap)
 
-## Modifying Dependencies
+## npm 3
 
-We use clingwrap to avoid creating huge diffs in npm-shrinkwrap.json. clingwrap also removes
-`from` and `resolved` fields which is expected. If you need to update a package that is not published with npm, 
-you will need to update the npm-shrinkwrap.json by hand.
+npm 3 [resolves dependencies differently](https://docs.npmjs.com/how-npm-works/npm3) than npm 2. Specifically:
+- the position in the directory structure no longer predicts the type (primary, secondary, etc) a dependency is
+- dependency resolution depends on install order, or the order in which things are installed will change the node_modules 
+directory tree structure
 
-- Install [clingwrap](https://github.com/goodeggs/clingwrap) globally: `npm install -g clingwrap`
-- Update your desired package, e.g. `npm install lodash@4.0.0 --save`
-- Clingwrap your updated package `clingwrap lodash`
+With the upgrade to npm 3, if we make any dependency changes in package.json, we need to regenerate the entire 
+npm-shrinkwrap.json file.
+
+Testing instructions should ensure that a clean install works and Calypso runs and tests correctly. 
+
+## Generating npm-shrinkwrap.json
+
+- (Optional) Modify package.json. For example: `npm install --save lodash@4.11.1` or `npm uninstall --save left-pad`
+- Install [shonkwrap](https://github.com/skybet/shonkwrap) globally: `npm install -g shonkwrap`. This package attempts
+to remove the from/resolved fields if possible.
+- Run `make shrinkwrap` to generate a new npm-shrinkwrap.json
 - Verify that Calypso works as expected and that tests pass.
-- Commit the updated package.json and npm-shrinkwrap.json
+- Commit the new npm-shrinkwrap.json and any changes to package.json
 
-## Bumping Sub-Dependencies in a Single Package
-
-Periodically, we'll want to bump our package sub-dependencies to pick up bugfixes.  To update sub-dependencies in a 
-single module, (with lodash as an example) :
-
-- Remove only that package in node_modules `rm -rf node_modules/lodash`
-- Install the same version `npm install lodash@4.0.0 --save`
-- Clingwrap the package `clingwrap lodash`
-- Verify that Calypso works as expected and that tests pass.
-- Commit the changes to npm-shrinkwrap.json.
-
-## Bumping Sub-Dependencies in all Packages
-
-We may also choose to update all package sub-dependencies. This will result in a large diff that is too big to review, 
-so testing instructions should ensure that a clean install works and Calypso runs and tests correctly. It's very 
-important that your node_modules is deleted before you do this to be sure to pick up the latest versions.
-
-- Run `make distclean` to delete local node_modules
-- Delete your local copy of npm-shrinkwrap.json.
-- Run `npm install`
-- Verify that Calypso works as expected and that tests pass.
-- Run `npm shrinkwrap --dev`
-- Commit the new npm-shrinkwrap.json
+Internally the script does the following:
+- Deletes local node_modules
+- Deletes your local copy of npm-shrinkwrap.json.
+- Runs `npm install --no-optional` twice. Due to npm 3 quirks, we need to call this twice before packages fully resolve themselves.
+- Runs `shonkwrap --dev` to generate a new npm-shrinkwrap.json.
 
 ## Testing
 

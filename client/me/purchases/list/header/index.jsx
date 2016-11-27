@@ -2,6 +2,7 @@
  * External dependencies
  */
 import React from 'react';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
@@ -11,26 +12,30 @@ import NavTabs from 'components/section-nav/tabs';
 import paths from '../../paths.js';
 import SectionNav from 'components/section-nav';
 
-const PurchasesHeader = React.createClass( {
-	getSelectedText( activeSection ) {
-		if ( activeSection === 'purchases' ) {
-			return this.translate( 'Purchases' );
-		}
-		return this.translate( 'Billing History' );
-	},
+const PurchasesHeader = ( { section } ) => {
+	let text = i18n.translate( 'Billing History' );
 
-	render() {
-		var activeSection = this.props.section;
-
-		return(
-			<SectionNav selectedText={ this.getSelectedText( activeSection ) }>
-				<NavTabs>
-					<NavItem path={ paths.list() } selected={ activeSection === 'purchases' }>{ this.translate( 'Purchases' ) }</NavItem>
-					<NavItem path="/me/billing" selected= { activeSection === 'billing' } >{ this.translate( 'Billing History' ) }</NavItem>
-				</NavTabs>
-			</SectionNav>
-		);
+	if ( section === 'purchases' ) {
+		text = i18n.translate( 'Purchases' );
 	}
-} );
+
+	return (
+		<SectionNav selectedText={ text }>
+			<NavTabs>
+				<NavItem path={ paths.purchasesRoot() } selected={ section === 'purchases' }>
+					{ i18n.translate( 'Purchases' ) }
+				</NavItem>
+
+				<NavItem path={ paths.billingHistory() } selected={ section === 'billing' }>
+					{ i18n.translate( 'Billing History' ) }
+				</NavItem>
+			</NavTabs>
+		</SectionNav>
+	);
+};
+
+PurchasesHeader.propTypes = {
+	section: React.PropTypes.string.isRequired
+};
 
 export default PurchasesHeader;

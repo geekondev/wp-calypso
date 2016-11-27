@@ -2,6 +2,7 @@
  * External dependencies
  */
 import React from 'react';
+import { connect } from 'react-redux';
 
 /**
  * Internal dependencies
@@ -12,17 +13,17 @@ import Stats from './stats';
 import Publish from './publish';
 import Notifications from './notifications';
 import Gravatar from 'components/gravatar';
-import layoutFocus from 'lib/layout-focus';
 import config from 'config';
-import sections from 'sections';
+import { preload } from 'sections-preload';
+import ResumeEditing from 'my-sites/resume-editing';
+import { setNextLayoutFocus } from 'state/ui/layout-focus/actions';
 
-export default React.createClass( {
-	displayName: 'Masterbar',
-
+const MasterbarLoggedIn = React.createClass( {
 	propTypes: {
 		user: React.PropTypes.object,
 		sites: React.PropTypes.object,
 		section: React.PropTypes.oneOfType( [ React.PropTypes.string, React.PropTypes.bool ] ),
+		setNextLayoutFocus: React.PropTypes.func.isRequired,
 	},
 
 	getInitialState() {
@@ -33,11 +34,11 @@ export default React.createClass( {
 	},
 
 	clickMySites() {
-		layoutFocus.setNext( 'sidebar' );
+		this.props.setNextLayoutFocus( 'sidebar' );
 	},
 
 	clickReader() {
-		layoutFocus.setNext( 'content' );
+		this.props.setNextLayoutFocus( 'content' );
 	},
 
 	clickNotifications() {
@@ -63,11 +64,12 @@ export default React.createClass( {
 		return (
 			<Masterbar>
 				<Stats
+					tipTarget="my-sites"
 					icon={ this.wordpressIcon() }
 					onClick={ this.clickMySites }
 					isActive={ this.isActive( 'sites' ) }
 					tooltip={ this.translate( 'View a list of your sites and access their dashboards', { textOnly: true } ) }
-					preloadSection={ () => sections.preload( 'stats' ) }
+					preloadSection={ () => preload( 'stats' ) }
 				>
 					{ this.props.user.get().visible_site_count > 1
 						? this.translate( 'My Sites', { comment: 'Toolbar, must be shorter than ~12 chars' } )
@@ -75,15 +77,18 @@ export default React.createClass( {
 					}
 				</Stats>
 				<Item
+					tipTarget="reader"
+					className="masterbar__reader"
 					url="/"
 					icon="reader"
 					onClick={ this.clickReader }
 					isActive={ this.isActive( 'reader' ) }
 					tooltip={ this.translate( 'Read the blogs and topics you follow', { textOnly: true } ) }
-					preloadSection={ () => sections.preload( 'reader' ) }
+					preloadSection={ () => preload( 'reader' ) }
 				>
 					{ this.translate( 'Reader', { comment: 'Toolbar, must be shorter than ~12 chars' } ) }
 				</Item>
+				{ config.isEnabled( 'resume-editing' ) && <ResumeEditing /> }
 				<Publish
 					sites={ this.props.sites }
 					user={ this.props.user }
@@ -91,15 +96,16 @@ export default React.createClass( {
 					className="masterbar__item-new"
 					tooltip={ this.translate( 'Create a New Post', { textOnly: true } ) }
 				>
-					{ this.translate( 'New Post' ) }
+					{ this.translate( 'Write' ) }
 				</Publish>
 				<Item
+					tipTarget="me"
 					url="/me"
 					icon="user-circle"
 					isActive={ this.isActive( 'me' ) }
 					className="masterbar__item-me"
 					tooltip={ this.translate( 'Update your profile, personal settings, and more', { textOnly: true } ) }
-					preloadSection={ () => sections.preload( 'me' ) }
+					preloadSection={ () => preload( 'me' ) }
 				>
 					<Gravatar user={ this.props.user.get() } alt="Me" size={ 18 } />
 					<span className="masterbar__item-me-label">
@@ -119,3 +125,6 @@ export default React.createClass( {
 		);
 	}
 } );
+
+// TODO: make this pure when sites can be retrieved from the Redux state
+export default connect( null, { setNextLayoutFocus }, null, { pure: false } )( MasterbarLoggedIn );

@@ -1,52 +1,42 @@
-var express = require( 'express' ),
-	fs = require( 'fs' ),
-	crypto = require( 'crypto' ),
-	qs = require( 'qs' ),
-	execSync = require( 'child_process' ).execSync,
-	cookieParser = require( 'cookie-parser' ),
-	i18nUtils = require( 'lib/i18n-utils' ),
-	debug = require( 'debug' )( 'calypso:pages' ),
-	includes = require( 'lodash/includes' ),
-	React = require( 'react' ),
-	ReduxProvider = require( 'react-redux' ).Provider,
-	pick = require( 'lodash/pick' ),
-	url = require( 'url' );
+/**
+ * External dependencies
+ */
+import express from 'express';
+import fs from 'fs';
+import crypto from 'crypto';
+import qs from 'qs';
+import { execSync } from 'child_process';
+import cookieParser from 'cookie-parser';
+import debugFactory from 'debug';
 
-var config = require( 'config' ),
-	sanitize = require( 'sanitize' ),
-	utils = require( 'bundler/utils' ),
-	sections = require( '../../client/sections' ),
-	LayoutLoggedOut = require( 'layout/logged-out' ),
-	render = require( 'render' ).render,
-	i18n = require( 'lib/mixins/i18n' ),
-	createReduxStore = require( 'state' ).createReduxStore,
-	setSection = require( 'state/ui/actions' ).setSection,
-	ThemeSheet = require( 'my-sites/themes/sheet' ).default,
-	ThemeDetails = require( 'components/data/theme-details' ),
-	wpcom = require( 'lib/wp' ),
-	ThemesActionTypes = require( 'state/themes/action-types' );
+/**
+ * Internal dependencies
+ */
+import config from 'config';
+import sanitize from 'sanitize';
+import utils from 'bundler/utils';
+import sectionsModule from '../../client/sections';
+import { serverRouter } from 'isomorphic-routing';
+import { serverRender } from 'render';
+import { createReduxStore } from 'state';
 
-var HASH_LENGTH = 10,
+const debug = debugFactory( 'calypso:pages' );
+
+let HASH_LENGTH = 10,
 	URL_BASE_PATH = '/calypso',
 	SERVER_BASE_PATH = '/public',
 	CALYPSO_ENV = process.env.CALYPSO_ENV || process.env.NODE_ENV || 'development';
 
-var staticFiles = [
+const staticFiles = [
 	{ path: 'style.css' },
 	{ path: 'editor.css' },
 	{ path: 'tinymce/skins/wordpress/wp-content.css' },
 	{ path: 'style-debug.css' },
-	{ path: 'style-rtl.css' }
+	{ path: 'style-rtl.css' },
+	{ path: 'vendor.' + config( 'env' ) + '.js' }
 ];
 
-var chunksByPath = {},
-	themeDetails = new Map();
-
-sections.forEach( function( section ) {
-	section.paths.forEach( function( path ) {
-		chunksByPath[ path ] = section.name;
-	} );
-} );
+let sections = sectionsModule.get();
 
 /**
  * Generates a hash of a files contents to be used as a version parameter on asset requests.
@@ -54,7 +44,7 @@ sections.forEach( function( section ) {
  * @returns {String} A shortened md5 hash of the contents of the file file or a timestamp in the case of failure.
  **/
 function hashFile( path ) {
-	var data, hash,
+	let data, hash,
 		md5 = crypto.createHash( 'md5' );
 
 	try {
@@ -76,7 +66,7 @@ function hashFile( path ) {
  * @returns {Object} Map of asset names to urls
  **/
 function generateStaticUrls( request ) {
-	var urls = {}, assets;
+	const urls = {};
 
 	function getUrl( filename, hash ) {
 		return URL_BASE_PATH + '/' + filename + '?' + qs.stringify( {
@@ -91,36 +81,25 @@ function generateStaticUrls( request ) {
 		urls[ file.path ] = getUrl( file.path, file.hash );
 	} );
 
-	assets = request.app.get( 'assets' );
+	// vendor dll
+	urls.vendor = urls[ 'vendor.' + config( 'env' ) + '.js' ];
+	urls[ 'vendor-min' ] = urls.vendor.replace( '.js', '.min.js' );
+
+	const assets = request.app.get( 'assets' );
 
 	assets.forEach( function( asset ) {
-		urls[ asset.name ] = asset.url;
+		let name = asset.name;
+		if ( ! name ) {
+			// this is for auto-generated chunks that don't have names, like the commons chunk
+			name = asset.url.replace( /\/calypso\/(\w+)\..*/, '_$1' );
+		}
+		urls[ name ] = asset.url;
 		if ( config( 'env' ) !== 'development' ) {
-			urls[ asset.name + '-min' ] = asset.url.replace( '.js', '.min.js' );
+			urls[ name + '-min' ] = asset.url.replace( '.js', '.min.js' );
 		}
 	} );
 
 	return urls;
-}
-
-function getChunk( path ) {
-	var regex, chunkPath;
-
-	for ( chunkPath in chunksByPath ) {
-		if ( chunkPath === path ) {
-			return chunksByPath[ chunkPath ];
-		}
-
-		if ( chunkPath === '/' ) {
-			continue;
-		}
-
-		regex = utils.pathToRegExp( chunkPath );
-
-		if ( regex.test( path ) ) {
-			return chunksByPath[ chunkPath ];
-		}
-	}
 }
 
 function getCurrentBranchName() {
@@ -140,9 +119,7 @@ function getCurrentCommitShortChecksum() {
 }
 
 function getDefaultContext( request ) {
-	var context, chunk;
-
-	context = {
+	const context = Object.assign( {}, request.context, {
 		compileDebug: config( 'env' ) === 'development' ? true : false,
 		urls: generateStaticUrls( request ),
 		user: false,
@@ -155,9 +132,10 @@ function getDefaultContext( request ) {
 		jsFile: 'build',
 		faviconURL: '//s1.wp.com/i/favicon.ico',
 		isFluidWidth: !! config.isEnabled( 'fluid-width' ),
+		abTestHelper: !! config.isEnabled( 'dev/test-helper' ),
 		devDocsURL: '/devdocs',
-		catchJsErrors: '/calypso/catch-js-errors-' + 'v2' + '.min.js'
-	};
+		store: createReduxStore()
+	} );
 
 	context.app = {
 		// use ipv4 address when is ipv4 mapped address
@@ -195,45 +173,20 @@ function getDefaultContext( request ) {
 		context.commitChecksum = getCurrentCommitShortChecksum();
 	}
 
-	if ( config.isEnabled( 'code-splitting' ) ) {
-		chunk = getChunk( request.path );
-
-		if ( chunk ) {
-			context.chunk = chunk;
-		}
-	}
-
 	return context;
 }
 
-function renderLoggedOutRoute( req, res ) {
-	var context = getDefaultContext( req ),
-		language;
-
+function setUpLoggedOutRoute( req, res, next ) {
+	req.context = getDefaultContext( req );
 	res.set( {
 		'X-Frame-Options': 'SAMEORIGIN'
 	} );
 
-	// Set up the locale in case it has ended up in the flow param
-	req.params = i18nUtils.setUpLocale( req.params );
-
-	language = i18nUtils.getLanguage( req.params.lang );
-	if ( language ) {
-		context.lang = req.params.lang;
-		if ( language.rtl ) {
-			context.isRTL = true;
-		}
-	}
-
-	if ( context.lang !== config( 'i18n_default_locale_slug' ) ) {
-		context.i18nLocaleScript = '//widgets.wp.com/languages/calypso/' + context.lang + '.js';
-	}
-
-	res.render( 'index.jade', context );
+	next();
 }
 
-function renderLoggedInRoute( req, res ) {
-	var redirectUrl, protocol, start, context;
+function setUpLoggedInRoute( req, res, next ) {
+	let redirectUrl, protocol, start, context;
 
 	res.set( {
 		'X-Frame-Options': 'SAMEORIGIN'
@@ -261,7 +214,7 @@ function renderLoggedInRoute( req, res ) {
 
 		debug( 'Issuing API call to fetch user object' );
 		user( req.get( 'Cookie' ), function( error, data ) {
-			var end, searchParam, errorMessage;
+			let end, searchParam, errorMessage;
 
 			if ( error ) {
 				if ( error.error === 'authorization_required' ) {
@@ -292,10 +245,6 @@ function renderLoggedInRoute( req, res ) {
 				context.lang = data.localeSlug;
 			}
 
-			if ( context.lang !== config( 'i18n_default_locale_slug' ) ) {
-				context.i18nLocaleScript = '//widgets.wp.com/languages/calypso/' + context.lang + '.js';
-			}
-
 			if ( req.path === '/' && req.query ) {
 				searchParam = req.query.s || req.query.q;
 				if ( searchParam ) {
@@ -316,17 +265,32 @@ function renderLoggedInRoute( req, res ) {
 				}
 			}
 
-			res.render( 'index.jade', context );
+			req.context = context;
+			next();
 		} );
-	} else if ( config.isEnabled( 'desktop' ) ) {
-		res.render( 'desktop.jade', context );
 	} else {
-		res.render( 'index.jade', context );
+		req.context = context;
+		next();
 	}
 }
 
+function setUpRoute( req, res, next ) {
+	if ( req.cookies.wordpress_logged_in ) {
+		// the user is probably logged in
+		setUpLoggedInRoute( req, res, next );
+	} else {
+		setUpLoggedOutRoute( req, res, next );
+	}
+}
+
+function render404( request, response ) {
+	response.status( 404 ).render( '404.jade', {
+		urls: generateStaticUrls( request )
+	} );
+}
+
 module.exports = function() {
-	var app = express();
+	const app = express();
 
 	app.set( 'views', __dirname );
 
@@ -343,7 +307,7 @@ module.exports = function() {
 
 	// redirects to handle old newdash formats
 	app.use( '/sites/:site/:section', function( req, res, next ) {
-		var redirectUrl;
+		let redirectUrl;
 		sections = [ 'posts', 'pages', 'sharing', 'upgrade', 'checkout', 'change-theme' ];
 
 		if ( -1 === sections.indexOf( req.params.section ) ) {
@@ -358,155 +322,55 @@ module.exports = function() {
 		res.redirect( redirectUrl );
 	} );
 
-	app.get( '/calypso/?*', function( request, response ) {
-		response.status( 404 ).render( '404.jade', {
-			urls: generateStaticUrls( request )
-		} );
-	} );
-
-	if ( config.isEnabled( 'login' ) ) {
-		app.get( '/log-in/:lang?', function( req, res ) {
-			renderLoggedOutRoute( req, res );
-		} );
-	}
-
-	app.get( '/start/:flowName?/:stepName?/:stepSectionName?/:lang?', function( req, res ) {
-		if ( req.cookies.wordpress_logged_in ) {
-			// the user is probably logged in
-			renderLoggedInRoute( req, res );
-		} else {
-			renderLoggedOutRoute( req, res );
-		}
-	} );
-
-	if ( config.isEnabled( 'manage/themes/details' ) ) {
-		app.get( '/themes/:theme_slug/:section?', function( req, res ) {
-			function updateRenderCache( themeSlug ) {
-				wpcom.undocumented().themeDetails( themeSlug, ( error, data ) => {
-					if ( error ) {
-						debug( `Error fetching theme ${ themeSlug } details: `, error.message || error );
-						return;
-					}
-					const themeData = themeDetails.get( themeSlug );
-					if ( ! themeData || ( Date( data.date_updated ) > Date( themeData.date_updated ) ) ) {
-						debug( 'caching', themeSlug );
-						themeDetails.set( themeSlug, data );
-						// update the render cache
-						renderThemeSheet( data );
-					}
-				} );
-			}
-
-			function renderThemeSheet( theme ) {
-				const context = {};
-				const store = createReduxStore();
-				store.dispatch( {
-					type: ThemesActionTypes.RECEIVE_THEME_DETAILS,
-					themeId: theme.id,
-					themeName: theme.name,
-					themeAuthor: theme.author,
-					themeScreenshot: theme.screenshot,
-					themePrice: theme.price ? theme.price.display : undefined,
-					themeDescription: theme.description,
-					themeDescriptionLong: theme.description_long,
-					themeSupportDocumentation: theme.extended ? theme.extended.support_documentation : undefined,
-				} );
-
-				store.dispatch( setSection( 'themes', { hasSidebar: false, isFullScreen: true } ) );
-				context.initialReduxState = pick( store.getState(), 'ui', 'themes' );
-
-				const primary = <ThemeDetails id={ theme.id }><ThemeSheet /></ThemeDetails>;
-
-				const element = (
-					<ReduxProvider store={ store }>
-						<LayoutLoggedOut primary={ primary } />
-					</ReduxProvider>
-				);
-				const path = url.parse( req.url ).path;
-				const key = JSON.stringify( element ) + path + JSON.stringify( context.initialReduxState );
-				Object.assign( context, render( element, key ) );
-				return context;
-			};
-
-			const context = getDefaultContext( req );
-			if ( config.isEnabled( 'server-side-rendering' ) ) {
-				const theme = themeDetails.get( req.params.theme_slug );
-				if ( theme ) {
-					Object.assign( context, renderThemeSheet( theme ) );
-					debug( 'found theme!', theme.id );
-				}
-
-				i18n.initialize();
-				req.params.theme_slug && updateRenderCache( req.params.theme_slug ); // TODO(ehg): We don't want to hit the endpoint for every req. Debounce based on theme arg?
-			}
-
-			res.render( 'index.jade', context );
-		} );
-	}
-
-	app.get( '/design(/type/:themeTier)?', function( req, res ) {
-		if ( req.cookies.wordpress_logged_in || ! config.isEnabled( 'manage/themes/logged-out' ) ) {
-			// the user is probably logged in
-			renderLoggedInRoute( req, res );
-		} else {
-			const context = getDefaultContext( req );
-			const tier = includes( [ 'all', 'free', 'premium' ], req.params.themeTier )
-				? req.params.themeTier
-				: 'all';
-
-			if ( config.isEnabled( 'server-side-rendering' ) ) {
-				const store = createReduxStore();
-				i18n.initialize();
-				store.dispatch( setSection( 'design', { hasSidebar: false } ) );
-				context.initialReduxState = pick( store.getState(), 'ui' );
-
-				Object.assign( context,
-					render( <LayoutLoggedOut tier={ tier } store={ store } /> )
-				);
-			}
-
-			res.render( 'index.jade', context );
-		}
-	} );
-
-	app.get( '/accept-invite/:site_id?/:invitation_key?/:activation_key?/:auth_key?/:locale?', function( req, res ) {
-		if ( req.cookies.wordpress_logged_in ) {
-			// the user is probably logged in
-			renderLoggedInRoute( req, res );
-		} else {
-			renderLoggedOutRoute( req, res );
-		}
-	} );
-
-	if ( config.isEnabled( 'phone_signup' ) ) {
-		app.get( '/phone/:lang?', function( req, res ) {
-			renderLoggedOutRoute( req, res );
-		} );
-	}
-
-	if ( config.isEnabled( 'mailing-lists/unsubscribe' ) ) {
-		app.get( '/mailing-lists/unsubscribe', function( req, res ) {
-			if ( req.cookies.wordpress_logged_in ) {
-				// the user is probably logged in
-				renderLoggedInRoute( req, res );
-			} else {
-				renderLoggedOutRoute( req, res );
-			}
-		} );
-	}
-
-	if ( config.isEnabled( 'reader/discover' ) && config( 'env' ) !== 'development' ) {
-		app.get( '/discover', function( req, res ) {
-			if ( req.cookies.wordpress_logged_in ) {
-				renderLoggedInRoute( req, res );
-			} else {
+	if ( config( 'env' ) !== 'development' ) {
+		app.get( '/discover', function( req, res, next ) {
+			if ( ! req.cookies.wordpress_logged_in ) {
 				res.redirect( config( 'discover_logged_out_redirect_url' ) );
+			} else {
+				next();
+			}
+		} );
+
+		app.get( '/plans', function( req, res, next ) {
+			if ( ! req.cookies.wordpress_logged_in ) {
+				const queryFor = req.query && req.query.for;
+				if ( queryFor && 'jetpack' === queryFor ) {
+					res.redirect( 'https://wordpress.com/wp-login.php?redirect_to=https%3A%2F%2Fwordpress.com%2Fplans' );
+				} else {
+					res.redirect( 'https://wordpress.com/pricing' );
+				}
+			} else {
+				next();
 			}
 		} );
 	}
 
-	// catchall path to serve shell for all non-static-file requests (other than auth routes)
-	app.get( '*', renderLoggedInRoute );
+	app.get( '/theme', ( req, res ) => res.redirect( '/design' ) );
+
+	sections
+		.forEach( section => {
+			section.paths.forEach( path => {
+				const pathRegex = utils.pathToRegExp( path );
+
+				app.get( pathRegex, function( req, res, next ) {
+					if ( config.isEnabled( 'code-splitting' ) ) {
+						req.context = Object.assign( {}, req.context, { chunk: section.name } );
+					}
+					next();
+				} );
+
+				if ( ! section.isomorphic ) {
+					app.get( pathRegex, section.enableLoggedOut ? setUpRoute : setUpLoggedInRoute, serverRender );
+				}
+			} );
+
+			if ( section.isomorphic ) {
+				sectionsModule.require( section.module )( serverRouter( app, setUpRoute, section ) );
+			}
+		} );
+
+	// catchall to render 404 for all routes not whitelisted in client/sections
+	app.get( '*', render404 );
 
 	return app;
 };

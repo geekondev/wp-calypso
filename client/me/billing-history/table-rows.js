@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-var i18n = require( 'lib/mixins/i18n' ),
+var i18n = require( 'i18n-calypso' ),
 	some = require( 'lodash/some' ),
 	values = require( 'lodash/values' ),
 	isDate = require( 'lodash/isDate' ),
@@ -14,7 +14,8 @@ function formatDate( date ) {
 
 function getSearchableStrings( transaction ) {
 	var rootStrings = values( omit( transaction, 'items' ) ),
-		itemStrings = flatten( transaction.items.map( values ) );
+		transactionItems = transaction.items || [],
+		itemStrings = flatten( transactionItems.map( values ) );
 
 	return rootStrings.concat( itemStrings );
 }

@@ -20,9 +20,6 @@ require( 'tinymce/plugins/paste/plugin.js' );
 require( 'tinymce/plugins/tabfocus/plugin.js' );
 require( 'tinymce/plugins/textcolor/plugin.js' );
 
-// TinyMCE plugins copied from .org
-require( './plugins/wptextpattern/plugin.js' );
-
 // TinyMCE plugins that we've forked or written ourselves
 import wpcomPlugin from './plugins/wpcom/plugin.js';
 import wpcomAutoresizePlugin from './plugins/wpcom-autoresize/plugin.js';
@@ -39,6 +36,10 @@ import touchScrollToolbarPlugin from './plugins/touch-scroll-toolbar/plugin';
 import editorButtonAnalyticsPlugin from './plugins/editor-button-analytics/plugin';
 import calypsoAlertPlugin from './plugins/calypso-alert/plugin';
 import contactFormPlugin from './plugins/contact-form/plugin';
+import afterTheDeadlinePlugin from './plugins/after-the-deadline/plugin';
+import wptextpatternPlugin from './plugins/wptextpattern/plugin';
+import toolbarPinPlugin from './plugins/toolbar-pin/plugin';
+import insertMenuPlugin from './plugins/insert-menu/plugin';
 
 [
 	wpcomPlugin,
@@ -49,23 +50,27 @@ import contactFormPlugin from './plugins/contact-form/plugin';
 	wpcomSourcecode,
 	wpeditimagePlugin,
 	wplinkPlugin,
+	insertMenuPlugin,
 	mediaPlugin,
 	advancedPlugin,
 	wpcomTabindexPlugin,
 	touchScrollToolbarPlugin,
 	editorButtonAnalyticsPlugin,
 	calypsoAlertPlugin,
-	contactFormPlugin
+	contactFormPlugin,
+	afterTheDeadlinePlugin,
+	wptextpatternPlugin,
+	toolbarPinPlugin
 ].forEach( ( initializePlugin ) => initializePlugin() );
 
 /**
  * Internal Dependencies
  */
-const formatting = require( 'lib/formatting' ),
-	user = require( 'lib/user' )(),
+const user = require( 'lib/user' )(),
 	i18n = require( './i18n' ),
 	viewport = require( 'lib/viewport' ),
 	config = require( 'config' );
+import { decodeEntities, wpautop, removep } from 'lib/formatting';
 
 /**
  * Internal Variables
@@ -105,6 +110,7 @@ const PLUGINS = [
 	'wpcom',
 	'wpeditimage',
 	'wplink',
+	'AtD',
 	'wpcom/autoresize',
 	'wpcom/media',
 	'wpcom/advanced',
@@ -116,9 +122,14 @@ const PLUGINS = [
 	'wpcom/editorbuttonanalytics',
 	'wpcom/calypsoalert',
 	'wpcom/tabindex',
+	'wpcom/toolbarpin',
 	'wpcom/contactform',
 	'wpcom/sourcecode',
 ];
+
+if ( config.isEnabled( 'post-editor/insert-menu' ) ) {
+	PLUGINS.push( 'wpcom/insertmenu' );
+}
 
 const CONTENT_CSS = [
 	window.app.tinymceWpSkin,
@@ -149,8 +160,7 @@ module.exports = React.createClass( {
 		tabIndex: React.PropTypes.number,
 		isNew: React.PropTypes.bool,
 		onTextEditorChange: React.PropTypes.func,
-		onKeyUp: React.PropTypes.func,
-		onTogglePin: React.PropTypes.func
+		onKeyUp: React.PropTypes.func
 	},
 
 	contextTypes: {
@@ -172,8 +182,6 @@ module.exports = React.createClass( {
 
 	_editor: null,
 
-	_pinned: false,
-
 	componentWillMount: function() {
 		this._id = 'tinymce-' + _instance;
 		_instance++;
@@ -192,23 +200,25 @@ module.exports = React.createClass( {
 	},
 
 	componentDidMount: function() {
+		this.mounted = true;
+
 		const setup = function( editor ) {
 			this._editor = editor;
+
+			if ( ! this.mounted ) {
+				this.destroyEditor();
+				return;
+			}
+
 			this.bindEditorEvents();
 			editor.on( 'SetTextAreaContent', ( event ) => this.setTextAreaContent( event.content ) );
 
-			window.addEventListener( 'scroll', this.onScrollPinTools );
 			if ( ! viewport.isMobile() ) {
 				editor.once( 'PostRender', this.toggleEditor.bind( this, { autofocus: ! this.props.isNew } ) );
 			}
 		}.bind( this );
 
 		this.localize();
-
-		let toolbar1 = [ 'wpcom_add_media', 'formatselect', 'bold', 'italic', 'bullist', 'numlist', 'link', 'blockquote', 'alignleft', 'aligncenter', 'alignright', 'spellchecker', 'wp_more', 'wpcom_advanced' ];
-		if ( config.isEnabled( 'post-editor/contact-form' ) ) {
-			toolbar1.splice( 1, 0, 'wpcom_add_contact_form' );
-		}
 
 		tinymce.init( {
 			selector: '#' + this._id,
@@ -271,12 +281,18 @@ module.exports = React.createClass( {
 			menubar: false,
 			indent: false,
 
+			// AfterTheDeadline Configuration
+			atd_rpc_id: 'https://wordpress.com',
+			atd_ignore_enable: true,
+
 			// Try to find a suitable minimum size based on the viewport height
 			// minus the surrounding editor chrome to avoid scrollbars. In the
 			// future, we should calculate from the rendered editor bounds.
 			autoresize_min_height: Math.max( document.documentElement.clientHeight - 300, 300 ),
 
-			toolbar1: toolbar1.join(),
+			toolbar1: config.isEnabled( 'post-editor/insert-menu' )
+				? 'wpcom_insert_menu,formatselect,bold,italic,bullist,numlist,link,blockquote,alignleft,aligncenter,alignright,spellchecker,wp_more,wpcom_advanced'
+				: 'wpcom_add_media,formatselect,bold,italic,bullist,numlist,link,blockquote,alignleft,aligncenter,alignright,spellchecker,wp_more,wpcom_add_contact_form,wpcom_advanced',
 			toolbar2: 'strikethrough,underline,hr,alignjustify,forecolor,pastetext,removeformat,wp_charmap,outdent,indent,undo,redo,wp_help',
 			toolbar3: '',
 			toolbar4: '',
@@ -294,13 +310,19 @@ module.exports = React.createClass( {
 	},
 
 	componentWillUnmount: function() {
+		this.mounted = false;
+		if ( this._editor ) {
+			this.destroyEditor();
+		}
+	},
+
+	destroyEditor() {
 		forEach( EVENTS, function( eventHandler, eventName ) {
 			if ( this.props[ eventHandler ] ) {
 				this._editor.off( eventName, this.props[ eventHandler ] );
 			}
 		}.bind( this ) );
 
-		window.removeEventListener( 'scroll', this.onScrollPinTools );
 		tinymce.remove( this._editor );
 		this._editor = null;
 		autosize.destroy( ReactDom.findDOMNode( this.refs.text ) );
@@ -322,31 +344,6 @@ module.exports = React.createClass( {
 				}
 			}
 		}.bind( this ) );
-	},
-
-	onScrollPinTools: function() {
-		const editor = this._editor;
-		if ( ! editor || this.props.mode === 'html' ) {
-			return;
-		}
-
-		const container = editor.getContainer();
-		const rect = container.getBoundingClientRect();
-
-		let newPinned;
-		if ( ! this._pinned && rect.top < 46 && viewport.isWithinBreakpoint( '>660px' ) ) {
-			newPinned = true;
-		} else if ( this._pinned && window.pageYOffset < 164 ) {
-			newPinned = false;
-		} else {
-			return;
-		}
-
-		this._pinned = newPinned;
-		editor.dom.toggleClass( editor.getContainer(), 'is-pinned', newPinned );
-		if ( this.props.onTogglePin ) {
-			this.props.onTogglePin( newPinned ? 'pin' : 'unpin' );
-		}
 	},
 
 	toggleEditor: function( options = { autofocus: true } ) {
@@ -396,7 +393,7 @@ module.exports = React.createClass( {
 			// TODO: fix code duplication between the wordpress plugin and the React component
 			content = content.replace( /<p>(?:<br ?\/?>|\u00a0|\uFEFF| )*<\/p>/g, '<p>&nbsp;</p>' );
 
-			content = formatting.removep( content );
+			content = removep( content );
 		}
 
 		return content;
@@ -410,15 +407,19 @@ module.exports = React.createClass( {
 	},
 
 	setTextAreaContent: function( content ) {
-		this.setState( { content }, this.doAutosizeUpdate );
+		this.setState( {
+			content: decodeEntities( content )
+		}, this.doAutosizeUpdate );
 	},
 
-	setEditorContent: function( content ) {
+	setEditorContent: function( content, args = {} ) {
 		if ( this._editor ) {
-			this._editor.setContent( formatting.wpautop( content ) );
-
-			// clear the undo stack to ensure that we don't have any leftovers
-			this._editor.undoManager.clear();
+			const { mode } = this.props;
+			this._editor.setContent( wpautop( content ), { ...args, mode } );
+			if ( args.initial ) {
+				// Clear the undo stack when initially setting content
+				this._editor.undoManager.clear();
+			}
 		}
 
 		this.setTextAreaContent( content );

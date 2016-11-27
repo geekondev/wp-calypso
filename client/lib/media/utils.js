@@ -1,30 +1,34 @@
 /**
  * External dependencies
  */
-var url = require( 'url' ),
-	path = require( 'path' ),
-	photon = require( 'photon' ),
-	includes = require( 'lodash/includes' ),
-	omitBy = require( 'lodash/omitBy' );
+import url from 'url';
+import path from 'path';
+import photon from 'photon';
+import includes from 'lodash/includes';
+import omitBy from 'lodash/omitBy';
+import { isUri } from 'valid-url';
 
 /**
  * Internal dependencies
  */
-var resize = require( 'lib/resize-image-url' ),
-	Constants = require( './constants' ),
-	Shortcode = require( 'lib/shortcode' ),
-	MimeTypes = Constants.MimeTypes,
-	ThumbnailSizeDimensions = Constants.ThumbnailSizeDimensions,
-	GalleryColumnedTypes = Constants.GalleryColumnedTypes,
-	GallerySizeableTypes = Constants.GallerySizeableTypes,
-	GalleryDefaultAttrs = Constants.GalleryDefaultAttrs;
+import resize from 'lib/resize-image-url';
+import {
+	MimeTypes,
+	VideoPressFileTypes,
+	ThumbnailSizeDimensions,
+	GalleryColumnedTypes,
+	GallerySizeableTypes,
+	GalleryDefaultAttrs
+} from './constants';
+import Shortcode from 'lib/shortcode';
+import versionCompare from 'lib/version-compare';
 
 /**
  * Module variables
  */
-var REGEXP_VIDEOPRESS_GUID = /^[a-z\d]+$/i;
+const REGEXP_VIDEOPRESS_GUID = /^[a-z\d]+$/i;
 
-var MediaUtils = {
+const MediaUtils = {
 	/**
 	 * Given a media object, returns a URL string to that media. Accepts
 	 * optional options to specify photon usage or a maximum image width.
@@ -35,8 +39,18 @@ var MediaUtils = {
 	 * @return {string}         URL to the media
 	 */
 	url: function( media, options ) {
+		if ( ! media ) {
+			return;
+		}
+
 		if ( media.transient ) {
 			return media.URL;
+		}
+
+		// We've found that some media can be corrupt with an unusable URL.
+		// Return early so attempts to parse the URL don't result in an error.
+		if ( ! media.URL ) {
+			return;
 		}
 
 		options = options || {};
@@ -53,13 +67,56 @@ var MediaUtils = {
 			return media.thumbnails[ options.size ];
 		}
 
-		if ( media.URL && options.maxWidth ) {
+		if ( options.maxWidth ) {
 			return resize( media.URL, {
 				w: options.maxWidth
 			} );
 		}
 
 		return media.URL;
+	},
+
+	/**
+	 * Given a media string, File, or object, returns the file extension.
+	 *
+	 * @example
+	 * getFileExtension( 'example.gif' );
+	 * getFileExtension( { URL: 'https://wordpress.com/example.gif' } );
+	 * getFileExtension( new window.File( [''], 'example.gif' ) );
+	 * // All examples return 'gif'
+	 *
+	 * @param  {(string|File|Object)} media Media object or string
+	 * @return {string}                     File extension
+	 */
+	getFileExtension: function( media ) {
+		let extension;
+
+		if ( ! media ) {
+			return;
+		}
+
+		const isString = 'string' === typeof media;
+		const isFileObject = 'File' in window && media instanceof window.File;
+
+		if ( isString ) {
+			let filePath;
+			if ( isUri( media ) ) {
+				filePath = url.parse( media ).pathname;
+			} else {
+				filePath = media;
+			}
+
+			extension = path.extname( filePath ).slice( 1 );
+		} else if ( isFileObject ) {
+			extension = path.extname( media.name ).slice( 1 );
+		} else if ( media.extension ) {
+			extension = media.extension;
+		} else {
+			const pathname = url.parse( media.URL || media.file || media.guid || '' ).pathname || '';
+			extension = path.extname( pathname ).slice( 1 );
+		}
+
+		return extension;
 	},
 
 	/**
@@ -103,8 +160,6 @@ var MediaUtils = {
 	 * @return {string}                     Mime type of the media, if known
 	 */
 	getMimeType: function( media ) {
-		var extension;
-
 		if ( ! media ) {
 			return;
 		}
@@ -115,13 +170,7 @@ var MediaUtils = {
 			return media.type;
 		}
 
-		if ( 'string' === typeof media ) {
-			extension = path.extname( media ).slice( 1 );
-		} else if ( media.extension ) {
-			extension = media.extension;
-		} else {
-			extension = path.extname( url.parse( media.URL || media.file || media.guid || '' ).pathname ).slice( 1 );
-		}
+		let extension = MediaUtils.getFileExtension( media );
 
 		if ( ! extension ) {
 			return;
@@ -187,7 +236,7 @@ var MediaUtils = {
 	 * @return {Boolean}      Site allowed file types are accurate
 	 */
 	isSiteAllowedFileTypesToBeTrusted: function( site ) {
-		return ! site || ! site.jetpack || site.versionCompare( '3.8.1', '>=' );
+		return ! site || ! site.jetpack || versionCompare( site.options.jetpack_version, '3.8.1', '>=' );
 	},
 
 	/**
@@ -202,6 +251,28 @@ var MediaUtils = {
 		}
 
 		return site.options.allowed_file_types;
+	},
+
+	/**
+	 * Returns true if the specified item is a valid file in a Premium plan,
+	 * or false otherwise.
+	 *
+	 * @param  {Object}  item Media object
+	 * @param  {Object}  site Site object
+	 * @return {Boolean}      Whether the Premium plan supports the item
+	 */
+	isSupportedFileTypeInPremium: function( item, site ) {
+		if ( ! site || ! item ) {
+			return false;
+		}
+
+		if ( ! MediaUtils.isSiteAllowedFileTypesToBeTrusted( site ) ) {
+			return true;
+		}
+
+		return VideoPressFileTypes.some( function( allowed ) {
+			return allowed.toLowerCase() === item.extension.toLowerCase();
+		} );
 	},
 
 	/**
@@ -381,6 +452,51 @@ var MediaUtils = {
 		}
 
 		return site.capabilities.delete_others_posts;
+	},
+
+	/**
+	 * Wrapper method for the HTML canvas toBlob() function. Polyfills if the
+	 * function does not exist
+	 *
+	 * @param {Object} canvas the canvas element
+	 * @param {Function} callback function to process the blob after it is extracted
+	 * @param {String} type image type to be extracted
+	 * @param {Number} quality extracted image quality
+	 */
+	canvasToBlob( canvas, callback, type, quality ) {
+		if ( ! HTMLCanvasElement.prototype.toBlob ) {
+			Object.defineProperty( HTMLCanvasElement.prototype, 'toBlob', {
+				value: function( polyfillCallback, polyfillType, polyfillQuality ) {
+					const binStr = atob( this.toDataURL( polyfillType, polyfillQuality ).split( ',' )[1] ),
+						len = binStr.length,
+						arr = new Uint8Array( len );
+
+					for ( let i = 0; i < len; i++ ) {
+						arr[i] = binStr.charCodeAt( i );
+					}
+
+					polyfillCallback( new Blob( [arr], {
+						type: polyfillType || 'image/png'
+					} ) );
+				}
+			} );
+		}
+
+		canvas.toBlob( callback, type, quality );
+	},
+
+	/**
+	 * Returns true if specified item is currently being uploaded (i.e. is transient).
+	 *
+	 * @param  {Object}  item Media item
+	 * @return {Boolean}      Whether item is being uploaded
+	 */
+	isItemBeingUploaded( item ) {
+		if ( ! item ) {
+			return null;
+		}
+
+		return !! item.transient;
 	}
 };
 

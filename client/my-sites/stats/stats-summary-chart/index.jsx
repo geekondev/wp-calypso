@@ -2,8 +2,8 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	classNames = require( 'classnames' ),
-	isEqual = require( 'lodash/isEqual' );
+	classNames = require( 'classnames' );
+import { isEqual, find } from 'lodash';
 
 /**
  * Internal dependencies
@@ -13,7 +13,7 @@ var observe = require( 'lib/mixins/data-observe' ),
 	StatsTabs = require( '../stats-tabs' ),
 	StatsTab = require( '../stats-tabs/tab' ),
 	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	Card = require( 'components/card' );
 
 module.exports = React.createClass( {
@@ -50,9 +50,7 @@ module.exports = React.createClass( {
 	},
 
 	barClick: function( bar ) {
-		var selectedBar = this.props.dataList.response.data.filter( function( data ) {
-			return isEqual( data, bar.data );
-		}, this ).shift();
+		const selectedBar = find( this.props.dataList.response.data, ( data ) => isEqual( data, bar.data ) );
 
 		analytics.ga.recordEvent( 'Stats', 'Clicked Summary Chart Bar' );
 		this.setState( {

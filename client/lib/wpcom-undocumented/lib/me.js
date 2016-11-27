@@ -1,7 +1,7 @@
 /**
  * Module dependencies.
  */
-import Me from 'wpcom-unpublished/dist/lib/me';
+import { Me } from 'wpcom';
 import inherits from 'inherits';
 import debugFactory from 'debug';
 const debug = debugFactory( 'calypso:wpcom-undocumented:me' );
@@ -170,6 +170,23 @@ UndocumentedMe.prototype.changeUsername = function( username, action, callback )
 	return this.wpcom.req.post( args, callback );
 };
 
+/**
+ * Get a list of the user's stored cards
+ *
+ * @param {object} [paygateToken] Payment key
+ * @param {Function} [callback] The callback function
+ * @api public
+ */
+UndocumentedMe.prototype.storedCardAdd = function( paygateToken, callback ) {
+	debug( '/me/stored-cards' );
+
+	return this.wpcom.req.post( {
+		path: '/me/stored-cards'
+	}, {
+		payment_key: paygateToken
+	}, callback );
+};
+
 UndocumentedMe.prototype.storedCardDelete = function( card, callback ) {
 	var args = {
 		path: '/me/stored-cards/' + card.stored_details_id + '/delete',
@@ -266,6 +283,25 @@ UndocumentedMe.prototype.deleteAccountRecoveryPhone = function( callback ) {
 	return this.wpcom.req.post( args, callback );
 };
 
+UndocumentedMe.prototype.newValidationAccountRecoveryPhone = function( callback ) {
+	var args = {
+		apiVersion: '1.1',
+		path: '/me/account-recovery/phone/validation/new',
+	};
+
+	return this.wpcom.req.post( args, callback );
+};
+
+UndocumentedMe.prototype.validateAccountRecoveryPhone = function( code, callback ) {
+	var args = {
+		apiVersion: '1.1',
+		path: '/me/account-recovery/phone/validation',
+		body: { code },
+	};
+
+	return this.wpcom.req.post( args, callback );
+};
+
 UndocumentedMe.prototype.updateAccountRecoveryEmail = function( email, callback ) {
 	var args = {
 		apiVersion: '1.1',
@@ -287,10 +323,19 @@ UndocumentedMe.prototype.deleteAccountRecoveryEmail = function( callback ) {
 	return this.wpcom.req.post( args, callback );
 };
 
+UndocumentedMe.prototype.newValidationAccountRecoveryEmail = function( callback ) {
+	var args = {
+		apiVersion: '1.1',
+		path: '/me/account-recovery/email/validation/new',
+	};
+
+	return this.wpcom.req.post( args, callback );
+};
+
 UndocumentedMe.prototype.deletePurchase = function( purchaseId, fn ) {
 	debug( '/me/purchases/{purchaseId}/delete' );
 
-	this.wpcom.req.post( {
+	return this.wpcom.req.post( {
 		path: `/me/purchases/${purchaseId}/delete`
 	}, fn );
 };

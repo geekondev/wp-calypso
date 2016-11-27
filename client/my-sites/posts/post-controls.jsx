@@ -11,7 +11,7 @@ var React = require( 'react' ),
 var config = require( 'config' ),
 	utils = require( 'lib/posts/utils' ),
 	Gridicon = require( 'components/gridicon'),
-	recordEvent = require( 'analytics' ).ga.recordEvent;
+	recordEvent = require( 'lib/analytics' ).ga.recordEvent;
 
 module.exports = React.createClass( {
 	displayName: 'PostControls',
@@ -80,7 +80,7 @@ module.exports = React.createClass( {
 				text: this.translate( 'Edit' ),
 				className: 'post-controls__edit',
 				href: this.props.editURL,
-				target: config.isEnabled( 'post-editor' ) ? null : '_blank',
+				target: null,
 				onClick: this.edit,
 				icon: 'pencil'
 			} );
@@ -97,7 +97,7 @@ module.exports = React.createClass( {
 			} );
 
 			if ( config.isEnabled( 'manage/stats' ) ) {
-				statsURL = '/stats/post/' + post.ID + '/' + post.site_ID;
+				statsURL = '/stats/post/' + post.ID + '/' + this.props.site.slug;
 			} else {
 				statsURL = '//wordpress.com/my-stats/?view=post&post=' + post.ID + '&blog=' + post.site_ID;
 			}
@@ -108,45 +108,38 @@ module.exports = React.createClass( {
 				onClick: this.viewStats,
 				icon: 'stats-alt'
 			} );
-		} else {
-			if ( post.status !== 'trash' ) {
-				parsed = url.parse( post.URL, true );
-				parsed.query.preview = 'true';
-				// NOTE: search needs to be cleared in order to rebuild query
-				// http://nodejs.org/api/url.html#url_url_format_urlobj
-				parsed.search = '';
-				previewURL = url.format( parsed );
+		} else if ( post.status !== 'trash' ) {
+			parsed = url.parse( post.URL, true );
+			parsed.query.preview = 'true';
+			// NOTE: search needs to be cleared in order to rebuild query
+			// http://nodejs.org/api/url.html#url_url_format_urlobj
+			parsed.search = '';
+			previewURL = url.format( parsed );
 
+			availableControls.push( {
+				text: this.translate( 'Preview' ),
+				className: 'post-controls__view',
+				href: previewURL,
+				target: '_blank',
+				onClick: this.preview,
+				icon: 'external'
+			} );
+
+			if ( utils.userCan( 'publish_post', post ) ) {
 				availableControls.push( {
-					text: this.translate( 'Preview' ),
-					className: 'post-controls__view',
-					href: previewURL,
-					target: '_blank',
-					onClick: this.preview,
-					icon: 'external'
+					text: this.translate( 'Publish' ),
+					className: 'post-controls__publish',
+					onClick: this.props.onPublish,
+					icon: 'reader'
 				} );
-
-				if ( utils.userCan( 'publish_post', post ) ) {
-					availableControls.push( {
-						text: this.translate( 'Publish' ),
-						className: 'post-controls__publish',
-						onClick: this.props.onPublish,
-						icon: 'reader'
-					} );
-				}
-
-			} else {
-
-				if ( utils.userCan( 'delete_post', post ) ) {
-					availableControls.push( {
-						text: this.translate( 'Restore' ),
-						className: 'post-controls__restore',
-						onClick: this.props.onRestore,
-						icon: 'undo'
-					} );
-				}
-
 			}
+		} else if ( utils.userCan( 'delete_post', post ) ) {
+			availableControls.push( {
+				text: this.translate( 'Restore' ),
+				className: 'post-controls__restore',
+				onClick: this.props.onRestore,
+				icon: 'undo'
+			} );
 		}
 
 		if ( utils.userCan( 'delete_post', post ) ) {

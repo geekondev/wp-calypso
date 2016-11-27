@@ -24,9 +24,10 @@ module.exports = React.createClass( {
 		const emptyTableText = this.translate(
 			'The upgrades on your account will not renew automatically. ' +
 			'To manage your upgrades or enable Auto Renew visit {{link}}My Upgrades{{/link}}.', {
-				components: { link: <a href="/purchases" /> }
+				components: { link: <a href={ purchasesPaths.purchasesRoot() } /> }
 			}
 		);
+		const noFilterResultsText = this.translate( 'No upcoming charges found.' );
 
 		if ( this.props.sites.initialized ) {
 			// `TransactionsTable` will render a loading state until the transactions are present
@@ -38,6 +39,7 @@ module.exports = React.createClass( {
 				transactions={ transactions }
 				initialFilter={ { date: { newest: 20 } } }
 				emptyTableText={ emptyTableText }
+				noFilterResultsText={ noFilterResultsText }
 				transactionRenderer={ this.renderTransaction } />
 		);
 	},

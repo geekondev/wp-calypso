@@ -4,28 +4,22 @@
 import React from 'react';
 import config from 'config';
 import classNames from 'classnames';
-import noop from 'lodash/noop';
 
 /**
  * Internal dependencies
  */
+import Animate from 'components/animate';
 import Gridicon from 'components/gridicon';
 import ProgressIndicator from 'components/progress-indicator';
 import DisconnectJetpackButton from 'my-sites/plugins/disconnect-jetpack/disconnect-jetpack-button';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
+import { userCan } from 'lib/site/utils';
 
 export default React.createClass( {
 	displayName: 'SiteIndicator',
 
 	propTypes: {
-		site: React.PropTypes.object.isRequired,
-		onSelect: React.PropTypes.func
-	},
-
-	getDefaultProps() {
-		return {
-			onSelect: noop
-		};
+		site: React.PropTypes.object.isRequired
 	},
 
 	getInitialState() {
@@ -41,9 +35,6 @@ export default React.createClass( {
 		if ( site.unreachable ) {
 			return true;
 		}
-		if ( site.hasMinimumJetpackVersion && site.update === 'error' ) {
-			return true;
-		}
 		return false;
 	},
 
@@ -54,7 +45,9 @@ export default React.createClass( {
 			if ( site.callingHome ) {
 				return false;
 			} else if ( typeof site.unreachable === 'undefined' ) {
-				site.callHome();
+				if ( 'function' === typeof site.callHome ) {
+					site.callHome();
+				}
 				return false;
 			}
 			return true;
@@ -64,7 +57,9 @@ export default React.createClass( {
 
 	showIndicator() {
 		// Until WP.com sites have indicators (upgrades expiring, etc) we only show them for Jetpack sites
-		return this.props.site.user_can_manage && this.props.site.jetpack && ( this.hasUpdate() || this.hasError() || this.hasWarning() || this.state.updateError );
+		return userCan( 'manage_options', this.props.site ) &&
+			this.props.site.jetpack &&
+			( this.hasUpdate() || this.hasError() || this.hasWarning() || this.state.updateError );
 	},
 
 	toggleExpand() {
@@ -145,9 +140,9 @@ export default React.createClass( {
 		}.bind( this ), 15000 );
 	},
 
-	handlePluginsUpdate( event ) {
+	handlePluginsUpdate() {
 		window.scrollTo( 0, 0 );
-		this.props.onSelect( event );
+		this.setState( { expand: false } );
 		analytics.ga.recordEvent( 'Site-Indicator', 'Clicked updates available link to plugins updates', 'Total Updates', this.props.site.update && this.props.site.update.total );
 	},
 
@@ -277,9 +272,13 @@ export default React.createClass( {
 		return (
 			<div className={ indicatorClass }>
 				{ ! this.state.expand &&
-					<button className="site-indicator__button" onClick={ this.toggleExpand }>
-						<Gridicon icon={ this.getIcon() } size={ 16 } nonStandardSize />
-					</button>
+					<Animate type="appear">
+						<button className="site-indicator__button" onClick={ this.toggleExpand }>
+							{ /* eslint-disable wpcalypso/jsx-gridicon-size */ }
+							<Gridicon icon={ this.getIcon() } size={ 16 } />
+							{ /* eslint-enable wpcalypso/jsx-gridicon-size */ }
+						</button>
+					</Animate>
 				}
 				{ this.state.expand
 					? <div className="site-indicator__message">
@@ -287,7 +286,9 @@ export default React.createClass( {
 							{ this.getText() }
 						</div>
 						<button className="site-indicator__button" onClick={ this.toggleExpand }>
-							<Gridicon icon="cross" size={ 18 } />
+							<Animate type="appear">
+								<Gridicon icon="cross" size={ 18 } />
+							</Animate>
 						</button>
 					</div>
 					: null }

@@ -1,8 +1,7 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	classNames = require( 'classnames' );
+var React = require( 'react' );
 
 /**
  * Internal dependencies
@@ -10,6 +9,8 @@ var React = require( 'react' ),
 var PayButton = require( './pay-button' ),
 	PaymentBox = require( './payment-box' ),
 	TermsOfService = require( './terms-of-service' );
+
+import CartCoupon from 'my-sites/upgrades/cart/cart-coupon'
 
 var CreditsPaymentBox = React.createClass( {
 	content: function() {
@@ -36,6 +37,9 @@ var CreditsPaymentBox = React.createClass( {
 				</div>
 
 				<TermsOfService />
+
+				<CartCoupon cart={ cart } />
+
 				<div className="payment-box-actions">
 					<PayButton
 						cart={ this.props.cart }
@@ -46,14 +50,9 @@ var CreditsPaymentBox = React.createClass( {
 	},
 
 	render: function() {
-		var classSet = classNames( {
-			'credits-payment-box': true,
-			selected: this.props.selected === true
-		} );
-
 		return (
 			<PaymentBox
-				classSet={ classSet }
+				classSet="credits-payment-box"
 				title={ this.translate( 'Secure Payment' ) }>
 				{ this.content() }
 			</PaymentBox>

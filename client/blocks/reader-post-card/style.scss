@@ -1,0 +1,575 @@
+// Custom breakpoints needed to match original design
+
+$reader-post-card-breakpoint-xxlarge: "( min-width: 1100px )";
+$reader-post-card-breakpoint-xlarge: "( min-width: 1040px )";
+$reader-post-card-breakpoint-large: "( min-width: 961px ) and ( max-width: 1040px )";
+$reader-post-card-breakpoint-medium: "( min-width: 661px ) and ( max-width: 940px )";
+$reader-post-card-breakpoint-small: "( max-width: 550px )";
+
+// Overrides 30px top margin, moves first card closer to top of stream
+.is-reader-page .following.main .card.reader-post-card:nth-child(2) {
+
+	@include breakpoint( ">480px" ) {
+		margin-top: -18px;
+	}
+}
+
+// Adds a top border to first card in the Site Stream
+.is-reader-page .is-site-stream .reader-post-card.card {
+
+	&:nth-child(2) {
+		border-top: 1px solid lighten( $gray, 30% );
+	}
+}
+
+// Removes top border from first card in Discover Stream
+.is-reader-page .is-discover-stream.is-site-stream .reader-post-card.card {
+
+	&:nth-child(2) {
+		border-top: 0;
+	}
+}
+
+.reader-post-card.card {
+	border-bottom: 1px solid lighten( $gray, 30% );
+	box-shadow: none;
+	margin: 0 15px;
+	padding: 18px 0 20px;
+	position: relative;
+
+	@include breakpoint( ">660px" ) {
+		margin: 0;
+	}
+
+	&.is-selected {
+		&::before {
+			content: '';
+			position: absolute;
+				top: 0;
+				bottom: 0;
+				left: -8px;
+				width: 2px;
+			background: $blue-wordpress;
+
+			@include breakpoint( ">660px" ) {
+				left: -16px;
+			}
+		}
+	}
+
+	&.has-thumbnail {
+
+		.reader-post-card__featured-image {
+			border: 1px solid lighten( $gray, 20% );
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-basis: auto;
+			flex-grow: 1;
+			margin-right: 20px;
+			max-width: 190px;
+			cursor: pointer;
+
+			@include breakpoint( ">960px" ) {
+				max-width: 250px;
+			}
+
+			@media #{$reader-post-card-breakpoint-medium} {
+				height: 100px;
+				max-width: none;
+				width: 100%;
+				margin-bottom: 10px;
+			}
+
+			@media #{$reader-post-card-breakpoint-small} {
+				height: 100px;
+				max-width: none;
+				width: 100%;
+				margin-bottom: 10px;
+			}
+
+			&:hover .reader-post-card__play-icon {
+				opacity: 1;
+			}
+		}
+
+		.reader-post-card__play-icon {
+			opacity: .8;
+			transition: opacity .25s;
+		}
+
+		&.is-photo {
+
+			.reader-post-card__featured-image {
+				position: relative;
+					top: 0;
+				height: 225px;
+				margin-right: 0;
+				margin-bottom: 0;
+				max-width: 100%;
+
+				&::before {
+					content: '';
+					background: linear-gradient( to bottom, rgba( 0, 0, 0, 0 ) 36%, rgba( 0, 0, 0, 0.37 ) 73%, rgba( 0, 0, 0, 1 ) 100% );
+					height: 225px;
+					opacity: .4;
+					position: absolute;
+						bottom: 0;
+						left: 0;
+					width: 100%;
+					z-index: 1;
+				}
+			}
+
+			.reader-post-card__post {
+				flex-direction: column;
+			}
+
+			.reader-post-card__post-details,
+			.reader-post-card__social {
+				padding-left: 0;
+			}
+
+			.reader-post-card__post-details {
+				margin-top: -10px;
+			}
+
+			.reader-post-card__title {
+				color: $white;
+				font-family: $sans;
+				font-size: 10px;
+				position: relative;
+					bottom: 22px;
+					left: 20px;
+				text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+				z-index: 2;
+				white-space: nowrap;
+				width: calc( 100% - 44px );
+				text-overflow: ellipsis;
+				overflow: hidden;
+			}
+
+			.reader-post-card__title .reader-post-card__title-link {
+				color: $white;
+				font-size: 12px;
+				letter-spacing: 0.01em;
+			}
+
+			.reader-post-actions {
+				margin: 7px 0 0;
+			}
+
+			.reader-post-actions .reader-post-actions__visit {
+				margin-left: -3px;
+			}
+		}
+	}
+
+	&.has-thumbnail,
+	&.is-gallery {
+
+		.reader-post-card__post {
+			margin-top: 18px;
+		}
+
+		.reader-post-card__post-details {
+
+			@media #{$reader-post-card-breakpoint-medium} {
+				margin-top: 7px;
+				width: 100%;
+			}
+
+			@media #{$reader-post-card-breakpoint-small} {
+				margin-top: 7px;
+				width: 100%;
+			}
+		}
+	}
+
+	&.is-gallery .reader-post-card__post {
+		flex-direction: column;
+	}
+
+	&.is-gallery,
+	&.is-photo {
+
+		.reader-post-card__post {
+			margin-top: 17px;
+		}
+	}
+
+	.reader-post-actions {
+		margin: 4px 0 0;
+	}
+}
+
+.reader-post-card__byline {
+	display: flex;
+	font-size: 13px;
+}
+
+.reader-post-card__author::after {
+	content: ', ';
+}
+
+// Need .reader__content to override .reader__content a
+.reader__content .reader-post-card__timestamp-link,
+.reader__content .reader-post-card__tag-link
+{
+	color: lighten( $gray, 10% );
+	margin-top: 2px;
+	cursor: pointer;
+}
+
+.reader-post-card__byline-details {
+	color: $blue-medium;
+	width: 100%;
+}
+
+.reader-post-card__byline-author-site {
+	overflow: hidden;
+	position: relative;
+	height: 20px;
+	width: calc( 100% - 25px );
+
+	&::after {
+		@include long-content-fade( $size: 10% );
+	}
+
+	@include breakpoint( ">660px" ) {
+		width: calc( 100% - 90px );
+	}
+}
+
+.reader-post-card__timestamp-and-tag {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	margin-top: -2px;
+}
+
+.reader-post-card__timestamp {
+	display: inline-table;
+	margin-right: 10px;
+}
+
+.reader-post-card__tag {
+	overflow: hidden;
+	position: relative;
+	height: 20px;
+	width: 100%;
+
+	&::after {
+		@include long-content-fade( $size: 10% );
+	}
+}
+
+.reader-post-card__tag .gridicons-tag {
+	height: 18px;
+	margin: -4px 5px 0 0;
+	position: relative;
+		top: 5px;
+	width: 15px;
+	fill: lighten( $gray, 10% );
+}
+
+.reader-post-card__byline .reader-avatar {
+
+	&.has-gravatar {
+		margin-right: 6px;
+	}
+
+	.gravatar {
+		float: left;
+		height: 32px;
+		margin: 2px 6px 0 0;
+		vertical-align: text-top;
+		width: 32px;
+	}
+
+	&.has-site-icon {
+		margin: 0 9px 0 -1px;
+	}
+
+	.site-icon {
+		width: 32px !important;
+		height: 32px !important;
+		font-size: 32px !important;
+		line-height: 32px !important;
+	}
+}
+
+.reader-post-card .has-site-and-author-icon .gravatar {
+	display: none;
+}
+
+.reader-post-card__link,
+.reader-post-card__link:visited {
+	color: $blue-medium;
+	cursor: pointer;
+}
+
+.reader-post-card__post {
+	clear: both;
+	display: flex;
+	flex-wrap: wrap;
+	flex-direction: row;
+	margin-top: 14px;
+
+	.reader-post-card__post-details {
+		flex: 1;
+	}
+
+	@media #{$reader-post-card-breakpoint-large} {
+		flex-direction: row;
+	}
+
+	@media #{$reader-post-card-breakpoint-medium} {
+		flex-direction: column;
+	}
+
+	@media #{$reader-post-card-breakpoint-small} {
+		flex-direction: column;
+	}
+}
+
+.reader-post-card__post-details {
+	font-family: $serif;
+}
+
+.reader-post-card__title {
+	line-height: 1.3;
+}
+
+// Needs to overwrite .reader__content a
+.reader__content .reader-post-card__title-link,
+.reader__content .reader-post-card__title-link:visited,
+.reader-post-card__title-link,
+.reader-post-card__title-link:visited {
+	color: $gray-dark;
+	cursor: pointer;
+	font-size: 18px;
+	font-weight: 700;
+
+	&:hover {
+		color: $gray-dark;
+	}
+
+	@include breakpoint( ">480px" ) {
+		font-size: 21px;
+	}
+}
+
+.reader-post-card__excerpt {
+	font-size: 15px;
+	line-height: 1.6;
+	font-weight: 100;
+	margin-top: 9px;
+	word-break: break-word;
+	position: relative;
+}
+
+// If we're not showing the entire excerpt, clamp to 3 lines
+.reader-post-card.card:not(.is-showing-entire-excerpt) {
+	.reader-post-card__excerpt {
+		overflow: hidden;
+		max-height: 15px * 1.6 * 3;
+
+		&::before {
+			@include long-content-fade( $size: 15px * 1.6 * 5 );
+			top: inherit;
+			height: 15px * 1.6;
+		}
+	}
+}
+
+// Action buttons in post card
+.reader-post-card.card .reader-post-actions__item {
+	font-size: 14px;
+	height: 22px;
+
+	&.reader-post-actions__visit {
+		margin-left: -2px;
+
+		.gridicon {
+			fill: lighten( $gray, 10% );
+			position: relative;
+				left: -8px;
+				top: -1px;
+		}
+	}
+
+	.gridicons-external {
+		margin-right: -2px;
+	}
+
+	.like-button .gridicon {
+		top: 5px;
+	}
+
+	.like-button__label {
+		margin: -4px 0 0 -5px;
+	}
+
+	.comment-button {
+		align-items: flex-start;
+	}
+
+	.comment-button .gridicon {
+		top: 2px;
+		margin-right: 2px;
+	}
+
+	.reader-share__button-label,
+	.comment-button__label-status,
+	.like-button__label-status {
+
+		@include breakpoint( ">960px" ) {
+			display: none;
+		}
+
+		@media #{$reader-post-card-breakpoint-xxlarge} {
+			display: inline;
+		}
+
+		@include breakpoint( "<660px" ) {
+			display: none;
+		}
+	}
+
+	.ellipsis-menu .button.is-borderless .gridicon {
+		left: 2px;
+		top: -2px;
+	}
+}
+
+// Follow button for stream cards
+.reader-post-card.card .follow-button {
+	border: 0;
+	border-radius: 0;
+	float: right;
+	padding: 0;
+	position: absolute;
+		right: 0;
+		top: 16px;
+
+	.gridicon {
+		fill: $blue-medium;
+	}
+
+	.follow-button__label {
+		color: $blue-medium;
+	}
+
+	&.is-following {
+
+		.gridicon {
+			fill: $alert-green;
+		}
+
+		.follow-button__label {
+			color: $alert-green;
+		}
+	}
+}
+
+// If chat window is open
+.is-group-reader.has-chat {
+
+	@media #{$reader-post-card-breakpoint-xlarge} {
+
+		.reader-post-card__post {
+			flex-direction: column;
+		}
+
+		.reader-post-card__post .reader-post-card__featured-image {
+			height: 100px;
+			margin-right: 0;
+			max-width: 100%;
+		}
+
+		.reader-share__button-label,
+		.comment-button__label-status,
+		.like-button__label-status {
+			display: none;
+		}
+	}
+}
+
+// Gallery cards
+.reader-post-card__gallery {
+	display: flex;
+	margin: 0 0 17px;
+	padding: 0;
+
+	@media #{$reader-post-card-breakpoint-medium}  {
+		margin: 0 0 10px;
+	}
+
+	@media #{$reader-post-card-breakpoint-small}  {
+		margin: 0 0 10px;
+	}
+}
+
+.reader-post-card__gallery-item {
+	border: 1px solid lighten( $gray, 30% );
+	cursor: pointer;
+	flex: 1;
+	list-style-type: none;
+	margin-right: 1px;
+
+	&:last-child {
+		margin-right: 0;
+	}
+
+	&:last-child {
+
+		@media #{$reader-post-card-breakpoint-medium} {
+			display: none;
+		}
+	}
+
+	&:nth-last-of-type(-n+2) {
+
+		@include breakpoint( "<480px" ) {
+			display: none;
+		}
+	}
+}
+
+.reader-post-card__video {
+	padding-bottom: 17px;
+
+	@media #{$reader-post-card-breakpoint-medium} {
+		padding-bottom: 10px;
+	}
+
+	@media #{$reader-post-card-breakpoint-small} {
+		padding-bottom: 10px;
+	}
+}
+
+.reader-post-card__video iframe {
+	display: flex;
+}
+
+.reader-post-card__gallery-image {
+	height: 100px;
+
+	@include breakpoint( ">960px" ) {
+		height: 130px;
+	}
+}
+
+.reader-post-card.card .daily-post-button {
+	margin-bottom: 10px;
+}
+
+// For these borderless cards to look more presentable on Devdocs
+.is-section-devdocs .reader-post-card.card {
+	padding: 16px;
+}
+
+.is-section-devdocs .reader-post-card__featured-image {
+	bottom: 16px;
+}

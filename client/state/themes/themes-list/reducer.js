@@ -3,13 +3,21 @@
  */
 import { fromJS } from 'immutable';
 import map from 'lodash/map';
-import uniq from 'lodash/uniq'
+import uniq from 'lodash/uniq';
 /**
  * Internal dependencies
  */
-import ActionTypes from '../action-types';
 import { PER_PAGE } from './constants';
-import { DESERIALIZE, SERIALIZE, SERVER_DESERIALIZE } from 'state/action-types';
+import {
+	DESERIALIZE,
+	SERIALIZE,
+	SERVER_DESERIALIZE,
+	THEME_ACTIVATE_REQUEST_FAILURE,
+	THEMES_INCREMENT_PAGE,
+	THEMES_QUERY,
+	THEMES_RECEIVE,
+	THEMES_RECEIVE_SERVER_ERROR,
+} from 'state/action-types';
 
 const defaultQuery = fromJS( {
 	search: '',
@@ -26,8 +34,7 @@ export const initialState = query( fromJS( {
 	list: [],
 	nextId: 0,
 	query: {},
-	queryState: {},
-	active: 0
+	queryState: {}
 } ) );
 
 /**
@@ -57,10 +64,10 @@ function isActionForLastPage( list, action ) {
 
 export default ( state = initialState, action ) => {
 	switch ( action.type ) {
-		case ActionTypes.QUERY_THEMES:
+		case THEMES_QUERY:
 			return query( state, action.params );
 
-		case ActionTypes.RECEIVE_THEMES:
+		case THEMES_RECEIVE:
 			if (
 				( action.queryParams.id === state.getIn( [ 'query', 'id' ] ) ) ||
 				action.wasJetpack
@@ -69,27 +76,24 @@ export default ( state = initialState, action ) => {
 						.setIn( [ 'queryState', 'isFetchingNextPage' ], false )
 						.update( 'list', add.bind( null, map( action.themes, 'id' ) ) );
 
-				return newState.setIn( [ 'queryState', 'isLastPage' ],
+				return newState.setIn( [ 'queryState', 'error' ], false )
+						.setIn( [ 'queryState', 'isLastPage' ],
 						isActionForLastPage( newState.get( 'list' ), action ) );
 			}
 			return state;
 
-		case ActionTypes.INCREMENT_THEMES_PAGE:
+		case THEMES_INCREMENT_PAGE:
 			return state
 				.setIn( [ 'queryState', 'isFetchingNextPage' ], true )
 				.updateIn( [ 'query', 'page' ], page => page + 1 );
 
-		case ActionTypes.RECEIVE_THEMES_SERVER_ERROR:
+		case THEMES_RECEIVE_SERVER_ERROR:
+		case THEME_ACTIVATE_REQUEST_FAILURE:
 			return state
 				.setIn( [ 'queryState', 'isFetchingNextPage' ], false )
-				.setIn( [ 'queryState', 'lastPage' ], true );
+				.setIn( [ 'queryState', 'isLastPage' ], true )
+				.setIn( [ 'queryState', 'error' ], true );
 
-		case ActionTypes.ACTIVATED_THEME:
-			// The `active` attribute isn't ever really read, but since
-			// `createReducerStore()` only emits a `change` event when the new
-			// state is different from the old one, we need something to change
-			// here.
-			return state.set( 'active', action.theme.id );
 		case DESERIALIZE:
 			return initialState;
 		case SERVER_DESERIALIZE:

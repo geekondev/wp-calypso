@@ -16,6 +16,10 @@ const IMAGE_SCALE_FACTOR = ( typeof window !== 'undefined' && window.devicePixel
 function resizeImageUrl( imageUrl, params ) {
 	var parsedUrl = url.parse( imageUrl, true, true );
 
+	if ( ! /^https?:$/.test( parsedUrl.protocol ) ) {
+		return imageUrl;
+	}
+
 	parsedUrl.query = omit( parsedUrl.query, [ 'w', 'h', 'resize', 'fit' ] );
 
 	const localParams = assign( {}, params );
@@ -25,6 +29,13 @@ function resizeImageUrl( imageUrl, params ) {
 
 	if ( localParams.h ) {
 		localParams.h *= IMAGE_SCALE_FACTOR;
+	}
+
+	if ( localParams.resize ) {
+		let [ width, height ] = localParams.resize.split( ',' );
+		width *= IMAGE_SCALE_FACTOR;
+		height *= IMAGE_SCALE_FACTOR;
+		localParams.resize = `${width},${height}`;
 	}
 
 	parsedUrl.query = assign( parsedUrl.query, localParams );

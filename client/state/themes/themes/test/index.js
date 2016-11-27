@@ -1,35 +1,26 @@
 import { assert } from 'chai';
 import { createStore } from 'redux';
 
-import ActionTypes from '../../action-types';
+import { THEMES_RECEIVE } from 'state/action-types';
 import reducer from '../reducer';
 
 describe( 'themes', () => {
 	const actionReceiveThemes = {
-		type: ActionTypes.RECEIVE_THEMES,
+		type: THEMES_RECEIVE,
 		themes: [
-			{ id: 'bold-news', active: true },
+			{ id: 'bold-news' },
 			{ id: 'picard' }
 		]
 	};
 	const actionReceiveMoreThemes = {
-		type: ActionTypes.RECEIVE_THEMES,
+		type: THEMES_RECEIVE,
 		themes: [
 			{ id: 'picard' },
 			{ id: 'hue' }
 		]
 	};
-	const actionThemeActivated = {
-		type: ActionTypes.ACTIVATED_THEME,
-		theme: { id: 'picard' }
-	};
 
 	let store;
-
-	function getThemeById( id ) {
-		const theme = store.getState().getIn( [ 'themes', id ] );
-		return theme ? theme.toJS() : undefined;
-	}
 
 	beforeEach( () => {
 		store = createStore( reducer );
@@ -55,19 +46,6 @@ describe( 'themes', () => {
 			store.dispatch( actionReceiveMoreThemes );
 			const themes = store.getState().get( 'themes' );
 			assert( themes.size === 3, 'duplicates found' );
-		} );
-	} );
-
-	context( 'when ACTIVATED_THEME is received', () => {
-		beforeEach( () => {
-			store.dispatch( actionReceiveThemes );
-		} );
-
-		it( 'clears previous active flag', () => {
-			assert.ok( getThemeById( 'bold-news' ).active, 'initial theme not active' );
-			store.dispatch( actionThemeActivated );
-			assert.notOk( getThemeById( 'bold-news' ).active, 'initial theme still active' );
-			assert.ok( getThemeById( 'picard' ).active, 'new theme not active' );
 		} );
 	} );
 } );

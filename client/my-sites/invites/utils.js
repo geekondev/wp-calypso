@@ -2,26 +2,12 @@
  * Internal dependencies
  */
 import React from 'react';
-import get from 'lodash/get'
-
-/**
- * Internal dependencies
- */
-import i18n from 'lib/mixins/i18n';
+import get from 'lodash/get';
+import i18n from 'i18n-calypso';
 
 export default {
 	acceptedNotice( invite, displayOnNextPage = true ) {
-		let takeATour = (
-			<p className="invite-message__intro">
-				{
-					i18n.translate(
-						'Since you\'re new, you might like to {{docsLink}}take a tour{{/docsLink}}.',
-						{ components: { docsLink: <a href="https://learn.wordpress.com/" target="_blank" /> } }
-					)
-				}
-			</p>
-		);
-		let site = (
+		const site = (
 			<a href={ get( invite, 'site.URL' ) } className="invite-accept__notice-site-link">
 				{ get( invite, 'site.title' ) }
 			</a>
@@ -41,7 +27,7 @@ export default {
 						displayOnNextPage
 					}
 				];
-				break;
+
 			case 'viewer':
 				return [
 					i18n.translate(
@@ -55,7 +41,7 @@ export default {
 						displayOnNextPage
 					}
 				];
-				break;
+
 			case 'administrator':
 				return [
 					<div>
@@ -69,11 +55,10 @@ export default {
 								args: { site: get( invite, 'site.title' ) }
 							} ) }
 						</p>
-						{ takeATour }
 					</div>,
 					{ displayOnNextPage }
 				];
-				break;
+
 			case 'editor':
 				return [
 					<div>
@@ -85,11 +70,10 @@ export default {
 						<p className="invite-message__intro">
 							{ i18n.translate( 'This is your site dashboard where you can publish and manage your own posts and the posts of others, as well as upload media.' ) }
 						</p>
-						{ takeATour }
 					</div>,
 					{ displayOnNextPage }
 				];
-				break;
+
 			case 'author':
 				return [
 					<div>
@@ -101,11 +85,10 @@ export default {
 						<p className="invite-message__intro">
 							{ i18n.translate( 'This is your site dashboard where you can publish and edit your own posts as well as upload media.' ) }
 						</p>
-						{ takeATour }
 					</div>,
 					{ displayOnNextPage }
 				];
-				break;
+
 			case 'contributor':
 				return [
 					<div>
@@ -117,11 +100,10 @@ export default {
 						<p className="invite-message__intro">
 							{ i18n.translate( 'This is your site dashboard where you can write and manage your own posts.' ) }
 						</p>
-						{ takeATour }
 					</div>,
 					{ displayOnNextPage }
 				];
-				break;
+
 			case 'subscriber':
 				return [
 					i18n.translate( 'You\'re now a Subscriber of: {{site/}}', {
@@ -129,18 +111,31 @@ export default {
 					} ),
 					{ displayOnNextPage }
 				];
-				break;
 		}
 	},
 
 	getRedirectAfterAccept( invite ) {
+		const readerPath = '/';
+		const postsListPath = '/posts/' + invite.site.ID;
+
+		if ( get( invite, 'site.is_vip' ) ) {
+			switch ( invite.role ) {
+				case 'viewer':
+				case 'follower':
+					return get( invite, 'site.URL' ) || readerPath;
+
+				default:
+					return get( invite, 'site.admin_url' ) || postsListPath;
+			}
+		}
+
 		switch ( invite.role ) {
 			case 'viewer':
 			case 'follower':
-				return '/';
-				break;
+				return readerPath;
+
 			default:
-				return '/posts/' + invite.site.ID;
+				return postsListPath;
 		}
 	}
 };

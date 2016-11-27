@@ -1,29 +1,29 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	classNames = require( 'classnames' );
+import React from 'react';
+import classNames from 'classnames';
+import { find } from 'lodash';
 
 /**
  * Internal dependencies
  */
+import ElementChart from 'components/chart';
+import Legend from 'components/chart/legend';
+import StatTabs from '../stats-tabs';
+import analytics from 'lib/analytics';
+import observe from 'lib/mixins/data-observe';
+import StatsModulePlaceholder from '../stats-module/placeholder';
+import Card from 'components/card';
 
-var ElementChart = require( 'components/chart' ),
-	Legend = require( 'components/chart/legend' ),
-	StatTabs = require( '../stats-tabs' ),
-	analytics = require( 'analytics' ),
-	observe = require( 'lib/mixins/data-observe' ),
-	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
-	Card = require( 'components/card' );
-
-module.exports = React.createClass( {
+export default React.createClass( {
 	displayName: 'StatModuleChartTabs',
 
 	mixins: [ observe( 'visitsList', 'activeTabVisitsList' ) ],
 
 	getInitialState: function() {
 		var activeTab = this.getActiveTab(),
-			activeCharts = activeTab.legendOptions.slice() || [];
+			activeCharts = activeTab.legendOptions ? activeTab.legendOptions.slice() : [];
 
 		return {
 			activeLegendCharts: activeCharts,
@@ -105,7 +105,7 @@ module.exports = React.createClass( {
 					label: this.translate( 'Views Per Visitor' ),
 					value: this.numberFormat( ( item.data.views / item.data.visitors ), { decimals: 2 } ),
 					className: 'is-views-per-visitor',
-					icon: 'stats-alt'
+					icon: 'chevron-right'
 				} );
 
 				if ( item.data.post_titles && item.data.post_titles.length ) {
@@ -158,11 +158,8 @@ module.exports = React.createClass( {
 	},
 
 	getActiveTab: function( nextProps ) {
-		var props = nextProps || this.props;
-
-		return props.charts.filter( function( chart ) {
-			return chart.attr === props.chartTab;
-		}, this ).shift();
+		const props = nextProps || this.props;
+		return find( props.charts, { attr: props.chartTab } ) || props.charts[ 0 ];
 	},
 
 	buildChartData: function() {
@@ -213,7 +210,6 @@ module.exports = React.createClass( {
 	render: function() {
 		var data = this.buildChartData(),
 			activeTab = this.getActiveTab(),
-			dataKeys = [ this.props.chartTab ],
 			visitsList = this.props.visitsList,
 			availableCharts = [],
 			activeTabLoading = this.props.activeTabVisitsList.isLoading() && this.props.visitsList.isLoading(),
@@ -232,17 +228,18 @@ module.exports = React.createClass( {
 		}
 
 		if ( activeTab.legendOptions ) {
-			dataKeys = dataKeys.concat( this.state.activeLegendCharts );
 			availableCharts = activeTab.legendOptions;
 		}
 
 		return (
-			<Card className={ classNames.apply( null, classes ) }>
-				<Legend tabs={ this.props.charts } activeTab={ activeTab } availableCharts={ availableCharts } activeCharts={ this.state.activeLegendCharts } clickHandler={ this.onLegendClick } />
-				<StatsModulePlaceholder className="is-chart" isLoading={ activeTabLoading } />
-				<ElementChart loading={ activeTabLoading } data={ data } barClick={ this.props.barClick } />
-				<StatTabs dataList={ visitsList } tabs={ this.props.charts } switchTab={ this.props.switchTab } selectedTab={ this.props.chartTab } activeIndex={ this.props.queryDate } activeKey="period" />
-			</Card>
+			<div>
+				<Card className={ classNames.apply( null, classes ) }>
+					<Legend tabs={ this.props.charts } activeTab={ activeTab } availableCharts={ availableCharts } activeCharts={ this.state.activeLegendCharts } clickHandler={ this.onLegendClick } />
+					<StatsModulePlaceholder className="is-chart" isLoading={ activeTabLoading } />
+					<ElementChart loading={ activeTabLoading } data={ data } barClick={ this.props.barClick } />
+					<StatTabs dataList={ visitsList } tabs={ this.props.charts } switchTab={ this.props.switchTab } selectedTab={ this.props.chartTab } activeIndex={ this.props.queryDate } activeKey="period" />
+				</Card>
+			</div>
 		);
 	}
 } );

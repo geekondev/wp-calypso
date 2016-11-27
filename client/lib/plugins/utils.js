@@ -112,7 +112,7 @@ PluginUtils = {
 			const img = li.querySelectorAll( 'img' );
 			const captionP = li.querySelectorAll( 'p' );
 
-			if ( img[ 0 ].src ) {
+			if ( img[ 0 ] && img[ 0 ].src ) {
 				return {
 					url: img[ 0 ].src,
 					caption: captionP[ 0 ] ? captionP[ 0 ].textContent : null
@@ -165,11 +165,21 @@ PluginUtils = {
 					for ( let sectionKey of Object.keys( item ) ) {
 						cleanItem[ sectionKey] = sanitizeHtml( item[ sectionKey ], {
 							allowedTags: [ 'h4', 'h5', 'h6', 'blockquote', 'code', 'b', 'i', 'em', 'strong', 'a', 'p', 'img', 'ul', 'ol', 'li' ],
-							allowedAttributes: { a: [ 'href' ], img: [ 'src' ] },
+							allowedAttributes: { a: [ 'href', 'target', 'rel' ], img: [ 'src' ] },
 							allowedSchemes: [ 'http', 'https' ],
 							transformTags: {
 								h1: 'h3',
 								h2: 'h3',
+								a: function( tagName, attribs ) {
+									return {
+										tagName: 'a',
+										attribs: {
+											...pick( attribs, [ 'href' ] ),
+											target: '_blank',
+											rel: 'external noopener noreferrer'
+										}
+									};
+								}
 							}
 						} );
 					}

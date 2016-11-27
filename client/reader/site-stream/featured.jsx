@@ -3,7 +3,6 @@
  */
 import React from 'react';
 import PureRenderMixin from 'react-pure-render/mixin';
-import get from 'lodash/get';
 
 /**
  * Internal Dependencies
@@ -12,8 +11,9 @@ import Card from 'components/card';
 import page from 'page';
 import FeedPostStore from 'lib/feed-post-store';
 import FeedPostStoreActions from 'lib/feed-post-store/actions';
-import DiscoverHelper from 'reader/discover/helper';
+import { getSourceData as getDiscoverSourceData } from 'reader/discover/helper';
 import * as stats from 'reader/stats';
+import cssSafeUrl from 'lib/css-safe-url';
 
 export default React.createClass( {
 	displayName: 'FeedFeatured',
@@ -25,22 +25,22 @@ export default React.createClass( {
 	},
 
 	getStateFromStores( store = this.props.store ) {
-		let posts = store.get().map( postKey => {
-			let post = FeedPostStore.get( postKey );
+		const posts = store.get().map( postKey => {
+			const post = FeedPostStore.get( postKey );
 
 			if ( this.shouldFetch( post ) ) {
 				FeedPostStoreActions.fetchPost( postKey );
 				return { post };
 			}
 
-			let source = this.getSourcePost( post ),
+			const source = this.getSourcePost( post ),
 				url = this.getPostUrl( source || post );
 
 			return {
 				post,
 				source,
 				url
-			}
+			};
 		} );
 
 		return {
@@ -73,9 +73,9 @@ export default React.createClass( {
 	},
 
 	getSourcePost( post ) {
-		let data = DiscoverHelper.getSourceData( post );
+		const data = getDiscoverSourceData( post );
 
-		if ( !data ) {
+		if ( ! data ) {
 			return null;
 		}
 
@@ -87,8 +87,8 @@ export default React.createClass( {
 	},
 
 	handleClick( postData ) {
-		let post = postData.post;
-		stats.recordTrack( 'calypso_reader_clicked_featured_post', { blog_id: post.site_ID, post_id: post.ID } )
+		const post = postData.post;
+		stats.recordTrackForPost( 'calypso_reader_clicked_featured_post', post );
 		stats.recordAction( 'clicked_featured_post' );
 		stats.recordGaEvent( 'Clicked Featured Post' );
 
@@ -97,7 +97,7 @@ export default React.createClass( {
 
 	renderPosts() {
 		return this.state.posts.map( postData => {
-			let post = postData.post,
+			const post = postData.post,
 				postState = post._state;
 
 			switch ( postState ) {
@@ -107,7 +107,7 @@ export default React.createClass( {
 					break;
 				default:
 					let style = {
-						backgroundImage: post.canonical_image && post.canonical_image.uri ? 'url(' + post.canonical_image.uri + ')' : null
+						backgroundImage: post.canonical_image && post.canonical_image.uri ? 'url(' + cssSafeUrl( post.canonical_image.uri ) + ')' : null
 					};
 
 					return (

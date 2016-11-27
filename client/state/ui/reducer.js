@@ -8,12 +8,22 @@ import { combineReducers } from 'redux';
  */
 import {
 	SELECTED_SITE_SET,
-	SET_SECTION,
+	SECTION_SET,
+	PREVIEW_IS_SHOWING,
 	SERIALIZE,
-	DESERIALIZE
+	DESERIALIZE,
 } from 'state/action-types';
+import { createReducer } from 'state/utils';
 import editor from './editor/reducer';
+import guidedTour from './guided-tours/reducer';
+import queryArguments from './query-arguments/reducer';
 import reader from './reader/reducer';
+import olark from './olark/reducer';
+import actionLog from './action-log/reducer';
+import layoutFocus from './layout-focus/reducer';
+import preview from './preview/reducer';
+import happychat from './happychat/reducer';
+import mediaModal from './media-modal/reducer';
 
 /**
  * Tracks the currently selected site ID.
@@ -31,30 +41,10 @@ export function selectedSiteId( state = null, action ) {
 	return state;
 }
 
-/**
- * Tracks the four most recently selected site IDs.
- *
- * @param  {Object} state  Current state
- * @param  {Object} action Action payload
- * @return {Object}        Updated state
- */
-export function recentlySelectedSiteIds( state = [], action ) {
-	switch ( action.type ) {
-		case SELECTED_SITE_SET:
-			state = [ action.siteId, ...state ];
-			if ( state.length === 3 ) {
-				state.pop();
-			}
-			return state;
-	}
-
-	return state;
-}
-
 //TODO: do we really want to mix strings and booleans?
 export function section( state = false, action ) {
 	switch ( action.type ) {
-		case SET_SECTION:
+		case SECTION_SET:
 			return ( action.section !== undefined ) ? action.section : state;
 	}
 	return state;
@@ -62,45 +52,41 @@ export function section( state = false, action ) {
 
 export function hasSidebar( state = true, action ) {
 	switch ( action.type ) {
-		case SET_SECTION:
+		case SECTION_SET:
 			return ( action.hasSidebar !== undefined ) ? action.hasSidebar : state;
-	}
-	return state;
-}
-
-export function isFullScreen( state = false, action ) {
-	if ( action.type === SET_SECTION && action.isFullScreen !== undefined ) {
-		state = action.isFullScreen;
 	}
 	return state;
 }
 
 export function isLoading( state = false, action ) {
 	switch ( action.type ) {
-		case SET_SECTION:
+		case SECTION_SET:
 			return ( action.isLoading !== undefined ) ? action.isLoading : state;
 	}
 	return state;
 }
 
-export function chunkName( state = false, action ) {
-	switch ( action.type ) {
-		case SET_SECTION:
-			return ( action.chunkName !== undefined ) ? action.chunkName : state;
-	}
-	return state;
-}
+export const isPreviewShowing = createReducer( false, {
+	[ PREVIEW_IS_SHOWING ]: ( state, { isShowing } ) =>
+		isShowing !== undefined ? isShowing : state,
+} );
 
 const reducer = combineReducers( {
 	section,
 	isLoading,
+	layoutFocus,
 	hasSidebar,
-	isFullScreen,
-	chunkName,
+	isPreviewShowing,
+	queryArguments,
 	selectedSiteId,
-	recentlySelectedSiteIds,
+	guidedTour,
 	editor,
-	reader
+	reader,
+	olark,
+	preview,
+	actionLog,
+	happychat,
+	mediaModal
 } );
 
 export default function( state, action ) {

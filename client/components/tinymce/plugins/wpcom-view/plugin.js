@@ -13,13 +13,14 @@
 var tinymce = require( 'tinymce/tinymce' ),
 	debounce = require( 'lodash/debounce' ),
 	ReactDom = require( 'react-dom' ),
-	React = require( 'react' );
+	React = require( 'react'),
+	i18n = require( 'i18n-calypso' );
+import { Provider as ReduxProvider } from 'react-redux';
 
 /**
  * Internal dependencies
  */
 var views = require( './views' ),
-	i18n = require( 'lib/mixins/i18n' ),
 	sites = require( 'lib/sites-list' )();
 
 /**
@@ -90,11 +91,13 @@ function wpview( editor ) {
 			type = $view.attr( 'data-wpview-type' );
 
 			ReactDom.render(
-				React.createElement( views.components[ type ], {
-					content: getText( view ),
-					siteId: sites.getSelectedSite() ? sites.getSelectedSite().ID : null,
-					onResize: debounce( triggerNodeChanged, 500 )
-				} ),
+				React.createElement( ReduxProvider, { store: editor.getParam( 'redux_store' ) },
+					React.createElement( views.components[ type ], {
+						content: getText( view ),
+						siteId: sites.getSelectedSite() ? sites.getSelectedSite().ID : null,
+						onResize: debounce( triggerNodeChanged, 500 )
+					} )
+				),
 				$view.find( '.wpview-body' )[0]
 			);
 
@@ -249,11 +252,7 @@ function wpview( editor ) {
 			return;
 		}
 
-		content = editor.getContent( {
-			format: 'raw',
-			withMarkers: true
-		} );
-
+		content = editor.getContent( { format: 'raw' } );
 		processedContent = views.setMarkers( content );
 
 		if ( content !== processedContent ) {
@@ -275,8 +274,7 @@ function wpview( editor ) {
 	// matching view patterns, and transform the matches into
 	// view wrappers.
 	editor.on( 'BeforeSetContent', function( event ) {
-		var site = sites.getSelectedSite(),
-			node;
+		var node;
 
 		if ( ! event.selection ) {
 			$( '.wpview-wrap .wpview-body' ).each( function( i, viewBody ) {
@@ -434,10 +432,8 @@ function wpview( editor ) {
 				// Returning false stops the ugly bars from appearing in IE11 and stops the view being selected as a range in FF.
 				// Unfortunately, it also inhibits the dragging of views to a new location.
 				return false;
-			} else {
-				if ( event.type === 'touchend' || event.type === 'mousedown' ) {
-					deselect();
-				}
+			} else if ( event.type === 'touchend' || event.type === 'mousedown' ) {
+				deselect();
 			}
 
 			if ( event.type === 'touchend' && scrolled ) {
@@ -488,7 +484,7 @@ function wpview( editor ) {
 	});
 
 	editor.on( 'GetContent', function( event ) {
-		if ( event.format === 'raw' && event.content && ! event.selection && ! event.withMarkers ) {
+		if ( event.format === 'raw' && event.content && ! event.selection ) {
 			event.content = resetViews( event.content );
 		}
 	} );
@@ -639,13 +635,11 @@ function wpview( editor ) {
 				if ( view.previousSibling ) {
 					if ( getView( view.previousSibling ) ) {
 						setViewCursor( false, view.previousSibling );
+					} else if ( dom.isEmpty( view.previousSibling ) && key === VK.BACKSPACE ) {
+						dom.remove( view.previousSibling );
 					} else {
-						if ( dom.isEmpty( view.previousSibling ) && key === VK.BACKSPACE ) {
-							dom.remove( view.previousSibling );
-						} else {
-							selection.select( view.previousSibling, true );
-							selection.collapse();
-						}
+						selection.select( view.previousSibling, true );
+						selection.collapse();
 					}
 				} else {
 					setViewCursor( true, view );

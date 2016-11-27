@@ -9,6 +9,7 @@ import includes from 'lodash/includes';
  */
 import config from 'config';
 import { decodeEntities } from 'lib/formatting';
+import { withoutHttp } from 'lib/url';
 
 /**
  * Module variables
@@ -31,7 +32,7 @@ function getLanguage( slug ) {
 }
 
 function getSiteSlug( url ) {
-	var slug = url.replace( /^https?:\/\//, '' );
+	var slug = withoutHttp( url );
 	return slug.replace( /\//g, '::' );
 }
 
@@ -53,8 +54,10 @@ module.exports = {
 				'email_verified',
 				'is_valid_google_apps_country',
 				'logout_URL',
+				'primary_blog',
 				'primary_blog_url',
 				'meta',
+				'is_new_reader'
 			],
 			decodeWhitelist = [
 				'display_name',

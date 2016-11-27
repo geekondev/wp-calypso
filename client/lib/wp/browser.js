@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { SyncHandler } from './sync-handler';
+import { SyncHandler, syncOptOut } from './sync-handler';
 import debugFactory from 'debug';
 const debug = debugFactory( 'calypso:wp' );
 
@@ -41,13 +41,19 @@ if ( config.isEnabled( 'oauth' ) ) {
 	} );
 }
 
+if ( addSyncHandlerWrapper ) {
+	wpcom = syncOptOut( wpcom );
+}
+
 if ( config.isEnabled( 'support-user' ) ) {
 	wpcom = wpcomSupport( wpcom );
 }
 
 // expose wpcom global var only in development
 if ( 'development' === config( 'env' ) ) {
+	const wpcomPKG = require( 'wpcom/package' );
 	window.wpcom = wpcom;
+	window.wpcom.__version = wpcomPKG.version;
 }
 
 // Inject localization helpers to `wpcom` instance

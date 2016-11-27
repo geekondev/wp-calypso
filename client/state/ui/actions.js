@@ -3,7 +3,9 @@
  */
 import {
 	SELECTED_SITE_SET,
-	SET_SECTION
+	ROUTE_SET,
+	SECTION_SET,
+	PREVIEW_IS_SHOWING,
 } from 'state/action-types';
 
 /**
@@ -33,12 +35,33 @@ export function setAllSitesSelected() {
 	};
 }
 
+/**
+ * Returns an action object signalling that the current route is to be changed
+ *
+ * @param  {String} path    Route path
+ * @param  {Object} [query] Query arguments
+ * @return {Object}         Action object
+ */
+export function setRoute( path, query = {} ) {
+	return {
+		type: ROUTE_SET,
+		path,
+		query,
+	};
+}
+
 export function setSection( section, options = {} ) {
-	options.type = SET_SECTION;
+	options.type = SECTION_SET;
 	if ( section ) {
 		options.section = section;
 	}
 	options.hasSidebar = ( options.hasSidebar === false ) ? false : true;
-	options.isFullScreen = !! options.isFullScreen;
 	return options;
+}
+
+export function setPreviewShowing( isShowing ) {
+	return {
+		type: PREVIEW_IS_SHOWING,
+		isShowing,
+	};
 }

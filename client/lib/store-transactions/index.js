@@ -4,14 +4,16 @@
 var debug = require( 'debug' )( 'calypso:store-transactions' ),
 	isEmpty = require( 'lodash/isEmpty' ),
 	Readable = require( 'stream' ).Readable,
-	inherits = require( 'inherits' );
+	inherits = require( 'inherits' ),
+	omit = require( 'lodash/omit' );
 
 /**
  * Internal dependencies
  */
 var wpcom = require( 'lib/wp' ).undocumented(),
 	paygateLoader = require( 'lib/paygate-loader' ),
-	validateCardDetails = require( 'lib/credit-card-details' ).validateCardDetails;
+	validateCardDetails = require( 'lib/credit-card-details' ).validateCardDetails,
+	transactionStepTypes = require( './step-types' );
 
 /**
  * Make a purchase on WordPress.com.
@@ -87,7 +89,7 @@ TransactionFlow.prototype._paymentHandlers = {
 			payment_partner
 		} = this._initialData.payment.storedCard;
 
-		this._pushStep( { name: 'input-validation', first: true } );
+		this._pushStep( { name: transactionStepTypes.INPUT_VALIDATION, first: true } );
 		debug( 'submitting transaction with stored card' );
 		this._submitWithPayment( {
 			payment_method: 'WPCOM_Billing_MoneyPress_Stored',
@@ -103,7 +105,7 @@ TransactionFlow.prototype._paymentHandlers = {
 
 		if ( ! isEmpty( validation.errors ) ) {
 			this._pushStep( {
-				name: 'input-validation',
+				name: transactionStepTypes.INPUT_VALIDATION,
 				error: new ValidationError( 'invalid-card-details', validation.errors ),
 				first: true,
 				last: true
@@ -111,7 +113,7 @@ TransactionFlow.prototype._paymentHandlers = {
 			return;
 		}
 
-		this._pushStep( { name: 'input-validation', first: true } );
+		this._pushStep( { name: transactionStepTypes.INPUT_VALIDATION, first: true } );
 		debug( 'submitting transaction with new card' );
 
 		this._createPaygateToken( function( paygateToken ) {
@@ -128,24 +130,24 @@ TransactionFlow.prototype._paymentHandlers = {
 	},
 
 	'WPCOM_Billing_WPCOM': function() {
-		this._pushStep( { name: 'input-validation', first: true } );
+		this._pushStep( { name: transactionStepTypes.INPUT_VALIDATION, first: true } );
 		this._submitWithPayment( { payment_method: 'WPCOM_Billing_WPCOM' } );
 	}
 };
 
 TransactionFlow.prototype._createPaygateToken = function( callback ) {
-	this._pushStep({ name: 'submitting-payment-key-request' });
+	this._pushStep( { name: transactionStepTypes.SUBMITTING_PAYMENT_KEY_REQUEST } );
 
 	createPaygateToken( 'new_purchase', this._initialData.payment.newCardDetails, function( error, paygateToken ) {
 		if ( error ) {
-			return this._pushStep({
-				name: 'received-payment-key-response',
+			return this._pushStep( {
+				name: transactionStepTypes.RECEIVED_PAYMENT_KEY_RESPONSE,
 				error: error,
 				last: true
-			});
+			} );
 		}
 
-		this._pushStep({ name: 'received-payment-key-response' });
+		this._pushStep( { name: transactionStepTypes.RECEIVED_PAYMENT_KEY_RESPONSE } );
 		callback( paygateToken );
 	}.bind( this ) );
 };
@@ -153,33 +155,36 @@ TransactionFlow.prototype._createPaygateToken = function( callback ) {
 TransactionFlow.prototype._submitWithPayment = function( payment ) {
 	var onComplete = this.push.bind( this, null ), // End the stream when the transaction has finished
 		transaction = {
-			cart: this._initialData.cart,
+			cart: omit( this._initialData.cart, [ 'messages'] ), // messages contain reference to DOMNode
 			domain_details: this._initialData.domainDetails,
 			payment: payment
 		};
 
-	this._pushStep({ name: 'submitting-wpcom-request' });
+	this._pushStep( { name: transactionStepTypes.SUBMITTING_WPCOM_REQUEST } );
 
 	wpcom.transactions( 'POST', transaction, function( error, data ) {
 		if ( error ) {
-			return this._pushStep({
-				name: 'received-wpcom-response',
+			return this._pushStep( {
+				name: transactionStepTypes.RECEIVED_WPCOM_RESPONSE,
 				error: error,
 				last: true
-			});
+			} );
 		}
 
-		this._pushStep({
-			name: 'received-wpcom-response',
+		this._pushStep( {
+			name: transactionStepTypes.RECEIVED_WPCOM_RESPONSE,
 			data: data,
 			last: true
-		});
+		} );
 		onComplete();
 	}.bind( this ) );
 };
 
 function createPaygateToken( requestType, cardDetails, callback ) {
-	wpcom.paygateConfiguration( { request_type: requestType }, function ( error, configuration ) {
+	wpcom.paygateConfiguration( {
+		request_type: requestType,
+		country: cardDetails.country,
+	}, function( error, configuration ) {
 		if ( error ) {
 			callback( error );
 			return;
@@ -220,10 +225,10 @@ function getPaygateParameters( cardDetails ) {
 		name: cardDetails.name,
 		number: cardDetails.number,
 		cvc: cardDetails.cvv,
-		zip: cardDetails['postal-code'],
+		zip: cardDetails[ 'postal-code' ],
 		country: cardDetails.country,
-		exp_month: cardDetails['expiration-date'].substring( 0, 2 ),
-		exp_year: '20' + cardDetails['expiration-date'].substring( 3, 5 )
+		exp_month: cardDetails[ 'expiration-date' ].substring( 0, 2 ),
+		exp_year: '20' + cardDetails[ 'expiration-date' ].substring( 3, 5 )
 	};
 }
 
@@ -249,11 +254,11 @@ function fullCreditsPayment() {
 	return { paymentMethod: 'WPCOM_Billing_WPCOM' };
 }
 
-module.exports = {
-	hasDomainDetails: hasDomainDetails,
-	submit: submit,
-	newCardPayment: newCardPayment,
-	storedCardPayment: storedCardPayment,
-	fullCreditsPayment: fullCreditsPayment,
-	createPaygateToken: createPaygateToken
+export default {
+	createPaygateToken,
+	fullCreditsPayment,
+	hasDomainDetails,
+	newCardPayment,
+	storedCardPayment,
+	submit
 };

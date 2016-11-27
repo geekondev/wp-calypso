@@ -1,5 +1,3 @@
-/** @ssr-ready **/
-
 /**
  * External dependencies
  */
@@ -10,55 +8,54 @@ import { connect } from 'react-redux';
 /**
  * Internal dependencies
  */
-import MasterbarMinimal from 'layout/masterbar/minimal';
+import MasterbarLoggedOut from 'layout/masterbar/logged-out';
+import { getSection } from 'state/ui/selectors';
 
 const LayoutLoggedOut = ( {
 	primary,
 	secondary,
 	tertiary,
 	section,
-	hasSidebar = true,
-	isFullScreen = false
 } ) => {
-	const sectionClass = section ? 'is-section-' + section : '';
-	const classes = classNames( 'wp layout', sectionClass, {
+	const classes = classNames( 'layout', {
+		[ 'is-group-' + section.group ]: !! section,
+		[ 'is-section-' + section.name ]: !! section,
 		'focus-content': true,
-		'has-no-sidebar': ! hasSidebar,
-		'full-screen': isFullScreen,
+		'has-no-sidebar': true, // Logged-out never has a sidebar
+		'wp-singletree-layout': !! primary,
 	} );
 
 	return (
 		<div className={ classes }>
-			<MasterbarMinimal url="/" />
-			<div id="content" className="wp-content">
-				<div id="primary" className="wp-primary wp-section">
+			<MasterbarLoggedOut title={ section.title } />
+			<div id="content" className="layout__content">
+				<div id="primary" className="layout__primary">
 					{ primary }
 				</div>
-				<div id="secondary" className="wp-secondary">
+				<div id="secondary" className="layout__secondary">
 					{ secondary }
 				</div>
 			</div>
-			<div id="tertiary" className="wp-overlay fade-background">
+			<div id="tertiary">
 				{ tertiary }
 			</div>
 		</div>
 	);
-}
+};
 
 LayoutLoggedOut.displayName = 'LayoutLoggedOut';
 LayoutLoggedOut.propTypes = {
 	primary: React.PropTypes.element,
 	secondary: React.PropTypes.element,
 	tertiary: React.PropTypes.element,
-	section: React.PropTypes.string,
-	hasSidebar: React.PropTypes.bool,
-	isFullScreen: React.PropTypes.bool
-}
+	section: React.PropTypes.oneOfType( [
+		React.PropTypes.bool,
+		React.PropTypes.object,
+	] )
+};
 
 export default connect(
-	( state ) => ( {
-		section: state.ui.section,
-		hasSidebar: state.ui.hasSidebar,
-		isFullScreen: state.ui.isFullScreen,
+	state => ( {
+		section: getSection( state )
 	} )
 )( LayoutLoggedOut );

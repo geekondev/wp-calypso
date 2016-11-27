@@ -2,13 +2,12 @@
  * External dependencies
  */
 var assign = require( 'lodash/assign' ),
-	classNames = require( 'classnames' ),
 	React = require( 'react' );
 
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
+var analytics = require( 'lib/analytics' ),
 	cartValues = require( 'lib/cart-values' ),
 	CountrySelect = require( 'my-sites/upgrades/components/form/country-select' ),
 	Input = require( 'my-sites/upgrades/components/form/input' ),
@@ -17,6 +16,8 @@ var analytics = require( 'analytics' ),
 	SubscriptionText = require( './subscription-text' ),
 	TermsOfService = require( './terms-of-service' ),
 	wpcom = require( 'lib/wp' ).undocumented();
+
+import CartCoupon from 'my-sites/upgrades/cart/cart-coupon'
 
 module.exports = React.createClass( {
 	displayName: 'PaypalPaymentBox',
@@ -128,7 +129,7 @@ module.exports = React.createClass( {
 				<div className="payment-box-section">
 					<CountrySelect
 						additionalClasses="checkout-field"
-						name='country'
+						name="country"
 						label={ this.translate( 'Country', { textOnly: true } ) }
 						countriesList={ this.props.countriesList }
 						value={ this.state.country }
@@ -147,9 +148,11 @@ module.exports = React.createClass( {
 				<TermsOfService
 					hasRenewableSubscription={ cartValues.cartItems.hasRenewableSubscription( this.props.cart ) } />
 
+				<CartCoupon cart={ this.props.cart } />
+
 				<div className="payment-box-actions">
 					<div className="pay-button">
-						<button type='submit' className="button is-primary button-pay" disabled={ this.state.formDisabled }>
+						<button type="submit" className="button is-primary button-pay" disabled={ this.state.formDisabled }>
 							{ this.renderButtonText() }
 						</button>
 						<SubscriptionText cart={ this.props.cart } />
@@ -168,14 +171,9 @@ module.exports = React.createClass( {
 	},
 
 	render: function() {
-		var classSet = classNames( {
-			'paypal-payment-box': true,
-			selected: this.props.selected === true
-		} );
-
 		return (
 			<PaymentBox
-				classSet={ classSet }
+				classSet="paypal-payment-box"
 				title={ this.translate( 'Secure Payment with PayPal' ) }>
 				{ this.content() }
 			</PaymentBox>

@@ -1,13 +1,18 @@
 /**
+ * External dependencies
+ */
+import includes from 'lodash/includes';
+
+/**
  * Internal Dependencies
  */
-var trailingslashit = require( './trailingslashit' ),
-	untrailingslashit = require( './untrailingslashit' );
+import trailingslashit from './trailingslashit';
+import untrailingslashit from './untrailingslashit';
 
 /**
  * Module variables
  */
-var statsLocationsByTab = {
+const statsLocationsByTab = {
 	day: '/stats/day/',
 	week: '/stats/week/',
 	month: '/stats/month/',
@@ -16,37 +21,42 @@ var statsLocationsByTab = {
 };
 
 function getSiteFragment( path ) {
-	var basePath = path.split( '?' )[0],
-		pieces = basePath.split( '/' ),
-		siteOldStyle = pieces[ pieces.length - 1 ],
-		siteNewStyle = pieces[2] || '';
+	const basePath = path.split( '?' )[ 0 ];
+	const pieces = basePath.split( '/' );
 
-	if ( siteNewStyle.indexOf( '.' ) >= 0 ) {
-		// This is a new-style URL like /:section/:site[/:filter/...]
-		return siteNewStyle;
-	} else if ( siteOldStyle.indexOf( '.' ) >= 0 ) {
-		// This is an old-style URL like /:section/:filter/:site
-		return siteOldStyle;
-	} else if ( siteNewStyle && ! isNaN( siteNewStyle ) ) {
-		// Allow numeric site IDs in /:section/:site[/:filter/...]
-		return parseInt( siteNewStyle, 10 );
-	} else if ( siteOldStyle && ! isNaN( siteOldStyle ) ) {
-		// Allow numeric site IDs in /:section/:filter/:site
-		return parseInt( siteOldStyle, 10 );
-	} else {
-		// No site fragment here
-		return false;
+	// There are 2 URL positions where we should look for the site fragment:
+	// last (most sections) and second-to-last (post ID is last in editor)
+
+	// Check last and second-to-last piece for site slug
+	for ( let i = 2; i > 0; i-- ) {
+		const piece = pieces[ pieces.length - i ];
+		if ( piece && -1 !== piece.indexOf( '.' ) ) {
+			return piece;
+		}
 	}
+
+	// Check last and second-to-last piece for numeric site ID
+	for ( let i = 2; i > 0; i-- ) {
+		const piece = parseInt( pieces[ pieces.length - i ], 10 );
+		if ( Number.isSafeInteger( piece ) ) {
+			return piece;
+		}
+	}
+
+	// No site fragment here
+	return false;
 }
 
 function addSiteFragment( path, site ) {
-	var pieces = sectionify( path ).split( '/' );
+	const pieces = sectionify( path ).split( '/' );
 
-	if ( pieces[1] === 'post' || pieces[1] === 'page' ) {
-		// New-style URL; change /:section[/:filter/...] into /:section/:site/[:filter/...]
-		pieces.splice( 2, 0, site );
+	if ( includes( [ 'post', 'page', 'edit' ], pieces[ 1 ] ) ) {
+		// Editor-style URL; insert the site as either the 2nd or 3rd piece of
+		// the URL ( '/post/:site' or '/edit/:cpt/:site' )
+		const sitePos = ( 'edit' === pieces[ 1 ] ? 3 : 2 );
+		pieces.splice( sitePos, 0, site );
 	} else {
-		// Old-style URL; add /:site onto the end
+		// Somewhere else in Calypso; add /:site onto the end
 		pieces.push( site );
 	}
 
@@ -54,8 +64,8 @@ function addSiteFragment( path, site ) {
 }
 
 function sectionify( path ) {
-	var basePath = path.split( '?' )[0],
-		site = getSiteFragment( basePath );
+	let basePath = path.split( '?' )[ 0 ];
+	const site = getSiteFragment( basePath );
 
 	if ( site ) {
 		basePath = trailingslashit( basePath ).replace( '/' + site + '/', '/' );
@@ -64,7 +74,7 @@ function sectionify( path ) {
 }
 
 function getStatsDefaultSitePage( slug ) {
-	var path = '/stats/insights/';
+	const path = '/stats/insights/';
 
 	if ( slug ) {
 		return path + slug;
@@ -74,8 +84,6 @@ function getStatsDefaultSitePage( slug ) {
 }
 
 function getStatsPathForTab( tab, siteIdOrSlug ) {
-	var path;
-
 	if ( ! tab ) {
 		return getStatsDefaultSitePage( siteIdOrSlug );
 	}
@@ -85,7 +93,7 @@ function getStatsPathForTab( tab, siteIdOrSlug ) {
 		return getStatsDefaultSitePage();
 	}
 
-	path = statsLocationsByTab[ tab ];
+	const path = statsLocationsByTab[ tab ];
 
 	if ( ! path ) {
 		return getStatsDefaultSitePage( siteIdOrSlug );
@@ -119,11 +127,16 @@ function mapPostStatus( status ) {
 	}
 }
 
+function externalRedirect( url ) {
+	window.location = url;
+}
+
 module.exports = {
 	getSiteFragment: getSiteFragment,
 	addSiteFragment: addSiteFragment,
 	getStatsDefaultSitePage: getStatsDefaultSitePage,
 	getStatsPathForTab: getStatsPathForTab,
 	sectionify: sectionify,
-	mapPostStatus: mapPostStatus
+	mapPostStatus: mapPostStatus,
+	externalRedirect: externalRedirect
 };

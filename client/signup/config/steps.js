@@ -2,51 +2,36 @@
  * External dependencies
  */
 import { current } from 'page';
+import i18n from 'i18n-calypso';
 
 /**
 * Internal dependencies
 */
 import stepActions from 'lib/signup/step-actions';
-import i18n from 'lib/mixins/i18n';
 
 module.exports = {
-	themes: {
-		stepName: 'themes',
-		apiRequestFunction: stepActions.setThemeOnSite,
-		dependencies: [ 'siteSlug' ]
+	survey: {
+		stepName: 'survey',
+		props: {
+			surveySiteType: ( current && current.toString().match( /\/start\/(blog|delta-blog)/ ) ) ? 'blog' : 'site'
+		},
+		providesDependencies: [ 'surveySiteType', 'surveyQuestion' ]
 	},
 
-	'themes-headstart': {
-		stepName: 'themes-headstart',
-		props: {
-			useHeadstart: true,
-		},
+	themes: {
+		stepName: 'themes',
 		dependencies: [ 'siteSlug' ],
 		providesDependencies: [ 'theme' ]
 	},
 
-	altthemes: {
-		stepName: 'altthemes',
-		props: {
-			themes: [
-				{ name: 'Dyad', slug: 'dyad' },
-				{ name: 'Independent Publisher', slug: 'independent-publisher' },
-				{ name: 'Sela', slug: 'sela' },
-				{ name: 'Hemingway Rewritten', slug: 'hemingway-rewritten' },
-				{ name: 'Twenty Sixteen', slug: 'twentysixteen' },
-				{ name: 'Penscratch', slug: 'penscratch' },
-				{ name: 'Edin', slug: 'edin' },
-				{ name: 'Publication', slug: 'publication' },
-				{ name: 'Harmonic', slug: 'harmonic' },
-			],
-		},
-		apiRequestFunction: stepActions.setThemeOnSite,
-		dependencies: [ 'siteSlug' ]
-	},
-
 	'design-type': {
 		stepName: 'design-type',
-		providesDependencies: [ 'themes' ]
+		providesDependencies: [ 'designType' ]
+	},
+
+	'design-type-with-store': {
+		stepName: 'design-type-with-store',
+		providesDependencies: [ 'designType' ]
 	},
 
 	site: {
@@ -62,59 +47,42 @@ module.exports = {
 		providesDependencies: [ 'bearer_token', 'username' ]
 	},
 
+	'site-title': {
+		stepName: 'site-title',
+		providesDependencies: [ 'siteTitle' ]
+	},
+
 	test: {
-		stepName: 'test',
-	},
-
-	survey: {
-		stepName: 'survey',
-		props: {
-			surveySiteType: ( current && current.toString().match( /\/start\/blog/ ) ) ? 'blog' : 'site'
-		},
-		providesDependencies: [ 'surveySiteType', 'surveyQuestion' ]
-	},
-
-	'survey-user': {
-		stepName: 'survey-user',
-		apiRequestFunction: stepActions.createAccount,
-		providesToken: true,
-		dependencies: [ 'surveySiteType', 'surveyQuestion' ],
-		providesDependencies: [ 'bearer_token', 'username' ]
+		stepName: 'test'
 	},
 
 	plans: {
 		stepName: 'plans',
 		apiRequestFunction: stepActions.addPlanToCart,
-		dependencies: [ 'siteSlug' ],
-		providesDependencies: [ 'cartItem' ]
-	},
-
-	'select-plan': {
-		stepName: 'select-plan',
-		apiRequestFunction: stepActions.addPlanToCart,
-		dependencies: [ 'siteSlug' ],
-		providesDependencies: [ 'cartItem' ]
-	},
-
-	'select-plan-or-skip': {
-		stepName: 'select-plan-or-skip',
-		apiRequestFunction: stepActions.addPlanToCart,
-		dependencies: [ 'siteSlug' ],
-		providesDependencies: [ 'cartItem' ]
+		dependencies: [ 'siteSlug', 'domainItem' ],
+		providesDependencies: [ 'cartItem', 'privacyItem' ]
 	},
 
 	domains: {
 		stepName: 'domains',
-		apiRequestFunction: stepActions.addDomainItemsToCart,
-		providesDependencies: [ 'siteSlug', 'domainItem', 'themeItem' ],
+		apiRequestFunction: stepActions.createSiteWithCart,
+		providesDependencies: [ 'siteId', 'siteSlug', 'domainItem', 'themeItem' ],
+		dependencies: [ 'theme', 'surveyQuestion' ],
 		delayApiRequestUntilComplete: true
 	},
 
-	'domains-with-theme': {
-		stepName: 'domains-with-theme',
-		apiRequestFunction: stepActions.addDomainItemsToCart,
-		providesDependencies: [ 'siteSlug', 'domainItem', 'themeItem' ],
+	'domains-with-plan': {
+		stepName: 'domains-with-plan',
+		apiRequestFunction: stepActions.createSiteWithCartAndStartFreeTrial,
+		providesDependencies: [ 'siteId', 'siteSlug', 'domainItem', 'themeItem' ],
 		dependencies: [ 'theme' ],
+		delayApiRequestUntilComplete: true
+	},
+
+	'domains-only': {
+		stepName: 'domains-only',
+		apiRequestFunction: stepActions.createSiteWithCart,
+		providesDependencies: [ 'siteId', 'siteSlug', 'domainItem', 'themeItem' ],
 		delayApiRequestUntilComplete: true
 	},
 
@@ -127,5 +95,21 @@ module.exports = {
 			subHeaderText: i18n.translate( 'You\'re moments away from connecting Jetpack.' )
 		},
 		providesDependencies: [ 'bearer_token', 'username' ]
-	}
+	},
+
+	'get-dot-blog-plans': {
+		apiRequestFunction: stepActions.createSiteWithCart,
+		stepName: 'get-dot-blog-plans',
+		dependencies: [ 'cartItem' ],
+		providesDependencies: [ 'cartItem', 'siteSlug', 'siteId', 'domainItem', 'themeItem', 'privacyItem' ]
+	},
+
+	'get-dot-blog-themes': {
+		stepName: 'get-dot-blog-themes',
+		props: {
+			designType: 'blog'
+		},
+		dependencies: [ 'siteSlug' ],
+		providesDependencies: [ 'theme' ]
+	},
 };

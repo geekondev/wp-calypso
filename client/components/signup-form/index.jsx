@@ -2,20 +2,17 @@
  * External dependencies
  */
 import React from 'react';
-import map from 'lodash/map';
-import forEach from 'lodash/forEach';
-import head from 'lodash/head';
-import includes from 'lodash/includes';
-import keys from 'lodash/keys';
+import { map, forEach, head, includes, keys, find } from 'lodash';
 import debugModule from 'debug';
 import classNames from 'classnames';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import wpcom from 'lib/wp';
 import config from 'config';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import ValidationFieldset from 'signup/validation-fieldset';
 import FormLabel from 'components/forms/form-label';
 import FormPasswordInput from 'components/forms/form-password-input';
@@ -26,11 +23,10 @@ import notices from 'notices';
 import Notice from 'components/notice';
 import LoggedOutForm from 'components/logged-out-form';
 import formState from 'lib/form-state';
-import i18n from 'lib/mixins/i18n';
 import LoggedOutFormLinks from 'components/logged-out-form/links';
 import LoggedOutFormLinkItem from 'components/logged-out-form/link-item';
 import LoggedOutFormFooter from 'components/logged-out-form/footer';
-import { getValueFromProgressStore, mergeFormWithValue } from 'signup/utils';
+import { getValueFromProgressStore, mergeFormWithValue, getFlowSteps } from 'signup/utils';
 
 const VALIDATION_DELAY_AFTER_FIELD_CHANGES = 1500,
 	debug = debugModule( 'calypso:signup-form:form' );
@@ -56,7 +52,7 @@ export default React.createClass( {
 			form: null,
 			signedUp: false,
 			validationInitialized: false
-		}
+		};
 	},
 
 	getInitialFields() {
@@ -68,14 +64,16 @@ export default React.createClass( {
 	},
 
 	autoFillUsername( form ) {
+		const steps = getFlowSteps( this.props.flowName );
+		const domainStep = find( steps, step => step.match( /^domain/ ) );
+		let domainName = getValueFromProgressStore( {
+			stepName: domainStep || null,
+			fieldName: 'siteUrl',
+			signupProgressStore: this.props.signupProgressStore
+		} );
 		const siteName = getValueFromProgressStore( {
 			stepName: 'site',
 			fieldName: 'site',
-			signupProgressStore: this.props.signupProgressStore
-		} );
-		let domainName = getValueFromProgressStore( {
-			stepName: 'domains',
-			fieldName: 'siteUrl',
 			signupProgressStore: this.props.signupProgressStore
 		} );
 		if ( domainName ) {
@@ -271,7 +269,7 @@ export default React.createClass( {
 			username: formState.getFieldValue( this.state.form, 'username' ),
 			password: formState.getFieldValue( this.state.form, 'password' ),
 			email: formState.getFieldValue( this.state.form, 'email' )
-		}
+		};
 	},
 
 	getErrorMessagesWithLogin( fieldName ) {
@@ -365,7 +363,7 @@ export default React.createClass( {
 		analytics.tracks.recordEvent.bind(
 			analytics,
 			'calypso_signup_tos_link_click'
-		)
+		);
 	},
 
 	getTermsOfServiceUrl() {
@@ -383,7 +381,8 @@ export default React.createClass( {
 							a: <a
 								href={ this.getTermsOfServiceUrl() }
 								onClick={ this.handleOnClickTos }
-								target="_blank" />
+								target="_blank"
+								rel="noopener noreferrer" />
 						}
 					}
 				)
@@ -439,10 +438,8 @@ export default React.createClass( {
 			return;
 		}
 
-		let logInUrl = this.localizeUrlWithSubdomain( config( 'login_url' ) );
-		if ( config.isEnabled( 'login' ) ) {
-			logInUrl = this.localizeUrlWithLastSlug( '/log-in' );
-		}
+		const logInUrl = this.localizeUrlWithSubdomain( config( 'login_url' ) );
+
 		return (
 			<LoggedOutFormLinks>
 				<LoggedOutFormLinkItem href={ logInUrl }>

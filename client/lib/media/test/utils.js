@@ -2,7 +2,8 @@
  * External dependencies
  */
 var expect = require( 'chai' ).expect,
-	map = require( 'lodash/map' );
+	map = require( 'lodash/map' ),
+	useFakeDom = require( 'test/helpers/use-fake-dom' );
 
 /**
  * Internal dependencies
@@ -11,6 +12,8 @@ var JetpackSite = require( 'lib/site/jetpack' ),
 	MediaUtils = require( '../utils' );
 
 describe( 'MediaUtils', function() {
+	useFakeDom();
+
 	describe( '#url()', function() {
 		var media;
 
@@ -84,6 +87,48 @@ describe( 'MediaUtils', function() {
 		} );
 	} );
 
+	describe( '#getFileExtension()', function() {
+		it( 'should return undefined for a falsey media value', function() {
+			expect( MediaUtils.getFileExtension() ).to.be.undefined;
+		} );
+
+		it( 'should detect extension from file name', function() {
+			expect( MediaUtils.getFileExtension( 'example.gif' ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should handle reserved url characters in filename', function() {
+			expect( MediaUtils.getFileExtension( 'example#?#?.gif' ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from HTML5 File object', function() {
+			expect( MediaUtils.getFileExtension( new window.File( [''], 'example.gif' ) ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from HTML5 File object with reserved url chars', function() {
+			expect( MediaUtils.getFileExtension( new window.File( [''], 'example#?#?.gif' ) ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from object file property', function() {
+			expect( MediaUtils.getFileExtension( { file: 'example.gif' } ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from already computed extension property', function() {
+			expect( MediaUtils.getFileExtension( { extension: 'gif' } ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from object URL property', function() {
+			expect( MediaUtils.getFileExtension( { URL: 'example.gif' } ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from object guid property', function() {
+			expect( MediaUtils.getFileExtension( { guid: 'example.gif' } ) ).to.equal( 'gif' );
+		} );
+
+		it( 'should detect extension from URL string with query parameters', function() {
+			expect( MediaUtils.getFileExtension( 'https://example.com/example.gif?w=110' ) ).to.equal( 'gif' );
+		} );
+	} );
+
 	describe( '#getMimePrefix()', function() {
 		it( 'should return undefined if a mime type can\'t be determined', function() {
 			expect( MediaUtils.getMimePrefix() ).to.be.undefined;
@@ -111,6 +156,18 @@ describe( 'MediaUtils', function() {
 			expect( MediaUtils.getMimeType( 'example.gif' ) ).to.equal( 'image/gif' );
 		} );
 
+		it( 'should detect mime type with reserved url characters in filename', function() {
+			expect( MediaUtils.getMimeType( 'example#?#?.gif' ) ).to.equal( 'image/gif' );
+		} );
+
+		it( 'should ignore invalid filenames', function() {
+			expect( MediaUtils.getMimeType( 'example#?#?.gif?w=100' ) ).to.be.undefined;
+		} );
+
+		it( 'should detect mime type from HTML5 File object', function() {
+			expect( MediaUtils.getMimeType( new window.File( [ '' ], 'example.gif', { type: 'image/gif' } ) ) ).to.equal( 'image/gif' );
+		} );
+
 		it( 'should detect mime type from object file property', function() {
 			expect( MediaUtils.getMimeType( { file: 'example.gif' } ) ).to.equal( 'image/gif' );
 		} );
@@ -121,6 +178,10 @@ describe( 'MediaUtils', function() {
 
 		it( 'should ignore query string parameters', function() {
 			expect( MediaUtils.getMimeType( { URL: 'example.gif?w=110' } ) ).to.equal( 'image/gif' );
+		} );
+
+		it( 'should ignore query string parameters in URL strings', function() {
+			expect( MediaUtils.getMimeType( 'https://example.com/example.gif?w=110' ) ).to.equal( 'image/gif' );
 		} );
 
 		it( 'should detect mime type from object guid property', function() {
@@ -506,6 +567,24 @@ describe( 'MediaUtils', function() {
 			};
 
 			expect( MediaUtils.canUserDeleteItem( item, user, site ) ).to.be.true;
+		} );
+	} );
+
+	describe( '#isItemBeingUploaded()', () => {
+		it( 'should return null if item was not specified', () => {
+			expect( MediaUtils.isItemBeingUploaded() ).to.be.null;
+		} );
+
+		it( 'should return true if the item is currently being uploaded', () => {
+			const item = { 'transient': true };
+
+			expect( MediaUtils.isItemBeingUploaded( item ) ).to.be.true;
+		} );
+
+		it( 'should return false if the item is not being uploaded', () => {
+			const item = {};
+
+			expect( MediaUtils.isItemBeingUploaded( item ) ).to.be.false;
 		} );
 	} );
 } );

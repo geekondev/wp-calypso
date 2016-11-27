@@ -48,25 +48,27 @@ make distclean
 ```
 
 ## Running
-When you open http://calypso.localhost:3000 in your browser and you encounter some problems - this is the proper section to look for answers.
+When you open http://calypso.localhost:3000 in your browser and you encounter problems, this is the proper section to look for answers.
 
 ### I can see only big **W** logo!
 ![Only logo](https://cldup.com/8TZOLiD6WC-2000x2000.png)
 
+### It runs, but I'm not seeing any of my changes
+Webpack may be having issues with watching - [see their documentation on troubleshooting watching](https://webpack.github.io/docs/troubleshooting.html#watching).
+
 #### Domain other than calypso.localhost
 Please remember to access Calypso via **http://calypso.localhost:3000**
 
-Any other url will not work.
+Any other URL will not work.
 
 #### JavaScript off
 Calypso requires JavaScript to function. Please enable it in your browser.
 
 #### I still have problems!
-We suggest you open the devTools and see if there maybe is some JavaScript error preventing code execution.
-
+We suggest you open your browser dev tools and look to see if there is a JavaScript error preventing code execution.
 
 ### An active access token must be used to query information about the current user.
 ![An active access token must be used to query information about the current user](https://cldup.com/F0mPgigEp4-3000x3000.png)
 
-Please remember, that you have to log in to http://wordpress.com/login first to save a proper cookie in your browser.
+Please remember you need to log in to https://wordpress.com/login first to save a proper cookie in your browser.
 

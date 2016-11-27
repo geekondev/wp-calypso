@@ -3,6 +3,7 @@
  */
 import React, { PropTypes } from 'react';
 import classNames from 'classnames';
+import { find } from 'lodash';
 
 /**
  * Internal dependencies
@@ -18,21 +19,16 @@ export default React.createClass( {
 		dataList: PropTypes.object,
 		selectedTab: PropTypes.string,
 		switchTab: PropTypes.func,
-		tabs: PropTypes.array
+		tabs: PropTypes.array,
+		borderless: PropTypes.bool
 	},
 
 	render() {
-		const { children, dataList, activeIndex, activeKey, tabs, switchTab, selectedTab } = this.props;
+		const { children, dataList, activeIndex, activeKey, tabs, switchTab, selectedTab, borderless } = this.props;
 		let statsTabs;
 
 		if ( dataList ) {
-			let data = dataList.response.data.filter( function( item ) {
-				return item[ activeKey ] === activeIndex;
-			} );
-
-			if ( data.length ) {
-				data = data.pop();
-			}
+			const data = find( dataList.response.data, { [ activeKey ]: activeIndex } );
 
 			statsTabs = tabs.map( function( tab ) {
 				const hasData = data && ( data[ tab.attr ] >= 0 ) && ( data[ tab.attr ] !== null );
@@ -53,7 +49,7 @@ export default React.createClass( {
 		}
 
 		return (
-			<ul className={ classNames( 'stats-tabs', { 'is-enabled': !! dataList } ) }>
+			<ul className={ classNames( 'stats-tabs', { 'is-enabled': !! dataList }, { 'is-borderless': borderless } ) }>
 				{ statsTabs || children }
 			</ul>
 		);

@@ -11,35 +11,44 @@ import cloneDeep from 'lodash/cloneDeep';
 import cloneDeepWith from 'lodash/cloneDeepWith';
 import findIndex from 'lodash/findIndex';
 import iteratee from 'lodash/iteratee';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import wpcom from 'lib/wp';
 import Emitter from 'lib/mixins/emitter';
-import i18n from 'lib/mixins/i18n';
 import sitesFactory from 'lib/sites-list';
 import untrailingslashit from 'lib/route/untrailingslashit';
 import trailingslashit from 'lib/route/trailingslashit';
 import { isFrontPage } from 'my-sites/pages/helpers';
 import Traverser from 'lib/tree-convert/tree-traverser';
+import TreeConvert from 'lib/tree-convert';
+import { makePromiseSequence } from 'lib/promises';
 import { decodeEntities } from 'lib/formatting';
+import postEditStore from 'lib/posts/actions';
 
 const debug = debugFactory( 'calypso:menu-data' );
 const sites = sitesFactory();
+const treeConvert = new TreeConvert();
 
 /**
  * Constants
  */
 var DEFAULT_MENU_ID = 0;
 var HOMEPAGE_MENU_ITEM_ID = -99;
+var NEWPAGE_MENU_ITEM_ID = -100;
+
+export function isInjectedNewPageItem( content ) {
+	return content.content_id === NEWPAGE_MENU_ITEM_ID;
+}
 
 /**
  * MenuData component
  *
  * @api public
  */
-function MenuData() {
+export default function MenuData() {
 	this.data = {};
 	this.idCounter = 1;
 	this.hasContentsChanged = false;
@@ -69,6 +78,19 @@ MenuData.prototype.generateHomePageMenuItem = function( pageNameSuffix ) {
 		type: 'page',
 		type_family: 'post_type',
 		tags: [ i18n.translate( 'site' ) ],
+		status: 'publish'
+	};
+};
+
+MenuData.prototype.generateNewPageMenuItem = function() {
+	return {
+		ID: NEWPAGE_MENU_ITEM_ID,
+		content_id: NEWPAGE_MENU_ITEM_ID,
+		url: trailingslashit( this.site.URL ),
+		name: i18n.translate( 'Create a new page for this menu item' ),
+		type: 'page',
+		type_family: 'post_type',
+		tags: [],
 		status: 'publish'
 	};
 };
@@ -367,27 +389,31 @@ MenuData.prototype.interceptLoadForHomepageLink = function( menu ) {
 	return menu;
 };
 
-MenuData.prototype.saveMenu = function( menu, callback ) {
-	if ( ! menu ) {
-		menu = this.find( { id: this.lastChangedMenuID } );
+MenuData.prototype.createNewPagePromise = ( menuItem, siteID ) => new Promise(
+	( resolve, reject ) => {
+		postEditStore.startEditingNew( siteID );
+		postEditStore.saveEdited(
+			{
+				title: menuItem.name,
+				ID: 'new',
+				type: 'page',
+				status: 'publish',
+			},
+			( error, data ) => {
+				postEditStore.stopEditing();
+				if ( ! error && data ) {
+					menuItem.url = data.URL;
+					menuItem.content_id = data.ID;
+					resolve();
+					return;
+				}
+				reject( error );
+			}
+		);
 	}
+);
 
-	if ( ! this.isValidMenu( menu ) ) {
-		callback && callback( new Error( 'Invalid menu' ) );
-		debug( 'saveMenu: fail' );
-		return;
-	}
-
-	menu = cloneDeep( menu );
-
-	if ( menu.id === this.getDefaultMenuId() ) {
-		return this.saveDefaultMenu();
-	}
-
-	this.restoreServerIDs( menu );
-
-	debug( 'saveMenu', menu );
-
+MenuData.prototype.sendMenuToApi = function( menu, callback ) {
 	this.emit( 'saving' );
 	wpcom
 	.undocumented()
@@ -411,7 +437,50 @@ MenuData.prototype.saveMenu = function( menu, callback ) {
 			this.change( { reset: true } );
 			this.emit( 'saved' );
 			callback && callback( null, parsedMenu );
-		} );
+		}
+	);
+};
+
+MenuData.prototype.saveMenu = function( menu, callback ) {
+	if ( ! menu ) {
+		menu = this.find( { id: this.lastChangedMenuID } );
+	}
+
+	if ( ! this.isValidMenu( menu ) ) {
+		callback && callback( new Error( 'Invalid menu' ) );
+		debug( 'saveMenu: fail' );
+		return;
+	}
+
+	menu = cloneDeep( menu );
+
+	if ( menu.id === this.getDefaultMenuId() ) {
+		return this.saveDefaultMenu();
+	}
+
+	this.restoreServerIDs( menu );
+
+	debug( 'saveMenu', menu );
+
+	/**
+	 * Below, we check for any new pages that need to be created. The post edit
+	 * store requires this process to be sequential, so we build a chain of
+	 * promises, each of them responsible for the creation of a page.
+	 */
+
+	const pendingPageItems = treeConvert
+		.untreeify( menu.items )
+		.filter( isInjectedNewPageItem );
+
+	const createdPages = makePromiseSequence(
+			pendingPageItems,
+			item => this.createNewPagePromise( item, this.siteID )
+	);
+
+	createdPages.catch( error => {
+		this.emit( 'error', i18n.translate( 'There was a problem saving your menu.' ) );
+		debug( 'Error', error );
+	} ).then( this.sendMenuToApi.bind( this, menu, callback ) );
 };
 
 MenuData.prototype.deleteMenu = function( menu, callback ) {
@@ -1009,7 +1078,3 @@ MenuData.prototype.deleteDefaultMenu = function() {
 	}
 };
 
-/**
- * Expose `MenuData`
- */
-module.exports = MenuData;

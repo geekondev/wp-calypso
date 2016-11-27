@@ -1,36 +1,56 @@
 /**
  * External Dependencies
  */
-var React = require( 'react' );
+import React from 'react';
 
 /**
  * Internal Dependencies
  */
-var ExternalLink = require( 'components/external-link' ),
-	Gravatar = require( 'components/gravatar' ),
-	Gridicon = require( 'components/gridicon' ),
-	PostTime = require( 'reader/post-time' ),
-	utils = require( 'reader/utils' ),
-	stats = require( 'reader/stats' );
+import ExternalLink from 'components/external-link';
+import Gravatar from 'components/gravatar';
+import Gridicon from 'components/gridicon';
+import PostTime from 'reader/post-time';
+import { siteNameFromSiteAndPost } from 'reader/utils';
+import {
+	recordAction,
+	recordGaEvent,
+	recordTrackForPost,
+	recordPermalinkClick
+} from 'reader/stats';
 
-var PostByline = React.createClass( {
+class PostByline extends React.Component {
 
-	recordTagClick: function() {
-		stats.recordAction( 'click_tag' );
-		stats.recordGaEvent( 'Clicked Tag Link' );
-	},
+	static propTypes = {
+		post: React.PropTypes.object.isRequired,
+		site: React.PropTypes.object,
+		icon: React.PropTypes.bool,
+		isDiscoverPost: React.PropTypes.bool
+	}
 
-	recordDateClick: function() {
-		stats.recordPermalinkClick( 'timestamp' );
-		stats.recordGaEvent( 'Clicked Post Permalink', 'timestamp' );
-	},
+	static defaultProps = {
+		icon: false,
+		isDiscoverPost: false
+	}
 
-	recordAuthorClick: function() {
-		stats.recordAction( 'click_author' );
-		stats.recordGaEvent( 'Clicked Author Link' );
-	},
+	recordTagClick = () => {
+		recordAction( 'click_tag' );
+		recordGaEvent( 'Clicked Tag Link' );
+		recordTrackForPost( 'calypso_reader_tag_clicked', this.props.post, {
+			tag: this.props.post.primary_tag.slug
+		} );
+	}
 
-	renderAuthorName: function() {
+	recordDateClick = () => {
+		recordPermalinkClick( 'timestamp', this.props.post );
+	}
+
+	recordAuthorClick = () => {
+		recordAction( 'click_author' );
+		recordGaEvent( 'Clicked Author Link' );
+		recordTrackForPost( 'calypso_reader_author_link_clicked', this.props.post );
+	}
+
+	renderAuthorName() {
 		const post = this.props.post,
 			gravatar = ( <Gravatar user={ post.author } size={ 24 } /> ),
 			authorName = ( <span className="byline__author-name">{ post.author.name }</span> );
@@ -44,27 +64,29 @@ var PostByline = React.createClass( {
 			);
 		}
 
+		/* eslint-disable react/jsx-no-target-blank */
 		return (
 			<ExternalLink href={ post.author.URL } target="_blank" onClick={ this.recordAuthorClick }>
 				{ gravatar }
 				{ authorName }
 			</ExternalLink>
 		);
-	},
+		/* eslint-enable react/jsx-no-target-blank */
+	}
 
-	render: function() {
-		var post = this.props.post,
-			site = this.props.site,
-			siteName = utils.siteNameFromSiteAndPost( site, post ),
+	render() {
+		const { post, site, icon, isDiscoverPost } = this.props,
 			primaryTag = post && post.primary_tag;
+		let siteName = siteNameFromSiteAndPost( site, post );
 
 		if ( ! siteName ) {
 			siteName = this.translate( '(no title)' );
 		}
 
+		/* eslint-disable wpcalypso/jsx-gridicon-size */
 		return (
 			<ul className="reader-post-byline">
-			{ post.author && post.author.name ?
+			{ ! isDiscoverPost && post.author && post.author.name ?
 				<li className="reader-post-byline__author">
 					{ this.renderAuthorName() }
 				</li> : null }
@@ -73,16 +95,18 @@ var PostByline = React.createClass( {
 					<a className="reader-post-byline__date-link"
 						onClick={ this.recordDateClick }
 						href={ post.URL }
-						target="_blank"><PostTime date={ post.date } />{ this.props.icon ? <Gridicon icon="external" nonStandardSize size={ 14 } /> : null }</a>
+						target="_blank"
+						rel="noopener noreferrer"><PostTime date={ post.date } />{ icon ? <Gridicon icon="external" size={ 14 } /> : null }</a>
 				</li> : null }
 			{ primaryTag ?
 				<li className="reader-post-byline__tag">
-					<a href={ '/tag/' + primaryTag.slug } className="ignore-click" onClick={ this.recordTagClick }><Gridicon icon="tag" nonStandardSize size={ 16 } /> { primaryTag.display_name }</a>
+					<a href={ '/tag/' + primaryTag.slug } className="ignore-click" onClick={ this.recordTagClick }><Gridicon icon="tag" size={ 16 } /> { primaryTag.name }</a>
 				</li> : null }
 			</ul>
 		);
+		/* eslint-enable wpcalypso/jsx-gridicon-size */
 	}
 
-} );
+}
 
-module.exports = PostByline;
+export default PostByline;

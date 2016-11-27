@@ -7,7 +7,7 @@ var React = require( 'react' ),
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' );
+var analytics = require( 'lib/analytics' );
 
 var PulsingDot = React.createClass( {
 
@@ -27,7 +27,7 @@ var PulsingDot = React.createClass( {
 	},
 
 	componentWillReceiveProps: function( nextProps ) {
-		if ( nextProps.active === this.props.active ) {
+		if ( nextProps.active === this.props.active || ! this.props.chunkName ) {
 			return;
 		}
 

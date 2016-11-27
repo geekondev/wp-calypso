@@ -42,27 +42,29 @@ const AddGoogleAppsCard = React.createClass( {
 				<header className="add-google-apps-card__header">
 					<h3 className="add-google-apps-card__product-logo">
 						{ /* Intentionally not translated */ }
-						<strong>Google</strong>
-						<span>Apps for Work</span>
+						<strong>G Suite</strong>
 					</h3>
 
 					<div className="add-google-apps-card__price">
 						<h4 className="add-google-apps-card__price-per-user">
-							{
-								this.translate(
-									'{{strong}}%(price)s{{/strong}} per user / month',
-									{
-										components: {
-											strong: <strong />
-										},
-										args: {
-											price: price
+							<span>
+								{
+									this.translate(
+										'{{strong}}%(price)s{{/strong}} per user / month',
+										{
+											components: {
+												strong: <strong />
+											},
+											args: {
+												price: price
+											}
 										}
-									}
-								)
-							}
-							<em> | </em>
+									)
+								}
+							</span>
 						</h4>
+
+						<span className="add-google-apps-card__price-separator"> | </span>
 
 						<h5 className="add-google-apps-card__billing-period">
 							{ this.translate( 'Billed yearly — get 2 months free!' ) }
@@ -90,6 +92,7 @@ const AddGoogleAppsCard = React.createClass( {
 											a: (
 												<a href={ googleAppsSupportUrl }
 													target="_blank"
+													rel="noopener noreferrer"
 													onClick={ this.handleLearnMoreClick } />
 											)
 										}
@@ -140,6 +143,7 @@ const AddGoogleAppsCard = React.createClass( {
 											a: (
 												<a href={ googleAppsSupportUrl }
 													target="_blank"
+													rel="noopener noreferrer"
 													onClick={ this.handleAndMoreClick } />
 											)
 										}
@@ -164,7 +168,7 @@ const AddGoogleAppsCard = React.createClass( {
 			<Button
 				type="button"
 				onClick={ this.goToAddGoogleApps }>
-				{ this.translate( 'Add Google Apps' ) }
+				{ this.translate( 'Add G Suite' ) }
 			</Button>
 		);
 	},
@@ -178,7 +182,7 @@ const AddGoogleAppsCard = React.createClass( {
 	},
 
 	goToAddGoogleApps() {
-		page( paths.domainManagementAddGoogleApps( this.props.selectedSite.domain, this.props.selectedDomainName ) );
+		page( paths.domainManagementAddGoogleApps( this.props.selectedSite.slug, this.props.selectedDomainName ) );
 	}
 } );
 

@@ -3,7 +3,10 @@
  */
 var take = require( 'lodash/take' ),
 	clone = require( 'lodash/clone' ),
+	uniq = require( 'lodash/uniq' ),
+	last = require( 'lodash/last' ),
 	map = require( 'lodash/map' ),
+	difference = require( 'lodash/difference' ),
 	React = require( 'react' ),
 	PureRenderMixin = require( 'react-pure-render/mixin' ),
 	each = require( 'lodash/each' ),
@@ -27,8 +30,11 @@ var TokenField = React.createClass( {
 		displayTransform: React.PropTypes.func,
 		saveTransform: React.PropTypes.func,
 		onChange: React.PropTypes.func,
-		tokenStatus: React.PropTypes.func,
 		isBorderless: React.PropTypes.bool,
+		maxLength: React.PropTypes.number,
+		onFocus: React.PropTypes.func,
+		disabled: React.PropTypes.bool,
+		tokenizeOnSpace: React.PropTypes.bool,
 		value: function( props ) {
 			const value = props.value;
 			if ( ! Array.isArray( value ) ) {
@@ -37,7 +43,7 @@ var TokenField = React.createClass( {
 
 			forEach( value, ( item ) => {
 				if ( 'object' === typeof item ) {
-					if ( ! 'value' in item ) {
+					if ( ! ( 'value' in item ) ) {
 						return new Error(
 							"When using object for value prop, each object is expected to have a 'value' property."
 						);
@@ -57,8 +63,9 @@ var TokenField = React.createClass( {
 				return token.trim();
 			},
 			onChange: function() {},
-			tokenStatus: function() {},
-			isBorderless: false
+			isBorderless: false,
+			disabled: false,
+			tokenizeOnSpace: false
 		};
 	},
 
@@ -81,29 +88,42 @@ var TokenField = React.createClass( {
 		}
 	},
 
-	componentWillUnmount: function() {
-		debug( 'componentWillUnmount' );
-		this._clearBlurTimeout();
+	componentWillReceiveProps( nextProps ) {
+		if ( nextProps.disabled && this.state.isActive ) {
+			this.setState( {
+				isActive: false,
+				incompleteTokenValue: ''
+			} );
+		}
 	},
 
 	render: function() {
 		var classes = classNames( 'token-field', {
-			'is-active': this.state.isActive
+			'is-active': this.state.isActive,
+			'is-disabled': this.props.disabled
 		} );
 
+		var tokenFieldProps = {
+			ref: 'main',
+			className: classes,
+			tabIndex: '-1'
+		};
+
+		if ( ! this.props.disabled ) {
+			tokenFieldProps = Object.assign( {}, tokenFieldProps, {
+				onKeyDown: this._onKeyDown,
+				onKeyPress: this._onKeyPress,
+				onFocus: this._onFocus
+			} );
+		}
+
 		return (
-			<div ref="main"
-				className={ classes }
-				tabIndex="-1"
-				onKeyDown={ this._onKeyDown }
-				onKeyPress={ this._onKeyPress }
-				onBlur={ this._onBlur }
-				onFocus={ this._onFocus }
-			>
+			<div { ...tokenFieldProps } >
 				<div ref="tokensAndInput"
 					className="token-field__input-container"
-					onClick={ this._onClick }
 					tabIndex="-1"
+					onMouseDown={ this._onContainerTouched }
+					onTouchStart={ this._onContainerTouched }
 				>
 					{ this._renderTokensAndInput() }
 				</div>
@@ -138,95 +158,52 @@ var TokenField = React.createClass( {
 				key={ 'token-' + value }
 				value={ value }
 				status={ status }
+				tooltip={ token.tooltip }
 				displayTransform={ this.props.displayTransform }
 				onClickRemove={ this._onTokenClickRemove }
-				isBorderless={ this.props.isBorderless }
-			/>
+				isBorderless={ token.isBorderless || this.props.isBorderless }
+				onMouseEnter={ token.onMouseEnter }
+				onMouseLeave={ token.onMouseLeave }
+				disabled={ 'error' !== status && this.props.disabled } />
 		);
 	},
 
 	_renderInput: function() {
+		const { autoCapitalize, autoComplete, maxLength, value } = this.props;
+
+		let props = {
+			autoCapitalize,
+			autoComplete,
+			ref: 'input',
+			key: 'input',
+			disabled: this.props.disabled,
+			value: this.state.incompleteTokenValue,
+			onBlur: this._onBlur,
+		};
+
+		if ( ! ( maxLength && value.length >= maxLength ) ) {
+			props = { ...props, onChange: this._onInputChange };
+		}
+
 		return (
-			<TokenInput
-				ref="input"
-				key="input"
-				value={ this.state.incompleteTokenValue }
-				onChange={ this._onInputChange } />
+			<TokenInput { ...props } />
 		);
 	},
 
-	_onFocus: function() {
-		if ( this._blurTimeoutID ) {
-			this._clearBlurTimeout();
-			return;
-		} else if ( this.state.isActive ) {
-			return; // already active
-		}
-
+	_onFocus: function( event ) {
 		this.setState( { isActive: true } );
+		if ( 'function' === typeof this.props.onFocus ) {
+			this.props.onFocus( event );
+		}
 	},
 
-	_onBlur: function( event ) {
-		var blurSource = event.relatedTarget ||
-			event.nativeEvent.explicitOriginalTarget || // FF
-			document.activeElement; // IE11
-
-		var stillActive = this.refs.main.contains( blurSource );
-
-		if ( stillActive ) {
-			debug( '_onBlur but component still active; not doing anything' );
-			return; // we didn't leave the component, so don't do anything
-		}
-
-		debug( '_onBlur before timeout setting component inactive' );
-		this.setState( {
-			isActive: false
-		} );
-		/* When the component blurs, we need to add the current text, or
-		 * the selected suggestion (if any).
-		 *
-		 * Two reasons to set a timeout rather than do this immediately:
-		 *  - Some other user action (like tapping on a suggestion) may
-		 *    have caused this blur.  If there is another user-triggered
-		 *    event, we need to give it a chance to complete first.
-		 *  - At one point, using the right arrow key to move the text
-		 *    input was causing a blur to outside the component?! (left
-		 *    arrow key does not do this).  So, we delay the resetting of
-		 *    the state and cancel it if we get focus back quick enough.
-		 */
-		debug( '_onBlur waiting to add current token' );
-		this._blurTimeoutID = window.setTimeout( function() {
-			// Add the current token, UNLESS the text input is empty and
-			// there is a suggested token selected.  In that case, we don't
-			// want to add it, because it's easy to inadvertently hover
-			// over a suggestion.
-			if ( this._inputHasValidValue() ) {
-				debug( '_onBlur after timeout adding current token' );
-				this._addCurrentToken();
-			} else {
-				debug( '_onBlur after timeout not adding current token' );
-			}
-			debug( '_onBlur resetting component state' );
+	_onBlur: function( event ) { // eslint-disable-line no-unused-vars
+		if ( this._inputHasValidValue() ) {
+			debug( '_onBlur adding current token' );
+			this.setState( { isActive: false }, this._addCurrentToken );
+		} else {
+			debug( '_onBlur not adding current token' );
 			this.setState( this.getInitialState() );
-			this._clearBlurTimeout();
-		}.bind( this ), 0 );
-	},
-
-	_clearBlurTimeout: function() {
-		if ( this._blurTimeoutID ) {
-			debug( '_blurTimeoutID cleared' );
-			window.clearTimeout( this._blurTimeoutID );
-			this._blurTimeoutID = null;
-		}
-	},
-
-	_onClick: function( event ) {
-		var inputContainer = this.refs.tokensAndInput;
-		if ( event.target === inputContainer || inputContainer.contains( event.target ) ) {
-			debug( '_onClick activating component' );
-			this.setState( {
-				isActive: true
-			} );
 		}
 	},
 
@@ -251,11 +228,27 @@ var TokenField = React.createClass( {
 	},
 
 	_onInputChange: function( event ) {
+		const text = event.value;
+		const separator = this.props.tokenizeOnSpace ? /[ ,\t]+/ : /[,\t]+/;
+		const items = text.split( separator );
+
+		if ( items.length > 1 ) {
+			this._addNewTokens( items.slice( 0, -1 ) );
+		}
+
 		this.setState( {
-			incompleteTokenValue: event.value,
+			incompleteTokenValue: last( items ) || '',
 			selectedSuggestionIndex: -1,
 			selectedSuggestionScroll: false
 		} );
+	},
+
+	_onContainerTouched: function( event ) {
+		// Prevent clicking/touching the tokensAndInput container from blurring
+		// the input and adding the current token.
+		if ( event.target === this.refs.tokensAndInput && this.state.isActive ) {
+			event.preventDefault();
+		}
 	},
 
 	_onKeyDown: function( event ) {
@@ -285,6 +278,11 @@ var TokenField = React.createClass( {
 				break;
 			case 46: // delete (to right)
 				preventDefault = this._handleDeleteKey( this._deleteTokenAfterInput );
+				break;
+			case 32: // space
+				if ( this.props.tokenizeOnSpace ) {
+					preventDefault = this._addCurrentToken();
+				}
 				break;
 			default:
 				break;
@@ -328,7 +326,9 @@ var TokenField = React.createClass( {
 			startsWithMatch = [],
 			containsMatch = [];
 
-		if ( match.length > 0 ) {
+		if ( match.length === 0 ) {
+			suggestions = difference( suggestions, this.props.value );
+		} else {
 			match = match.toLocaleLowerCase();
 
 			each( suggestions, function( suggestion ) {
@@ -345,7 +345,7 @@ var TokenField = React.createClass( {
 			suggestions = startsWithMatch.concat( containsMatch );
 		}
 
-		return take( suggestions, this.props.maxSuggestions )
+		return take( suggestions, this.props.maxSuggestions );
 	},
 
 	_getSelectedSuggestion: function() {
@@ -473,17 +473,28 @@ var TokenField = React.createClass( {
 		} );
 	},
 
-	_addNewToken: function( token ) {
-		var newValue;
+	_addNewTokens: function( tokens ) {
+		const tokensToAdd = uniq(
+			tokens
+				.map( this.props.saveTransform )
+				.filter( Boolean )
+				.filter( token => ! this._valueContainsToken( token ) )
+		);
+		debug( '_addNewTokens: tokensToAdd', tokensToAdd );
 
-		token = this.props.saveTransform( token );
-
-		if ( ! this._valueContainsToken( token ) ) {
-			newValue = clone( this.props.value );
-			newValue.splice( this._getIndexOfInput(), 0, token );
-
+		if ( tokensToAdd.length > 0 ) {
+			const newValue = clone( this.props.value );
+			newValue.splice.apply(
+				newValue,
+				[ this._getIndexOfInput(), 0 ].concat( tokensToAdd )
+			);
+			debug( '_addNewTokens: onChange', newValue );
 			this.props.onChange( newValue );
 		}
+	},
+
+	_addNewToken: function( token ) {
+		this._addNewTokens( [ token ] );
 
 		this.setState( {
 			incompleteTokenValue: '',

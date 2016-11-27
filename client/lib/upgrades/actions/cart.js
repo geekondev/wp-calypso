@@ -6,7 +6,6 @@ import assign from 'lodash/assign';
 /**
  * Internal dependencies
  */
-import { recordAddToCart } from 'analytics/ad-tracking';
 import { action as ActionTypes } from '../constants';
 import Dispatcher from 'dispatcher';
 import { cartItems } from 'lib/cart-values';
@@ -49,11 +48,8 @@ function addItems( items ) {
 		const extra = assign( {}, item.extra, {
 			context: 'calypstore'
 		} );
-
 		return assign( {}, item, { extra } );
 	} );
-
-	extendedItems.forEach( item => recordAddToCart( item ) );
 
 	Dispatcher.handleViewAction( {
 		type: ActionTypes.CART_ITEMS_ADD,
@@ -61,10 +57,11 @@ function addItems( items ) {
 	} );
 }
 
-function removeItem( item ) {
+function removeItem( item, domainsWithPlansOnly ) {
 	Dispatcher.handleViewAction( {
 		type: ActionTypes.CART_ITEM_REMOVE,
-		cartItem: item
+		cartItem: item,
+		domainsWithPlansOnly
 	} );
 }
 

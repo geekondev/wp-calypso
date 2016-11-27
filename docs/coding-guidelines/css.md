@@ -99,7 +99,7 @@ The structure of files will be changing as we move remaining section-specific co
 
 ## Media Queries
 
-We don't do device specific breakpoints, we use layout-specific breakpoints that communicate the state of the UI. DO NOT define your own media queries. Utilize the mixins provided in `_.mixins.scss` that have default break points for `960px`, `660px`, and `480px`. Furthermore, we are pushing for a mobile-first approach to media queries, meaning your default styles should apply to mobile, and desktop should build on top of that. This means that devices with smaller screens have to process less CSS (which makes sense since they are generally less powerful). You should avoid the use of `<` breakpoints like this:
+We don't do device specific breakpoints, we use layout-specific breakpoints that communicate the state of the UI. DO NOT define your own media queries. Utilize the mixins [provided in `_mixins.scss`](https://github.com/Automattic/wp-calypso/blob/master/assets/stylesheets/shared/mixins/_breakpoints.scss). Furthermore, we are pushing for a mobile-first approach to media queries, meaning your default styles should apply to mobile, and desktop should build on top of that. This means that devices with smaller screens have to process less CSS (which makes sense since they are generally less powerful). You should avoid the use of `<` breakpoints like this:
 
 Bad:
 ```scss
@@ -142,11 +142,7 @@ Good:
 }
 ```
 
-The value passed to this mixin is actually a string rather than a pixel value. Accepted values are:
-
-`<480px`, `<660px`, `<960px`, `>480px`, `>660px`, `>960px`, `480px-660px`, `660px-960px`, `480px-960px`.
-
-If you provide any other value to the mixin it will fail and give you a warning in the output from `make run`.
+The value passed to this mixin is actually a string rather than a pixel value. Accepted values are: `"<X"`, `">X"`, or `"X-Y"` — where `X` and `Y` are valid breakpoints, for example `480px`. If you provide any other value to the mixin it will fail and give you a warning in the output from `make run`.
 
 Adding additional breakpoints should not be undertaken lightly.
 
@@ -309,9 +305,9 @@ So, to add a new z-index:
    stacking context as the initial key and the element's full CSS selector as 
    the final key.
 
-You can run this handy
-[gist](https://gist.github.com/gwwar/2f661deec7b99a1a418b) in the console to
-find the stacking contexts of both the element and its parent.
+You can use this handy Chrome
+[extension](https://chrome.google.com/webstore/detail/z-context/jigamimbjojkdgnlldajknogfgncplbh)
+to find the stacking contexts of both the element and its parent.
 
 As a simple example, imagine that we have a page with the following markup:
 

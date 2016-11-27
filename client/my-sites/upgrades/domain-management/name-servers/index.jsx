@@ -5,6 +5,7 @@ import React from 'react';
 import page from 'page';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import classNames from 'classnames';
 
 /**
  * Internal dependencies
@@ -71,9 +72,17 @@ const NameServers = React.createClass( {
 		this.setState( { nameservers: nextNameservers.list } );
 	},
 
+	isLoading() {
+		return ! this.props.domains.hasLoadedFromServer || ! this.props.nameservers.hasLoadedFromServer;
+	},
+
 	render() {
+		const classes = classNames( 'name-servers', {
+			'is-placeholder': this.isLoading()
+		} );
+
 		return (
-			<Main className="name-servers">
+			<Main className={ classes }>
 				{ this.header() }
 
 				<VerticalNav>
@@ -122,7 +131,7 @@ const NameServers = React.createClass( {
 			if ( error ) {
 				notices.error( error.message );
 			} else {
-				this.props.successNotice( this.translate( 'Yay, the nameservers have been successfully updated!' ) );
+				this.props.successNotice( this.translate( 'Yay, the name servers have been successfully updated!' ) );
 			}
 
 			this.setState( { formSubmitting: false } );
@@ -140,7 +149,7 @@ const NameServers = React.createClass( {
 	},
 
 	back() {
-		page( paths.domainManagementEdit( this.props.selectedSite.domain, this.props.selectedDomainName ) );
+		page( paths.domainManagementEdit( this.props.selectedSite.slug, this.props.selectedDomainName ) );
 	},
 
 	customNameservers() {
@@ -194,7 +203,7 @@ const NameServers = React.createClass( {
 
 		return (
 			<VerticalNavItem
-				path={ paths.domainManagementDns( this.props.selectedSite.domain, this.props.selectedDomainName ) }>
+				path={ paths.domainManagementDns( this.props.selectedSite.slug, this.props.selectedDomainName ) }>
 				{ this.translate( 'DNS Records' ) }
 			</VerticalNavItem>
 		);

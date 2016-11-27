@@ -1,63 +1,68 @@
 /**
  * External dependencies
  */
+import find from 'lodash/find';
 import React from 'react';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import config from 'config';
-import i18n from 'lib/mixins/i18n';
-import PurchaseDetail from './purchase-detail';
+import CustomDomainPurchaseDetail from './custom-domain-purchase-detail';
+import GoogleVoucherDetails from './google-voucher';
+import { isWordadsInstantActivationEligible } from 'lib/ads/utils';
+import { isPremium } from 'lib/products-values';
+import paths from 'lib/paths';
+import PurchaseDetail from 'components/purchase-detail';
+import QuerySiteVouchers from 'components/data/query-site-vouchers';
 
-const PremiumPlanDetails = ( { isFreeTrial, selectedSite } ) => {
-	const adminUrl = selectedSite.URL + '/wp-admin/',
-		customizeLink = config.isEnabled( 'manage/customize' ) ? '/customize/' + selectedSite.slug : adminUrl + 'customize.php?return=' + encodeURIComponent( window.location.href ),
-		showGetFreeDomainTip = ! isFreeTrial;
+const PremiumPlanDetails = ( { selectedSite, sitePlans, selectedFeature } ) => {
+	const adminUrl = selectedSite.URL + '/wp-admin/';
+	const customizerInAdmin = adminUrl + 'customize.php?return=' + encodeURIComponent( window.location.href );
+	const customizeLink = config.isEnabled( 'manage/customize' ) ? '/customize/' + selectedSite.slug : customizerInAdmin;
+	const plan = find( sitePlans.data, isPremium ),
+		isPremiumPlan = isPremium( selectedSite.plan );
 
 	return (
 		<div>
-			{
-				showGetFreeDomainTip
-				? <PurchaseDetail
-						additionalClass="get-free-domain"
-						title={ i18n.translate( 'Get your custom domain' ) }
-						description={
-							i18n.translate(
-								"Replace your site's address, {{em}}%(siteDomain)s{{/em}}, with a custom domain. " +
-								'A free domain is included with your plan.',
-								{
-									args: { siteDomain: selectedSite.domain },
-									components: { em: <em /> }
-								}
-							)
-						}
-						buttonText={ i18n.translate( 'Claim your free domain' ) }
-						href={ '/domains/add/' + selectedSite.slug } />
-				: <PurchaseDetail
-						additionalClass="ads-have-been-removed"
-						title={ i18n.translate( 'Ads have been removed!' ) }
-						description={ i18n.translate( 'WordPress.com ads will not show up on your blog.' ) }
-						buttonText={ i18n.translate( 'View your site' ) }
-						href={ selectedSite.URL }
-						target="_blank" />
+			<CustomDomainPurchaseDetail
+				selectedSite={ selectedSite }
+				hasDomainCredit={ plan && plan.hasDomainCredit }
+			/>
+
+			<PurchaseDetail
+				icon="speaker"
+				title={ i18n.translate( 'Advertising Removed' ) }
+				description={ isPremiumPlan
+					? i18n.translate( 'With your plan, all WordPress.com advertising has been removed from your site.' +
+						' You can upgrade to a Business plan to also remove the WordPress.com footer credit.' )
+					: i18n.translate( 'With your plan, all WordPress.com advertising has been removed from your site.' )
+				}
+			/>
+
+			<QuerySiteVouchers siteId={ selectedSite.ID } />
+			<div>
+				<GoogleVoucherDetails selectedSite={ selectedSite } />
+			</div>
+
+			{ ! selectedFeature &&
+				<PurchaseDetail
+					icon="customize"
+					title={ i18n.translate( 'Customize your theme' ) }
+					description={
+						i18n.translate(
+							"You now have direct control over your site's fonts and colors in the customizer. " +
+							"Change your site's entire look in a few clicks."
+						)
+					}
+					buttonText={ i18n.translate( 'Start customizing' ) }
+					href={ customizeLink }
+					target={ config.isEnabled( 'manage/customize' ) ? undefined : '_blank' } />
 			}
 
 			<PurchaseDetail
-				additionalClass="customize-fonts-and-colors"
-				title={ i18n.translate( 'Customize your theme' ) }
-				description={
-					i18n.translate(
-						"You now have direct control over your site's fonts and colors in the customizer. " +
-						"Change your site's entire look in a few clicks."
-					)
-				}
-				buttonText={ i18n.translate( 'Start customizing' ) }
-				href={ customizeLink }
-				target={ config.isEnabled( 'manage/customize' ) ? undefined : '_blank' } />
-
-			<PurchaseDetail
-				additionalClass="upload-to-videopress"
+				icon="image-multiple"
 				title={ i18n.translate( 'Video and audio posts' ) }
 				description={
 					i18n.translate(
@@ -66,15 +71,32 @@ const PremiumPlanDetails = ( { isFreeTrial, selectedSite } ) => {
 					)
 				}
 				buttonText={ i18n.translate( 'Start a new post' ) }
-				href={ '/post/' + selectedSite.slug } />
-
+				href={ paths.newPost( selectedSite ) } />
+			{
+				isWordadsInstantActivationEligible( selectedSite ) &&
+				<PurchaseDetail
+					icon="speaker"
+					title={ i18n.translate( 'Easily monetize your site' ) }
+					description={
+						i18n.translate(
+							'Take advantage of WordAds instant activation on your upgraded site. ' +
+							'WordAds lets you earn money by displaying promotional content.'
+						)
+					}
+					buttonText={ i18n.translate( 'Start Earning' ) }
+					href={ '/ads/settings/' + selectedSite.slug } />
+			}
 		</div>
 	);
 };
 
 PremiumPlanDetails.propTypes = {
-	isFreeTrial: React.PropTypes.bool.isRequired,
-	selectedSite: React.PropTypes.object.isRequired
+	selectedSite: React.PropTypes.oneOfType( [
+		React.PropTypes.bool,
+		React.PropTypes.object
+	] ).isRequired,
+	selectedFeature: React.PropTypes.object,
+	sitePlans: React.PropTypes.object.isRequired
 };
 
 export default PremiumPlanDetails;

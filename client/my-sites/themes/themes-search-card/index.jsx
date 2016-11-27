@@ -1,25 +1,26 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	find = require( 'lodash/find' ),
-	debounce = require( 'lodash/debounce' );
+import React from 'react';
+import find from 'lodash/find';
+import debounce from 'lodash/debounce';
+import { localize } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-var Search = require( 'components/search' ),
-	ThemesSelectDropdown = require( './select-dropdown' ),
-	SectionNav = require( 'components/section-nav' ),
-	NavTabs = require( 'components/section-nav/tabs' ),
-	NavItem = require( 'components/section-nav/item' ),
-	Helper = require( '../helpers' ),
-	config = require( 'config' ),
-	isMobile = require( 'lib/viewport' ).isMobile;
+import Search from 'components/search';
+import ThemesSelectDropdown from './select-dropdown';
+import SectionNav from 'components/section-nav';
+import NavTabs from 'components/section-nav/tabs';
+import NavItem from 'components/section-nav/item';
+import { getExternalThemesUrl, trackClick } from '../helpers';
+import config from 'config';
+import { isMobile } from 'lib/viewport';
 
-var ThemesSearchCard = React.createClass( {
+const ThemesSearchCard = React.createClass( {
 	propTypes: {
-		tier: React.PropTypes.string.isRequired,
+		tier: React.PropTypes.string,
 		select: React.PropTypes.func.isRequired,
 		site: React.PropTypes.oneOfType( [
 			React.PropTypes.object,
@@ -29,7 +30,7 @@ var ThemesSearchCard = React.createClass( {
 		search: React.PropTypes.string
 	},
 
-	trackClick: Helper.trackClick.bind( null, 'search bar' ),
+	trackClick: trackClick.bind( null, 'search bar' ),
 
 	componentWillMount() {
 		this.onResize = debounce( () => {
@@ -47,6 +48,10 @@ var ThemesSearchCard = React.createClass( {
 
 	getInitialState() {
 		return { isMobile: isMobile() };
+	},
+
+	getDefaultProps() {
+		return { tier: 'all' };
 	},
 
 	getSelectedTierFormatted( tiers ) {
@@ -71,10 +76,10 @@ var ThemesSearchCard = React.createClass( {
 	renderMobile( tiers ) {
 		const isJetpack = this.props.site && this.props.site.jetpack;
 		const isPremiumThemesEnabled = config.isEnabled( 'upgrades/premium-themes' );
-		const selectedTiers = isPremiumThemesEnabled ? tiers : [ tiers.find( tier => tier.value === 'free' ) ];
+		const selectedTiers = isPremiumThemesEnabled ? tiers : [ find( tiers, tier => tier.value === 'free' ) ];
 
 		return (
-			<div className="themes__search-card">
+			<div className="themes__search-card" data-tip-target="themes-search-card">
 				<SectionNav selectedText={ this.getSelectedTierFormatted( tiers ) }>
 					<NavTabs>
 						{ ! isJetpack && this.getTierNavItems( selectedTiers ) }
@@ -82,19 +87,20 @@ var ThemesSearchCard = React.createClass( {
 						{ isPremiumThemesEnabled && <hr className="section-nav__hr" /> }
 
 						{ isPremiumThemesEnabled && <NavItem
-														path={ Helper.getExternalThemesUrl( this.props.site ) }
-														onClick={ this.onMore }
-														isExternalLink={ true }>
-														{ this.translate( 'More' ) + ' ' }
-													</NavItem> }
+							path={ getExternalThemesUrl( this.props.site ) }
+							onClick={ this.onMore }
+							isExternalLink={ true }>
+							{ this.props.translate( 'More' ) + ' ' }
+						</NavItem> }
 					</NavTabs>
 
 					<Search
-						pinned={ true }
+						pinned
+						fitsContainer
 						onSearch={ this.props.onSearch }
 						initialValue={ this.props.search }
 						ref="url-search"
-						placeholder={ this.translate( 'Search themes…' ) }
+						placeholder={ this.props.translate( 'Search themes…' ) }
 						analyticsGroup="Themes"
 						delaySearch={ true }
 					/>
@@ -108,9 +114,9 @@ var ThemesSearchCard = React.createClass( {
 		const isPremiumThemesEnabled = config.isEnabled( 'upgrades/premium-themes' );
 
 		const tiers = [
-			{ value: 'all', label: this.translate( 'All' ) },
-			{ value: 'free', label: this.translate( 'Free' ) },
-			{ value: 'premium', label: this.translate( 'Premium' ) },
+			{ value: 'all', label: this.props.translate( 'All' ) },
+			{ value: 'free', label: this.props.translate( 'Free' ) },
+			{ value: 'premium', label: this.props.translate( 'Premium' ) },
 		];
 
 		if ( this.state.isMobile ) {
@@ -118,12 +124,12 @@ var ThemesSearchCard = React.createClass( {
 		}
 
 		return (
-			<div className="themes__search-card">
+			<div className="themes__search-card" data-tip-target="themes-search-card">
 				<Search
 					onSearch={ this.props.onSearch }
 					initialValue={ this.props.search }
 					ref="url-search"
-					placeholder={ this.translate( 'What kind of theme are you looking for?' ) }
+					placeholder={ this.props.translate( 'What kind of theme are you looking for?' ) }
 					analyticsGroup="Themes"
 					delaySearch={ true }
 				/>
@@ -133,15 +139,16 @@ var ThemesSearchCard = React.createClass( {
 										options={ tiers }
 										onSelect={ this.props.select } /> }
 				{ isPremiumThemesEnabled && <a className="button more"
-												href={ Helper.getExternalThemesUrl( this.props.site ) }
+												href={ getExternalThemesUrl( this.props.site ) }
 												target="_blank"
+												rel="noopener noreferrer"
 												onClick={ this.onMore }>
 
-												{ this.translate( 'More' ) }
+												{ this.props.translate( 'More' ) }
 											</a> }
 			</div>
 		);
 	}
 } );
 
-module.exports = ThemesSearchCard;
+export default localize( ThemesSearchCard );

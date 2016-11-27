@@ -6,31 +6,57 @@ import { fromJS } from 'immutable';
 /**
  * Internal dependencies
  */
-import ActionTypes from '../action-types';
-import { DESERIALIZE, SERIALIZE, SERVER_DESERIALIZE } from 'state/action-types';
+import {
+	DESERIALIZE,
+	SERIALIZE,
+	SERVER_DESERIALIZE,
+	THEME_ACTIVATE_REQUEST,
+	THEME_ACTIVATE_REQUEST_SUCCESS,
+	THEME_CLEAR_ACTIVATED,
+	ACTIVE_THEME_REQUEST,
+	ACTIVE_THEME_REQUEST_SUCCESS,
+	ACTIVE_THEME_REQUEST_FAILURE,
+} from 'state/action-types';
 
 export const initialState = fromJS( {
 	isActivating: false,
 	hasActivated: false,
-	currentThemes: {}
+	currentThemes: {},
+	requesting: {},
 } );
 
 export default ( state = initialState, action ) => {
 	switch ( action.type ) {
-		case ActionTypes.RECEIVE_CURRENT_THEME:
-			return state.setIn( [ 'currentThemes', action.site.ID ], {
-				name: action.themeName,
-				id: action.themeId,
-				cost: action.themeCost
-			} );
-		case ActionTypes.ACTIVATE_THEME:
+		case ACTIVE_THEME_REQUEST_SUCCESS:
+			// Don't update if the site's theme remains the same.
+			// This way, we won't lose information obtained from and endpoint holding
+			// more information than `/v1.1/sites/example.wordpress.com/themes/mine`,
+			// see https://github.com/Automattic/wp-calypso/issues/5699
+			const previousTheme = state.getIn( [ 'currentThemes', action.siteId ] );
+			let newState;
+
+			if ( previousTheme && previousTheme.id === action.themeId ) {
+				newState = state;
+			} else {
+				newState = state.setIn( [ 'currentThemes', action.siteId ], {
+					name: action.themeName,
+					id: action.themeId,
+					cost: action.themeCost,
+				} );
+			}
+			return newState.setIn( [ 'requesting', action.siteId ], false );
+		case ACTIVE_THEME_REQUEST:
+			return state.setIn( [ 'requesting', action.siteId ], true );
+		case ACTIVE_THEME_REQUEST_FAILURE:
+			return state.setIn( [ 'requesting', action.siteId ], false );
+		case THEME_ACTIVATE_REQUEST:
 			return state.set( 'isActivating', true );
-		case ActionTypes.ACTIVATED_THEME:
+		case THEME_ACTIVATE_REQUEST_SUCCESS:
 			return state
 				.set( 'isActivating', false )
 				.set( 'hasActivated', true )
-				.setIn( [ 'currentThemes', action.site.ID ], action.theme );
-		case ActionTypes.CLEAR_ACTIVATED_THEME:
+				.setIn( [ 'currentThemes', action.siteId ], action.theme );
+		case THEME_CLEAR_ACTIVATED:
 			return state.set( 'hasActivated', false );
 		case DESERIALIZE:
 			return initialState;

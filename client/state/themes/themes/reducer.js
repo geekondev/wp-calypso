@@ -7,8 +7,12 @@ import transform from 'lodash/transform';
 /**
  * Internal dependencies
  */
-import ActionTypes from '../action-types';
-import { DESERIALIZE, SERIALIZE, SERVER_DESERIALIZE } from 'state/action-types';
+import {
+	DESERIALIZE,
+	SERIALIZE,
+	SERVER_DESERIALIZE,
+	THEMES_RECEIVE
+} from 'state/action-types';
 
 export const initialState = fromJS( {
 	themes: {},
@@ -21,23 +25,20 @@ function add( newThemes, themes ) {
 	}, {} ) );
 }
 
-function setActiveTheme( themeId, themes ) {
-	return themes
-		.map( theme => theme.delete( 'active' ) )
-		.setIn( [ themeId, 'active' ], true );
-}
-
 export default ( state = initialState, action ) => {
 	switch ( action.type ) {
-		case ActionTypes.RECEIVE_THEMES:
-			const isNewSite = action.isJetpack && ( action.siteId !== state.get( 'currentSiteId' ) );
-			return state
-				.update( 'themes', themes => isNewSite ? new Map() : themes )
-				.set( 'currentSiteId', action.siteId )
-				.update( 'themes', add.bind( null, action.themes ) );
+		case THEMES_RECEIVE: {
+			const isCurrentSite = action.siteId === state.get( 'currentSiteId' );
+			const isNewSite = action.isJetpack && ! isCurrentSite;
+			const currentThemes = isNewSite ? new Map() : state.get( 'themes' );
+			const mergedThemes = add( action.themes, currentThemes );
 
-		case ActionTypes.ACTIVATED_THEME:
-			return state.update( 'themes', setActiveTheme.bind( null, action.theme.id ) );
+			return state.withMutations( ( temporaryState ) => {
+				temporaryState
+					.set( 'themes', mergedThemes )
+					.set( 'currentSiteId', action.siteId );
+			} );
+		}
 		case DESERIALIZE:
 			return initialState;
 		case SERVER_DESERIALIZE:

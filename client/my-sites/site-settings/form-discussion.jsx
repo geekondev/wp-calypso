@@ -8,7 +8,6 @@ var React = require( 'react' ),
  * Internal dependencies
  */
 var formBase = require( './form-base' ),
-	protectForm = require( 'lib/mixins/protect-form' ),
 	dirtyLinkedState = require( 'lib/mixins/dirty-linked-state' ),
 	FormFieldset = require( 'components/forms/form-fieldset' ),
 	FormLabel = require( 'components/forms/form-label' ),
@@ -17,13 +16,17 @@ var formBase = require( './form-base' ),
 	FormTextInput = require( 'components/forms/form-text-input' ),
 	FormCheckbox = require( 'components/forms/form-checkbox' ),
 	FormSelect = require( 'components/forms/form-select' ),
-	FormSettingExplanation = require( 'components/forms/form-setting-explanation' );
+	FormSettingExplanation = require( 'components/forms/form-setting-explanation' ),
+	Card = require( 'components/card' ),
+	Button = require( 'components/button' ),
+	SectionHeader = require( 'components/section-header' );
+import { protectForm } from 'lib/protect-form';
 
-module.exports = React.createClass( {
+module.exports = protectForm( React.createClass( {
 
 	displayName: 'SiteSettingsFormDiscussion',
 
-	mixins: [ dirtyLinkedState, protectForm.mixin, formBase ],
+	mixins: [ dirtyLinkedState, formBase ],
 
 	discussionAttributes: [
 		'default_pingback_flag',
@@ -49,7 +52,9 @@ module.exports = React.createClass( {
 		'comment_max_links',
 		'moderation_keys',
 		'blacklist_keys',
-		'admin_url'
+		'admin_url',
+		'wpcom_publish_comments_with_markdown',
+		'markdown_supported',
 	],
 
 	getSettingsFromSite: function( siteInstance ) {
@@ -112,9 +117,10 @@ module.exports = React.createClass( {
 	},
 
 	otherCommentSettings: function() {
+		const markdownSupported = this.state.markdown_supported;
 		return (
-			<FormFieldset>
-				<FormLegend>{ this.translate( 'Other comment settings' ) }</FormLegend>
+			<FormFieldset className="has-divider">
+				<FormLabel>{ this.translate( 'Other comment settings' ) }</FormLabel>
 				<FormLabel>
 					<FormCheckbox
 						name="require_name_email"
@@ -215,6 +221,20 @@ module.exports = React.createClass( {
 						} )
 						}</span>
 				</FormLabel>
+				{ markdownSupported &&
+					<FormLabel>
+						<FormCheckbox
+							name="wpcom_publish_comments_with_markdown"
+							checkedLink={ this.linkState( 'wpcom_publish_comments_with_markdown' ) }
+							disabled={ this.state.fetchingSettings }
+							onClick={ this.recordEvent.bind( this, 'Clicked Markdown for Comments Checkbox' ) } />
+						<span>{ this.translate( 'Enable Markdown for comments. {{a}}Learn more about markdown{{/a}}.', {
+								components: {
+									a: <a href="http://en.support.wordpress.com/markdown-quick-reference/" target="_blank" rel="noopener noreferrer" />
+								}
+							} ) }</span>
+					</FormLabel>
+				}
 				<FormLabel>
 					<span>{
 						this.translate( 'Comments should be displayed with the {{olderOrNewer /}} comments at the top of each page', {
@@ -343,7 +363,7 @@ module.exports = React.createClass( {
 
 	commentModerationSettings: function() {
 		return (
-			<FormFieldset>
+			<FormFieldset className="has-divider">
 				<FormLabel htmlFor="moderation_keys">{ this.translate( 'Comment Moderation' ) }</FormLabel>
 				<p>{
 					this.translate( 'Hold a comment in the queue if it contains {{numberOfLinks /}} or more links. (A common characteristic of comment spam is a large number of hyperlinks.)', {
@@ -365,7 +385,7 @@ module.exports = React.createClass( {
 					this.translate( 'When a comment contains any of these words in its content, name, URL, e-mail, or IP, it will be held in the {{link}}moderation queue{{/link}}. One word or IP per line. It will match inside words, so "press" will match "WordPress".',
 						{
 							components: {
-								link: <a href={ this.state.admin_url + 'edit-comments.php?comment_status=moderated' } target="_blank" />
+								link: <a href={ this.state.admin_url + 'edit-comments.php?comment_status=moderated' } target="_blank" rel="noopener noreferrer" />
 							}
 						}
 					)
@@ -408,26 +428,25 @@ module.exports = React.createClass( {
 	render: function() {
 		return (
 
-			<form id="site-settings" onSubmit={ this.submitForm } onChange={ this.markChanged }>
-				<button
-					type="submit"
-					className="button is-primary"
-					disabled={ this.state.fetchingSettings || this.state.submittingForm }>
-					{ this.state.submittingForm ? this.translate( 'Saving…' ) : this.translate( 'Save Settings' ) }
-				</button>
-				{ this.defaultArticleSettings() }
-				{ this.otherCommentSettings() }
-				{ this.emailMeSettings() }
-				{ this.beforeCommentSettings() }
-				{ this.commentModerationSettings() }
-				{ this.commentBlacklistSettings() }
-				<button
-					type="submit"
-					className="button is-primary"
-					disabled={ this.state.fetchingSettings || this.state.submittingForm }>
+			<form id="site-settings" onSubmit={ this.handleSubmitForm } onChange={ this.props.markChanged }>
+				<SectionHeader label={ this.translate( 'Discussion Settings' ) }>
+					<Button
+						primary
+						compact
+						disabled={ this.state.fetchingSettings || this.state.submittingForm }
+						onClick={ this.handleSubmitForm }>
 						{ this.state.submittingForm ? this.translate( 'Saving…' ) : this.translate( 'Save Settings' ) }
-				</button>
+					</Button>
+				</SectionHeader>
+				<Card className="discussion-settings">
+					{ this.defaultArticleSettings() }
+					{ this.otherCommentSettings() }
+					{ this.emailMeSettings() }
+					{ this.beforeCommentSettings() }
+					{ this.commentModerationSettings() }
+					{ this.commentBlacklistSettings() }
+				</Card>
 			</form>
 		);
 	}
-} );
+} ) );

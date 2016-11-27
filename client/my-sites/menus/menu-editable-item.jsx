@@ -17,9 +17,11 @@ var siteMenus = require( 'lib/menu-data' ),
 	CategoryOptions = require( './item-options/category-options' ),
 	PostList = require( './item-options/post-list' ),
 	MenuPanelBackButton = require( './menu-panel-back-button' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	Gridicon = require( 'components/gridicon' );
 
+import { isInjectedNewPageItem } from 'lib/menu-data/menu-data';
+import has from 'lodash/has';
 /**
  * Components
  */
@@ -64,6 +66,7 @@ var MenuEditableItem = React.createClass( {
 		return {
 			item: item,
 			userChangedName: false,
+			placeholderText: this.translate( 'Enter menu label', { textOnly: true } ),
 			panelInView: this.isNew() ? 'left' : 'right'
 		};
 	},
@@ -150,10 +153,14 @@ var MenuEditableItem = React.createClass( {
 	 * @return {string} item name
 	 */
 	getItemName: function( content, currentValue ) {
-		return ( ! this.state.userChangedName && this.isNew() ) ?
-			MenuUtils.getContentTitle( content ) : currentValue;
+		if ( this.state.userChangedName || ! this.isNew() ) {
+			return currentValue;
+		} else if ( isInjectedNewPageItem( content ) ) {
+			return '';
+		} else {
+			return MenuUtils.getContentTitle( content )
+		}
 	},
-
 	setItemContent: function( content ) {
 		analytics.ga.recordEvent( 'Menus', 'Selected Menu Item' );
 		this.setState( update( this.state, {
@@ -164,6 +171,20 @@ var MenuEditableItem = React.createClass( {
 				type_family: { $set: this.state.itemType.family }
 			}
 		} ) );
+
+		if (
+			!this.state.userChangedName &&
+			this.isNew() &&
+			this.isMounted() &&
+			has( this, 'refs.menuLabel' )
+		) {
+			if ( isInjectedNewPageItem( content ) ) {
+				this.refs.menuLabel.focus();
+				this.setState( { placeholderText: this.translate( 'Enter page name', { textOnly: true } ) } );
+			} else {
+				this.setState( { placeholderText: this.translate( 'Enter menu label', { textOnly: true } ) } );
+			}
+		}
 	},
 
 	showLeftPanel: function() {
@@ -189,7 +210,7 @@ var MenuEditableItem = React.createClass( {
 	renderPostOptions: function( itemType ) {
 		return (
 			<PostList siteID={ siteMenus.siteID }
-			  site={ siteMenus.site }
+				site={ siteMenus.site }
 				type={ itemType.name }
 				item={ this.state.item }
 				back={ this.showLeftPanel }
@@ -260,7 +281,7 @@ var MenuEditableItem = React.createClass( {
 		body = this.translate( 'You can manage this item as usual, but you cannot edit it here. {{br/}} Check the {{wpAdminLink}}WP Admin{{/wpAdminLink}} and see if you can edit it from there.', {
 			components: {
 				br: <br />,
-				wpAdminLink: <a href={ MenuUtils.getNavMenusUrl() } target="_blank" />
+				wpAdminLink: <a href={ MenuUtils.getNavMenusUrl() } target="_blank" rel="noopener noreferrer" />
 			}
 		} );
 
@@ -355,7 +376,8 @@ var MenuEditableItem = React.createClass( {
 			<a className={ 'menus__menu-item is-selected depth-' + this.props.depth }>
 				<span className={ 'noticon noticon-' + this.getItemIcon() } />
 				<input id="menu-item-name-value"
-					placeholder={ this.translate( 'Enter menu label', { textOnly: true } ) }
+					placeholder={ this.state.placeholderText }
+					ref="menuLabel"
 					value={ this.state.item.name }
 					onChange={ this.updateNameValue }
 					onClick={ this.onTitleClick } />

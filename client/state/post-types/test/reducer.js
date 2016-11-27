@@ -1,9 +1,7 @@
 /**
  * External dependencies
  */
-import Chai, { expect } from 'chai';
-import sinon from 'sinon';
-import sinonChai from 'sinon-chai';
+import { expect } from 'chai';
 import deepFreeze from 'deep-freeze';
 
 /**
@@ -17,16 +15,20 @@ import {
 	SERIALIZE,
 	DESERIALIZE
 } from 'state/action-types';
-import { requesting, items } from '../reducer';
+import reducer, { requesting, items } from '../reducer';
+import { useSandbox } from 'test/helpers/use-sinon';
 
 describe( 'reducer', () => {
-	before( () => {
-		Chai.use( sinonChai );
-		sinon.stub( console, 'warn' );
+	useSandbox( ( sandbox ) => {
+		sandbox.stub( console, 'warn' );
 	} );
 
-	after( () => {
-		console.warn.restore();
+	it( 'should include expected keys in return value', () => {
+		expect( reducer( undefined, {} ) ).to.have.keys( [
+			'requesting',
+			'items',
+			'taxonomies'
+		] );
 	} );
 
 	describe( '#requesting()', () => {
@@ -213,7 +215,6 @@ describe( 'reducer', () => {
 			} ), { type: DESERIALIZE } );
 
 			expect( state ).to.eql( {} );
-			expect( console.warn ).to.have.been.calledOnce;
 		} );
 	} );
 } );

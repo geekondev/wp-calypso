@@ -1,122 +1,85 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	noop = require( 'lodash/noop' ),
-	classNames = require( 'classnames' );
+import React, { PropTypes } from 'react';
+import classNames from 'classnames';
+import PureRenderMixin from 'react-pure-render/mixin';
 
 /**
  * Internal dependencies
  */
-var i18n = require( 'lib/mixins/i18n' ),
-	Popover = require( 'components/popover' ),
-	Tooltip = require( 'components/chart/tooltip' );
+import Tooltip from 'components/tooltip';
 
-module.exports = React.createClass( {
+export default React.createClass( {
 
 	displayName: 'PostTrendsDay',
 
+	mixins: [ PureRenderMixin ],
+
 	propTypes: {
-		days: React.PropTypes.object.isRequired,
-		date: React.PropTypes.object.isRequired,
-		month: React.PropTypes.object.isRequired,
-		max: React.PropTypes.number.isRequired
+		label: PropTypes.string,
+		className: PropTypes.string,
+		postCount: PropTypes.number
 	},
 
-	getInitialState: function() {
+	getDefaultProps() {
+		return {
+			postCount: 0
+		};
+	},
+
+	getInitialState() {
 		return { showPopover: false };
 	},
 
-	mouseEnter: function() {
+	mouseEnter() {
 		this.setState( { showPopover: true } );
 	},
 
-	mouseLeave: function() {
+	mouseLeave() {
 		this.setState( { showPopover: false } );
 	},
 
-	buildTooltipData: function( date, data ) {
-		var tooltipData = [],
-			count = 0,
-			label,
-			labelWrapper;
-
-		count = data[ date.format( 'YYYY-MM-DD' ) ] || 0;
-
-		label = this.translate(
-			'%(posts)d post on',
-			'%(posts)d posts on', {
-				count: count,
+	buildTooltipData() {
+		const { label, postCount } = this.props;
+		const content = this.translate(
+			'%(posts)d post',
+			'%(posts)d posts', {
+				count: postCount,
 				args: {
-					posts: count
+					posts: postCount
 				},
 				comment: 'How many posts published on a certain date.'
-		} );
-
-		labelWrapper = (
-			<span>
-				<span className="post-count">{ label } </span>
-				<span className="date">{ date.format( 'L' ) }</span>
-			</span>
+			}
 		);
 
-		tooltipData.push( {
-			label: labelWrapper
-		} );
-
-		return tooltipData;
+		return ( <span>
+				<span className="post-count">{ content } </span>
+				<span className="date">{ label }</span>
+		</span> );
 	},
 
 	render: function() {
-		var level,
-			data = this.props.days,
-			date = this.props.date,
-			max = this.props.max,
-			dayClasses = {},
-			tooltip = null,
-			showTooltip = false;
-
-		// Level is calculated between 0 and 4, 4 being days where posts = max, and 0 being days where posts = 0
-		level = Math.ceil( ( data[ date.format( 'YYYY-MM-DD' ) ] / max ) * 4 );
-
-		if ( date.isBefore( i18n.moment( this.props.month ).startOf( 'month' ) ) || date.isAfter( i18n.moment( this.props.month ).endOf( 'month' ) ) ) {
-			dayClasses['is-outside-month'] = true;
-
-		} else if ( date.isAfter( i18n.moment().endOf( 'day' ) ) ) {
-			dayClasses['is-after-today'] = true;
-
-		} else if ( level ) {
-
-			if ( level > 4 ) {
-				level = 4;
-			}
-
-			dayClasses[ 'is-level-' + level ] = true;
-			showTooltip = true;
-			dayClasses[ 'is-hovered' ] = this.state.showPopover;
-		}
-
-		dayClasses = classNames( 'post-trends__day', dayClasses );
-
-		if ( showTooltip ) {
-			tooltip = (
-				<Popover context={ this.refs && this.refs.day }
-					isVisible={ this.state.showPopover }
-					position="top"
-					onClose={ noop }
-					className="chart__tooltip is-streak"
-					>
-					<Tooltip data={ this.buildTooltipData( date, data ) } />
-				</Popover>
-			);
-		}
+		const { postCount, className } = this.props;
+		const hoveredClass = {
+			'is-hovered': this.state.showPopover
+		};
 
 		return (
-			<div className={ dayClasses }
-				onMouseEnter={ this.mouseEnter }
-				onMouseLeave={ this.mouseLeave }
+			<div className={ classNames( 'post-trends__day', hoveredClass, className ) }
+				onMouseEnter={ postCount > 0 ? this.mouseEnter : null }
+				onMouseLeave={ postCount > 0 ? this.mouseLeave : null }
 				ref="day">
-				{ tooltip }
+				{ ( postCount > 0 ) &&
+					<Tooltip
+						className="chart__tooltip is-streak"
+						id="popover__chart-bar"
+						context={ this.refs && this.refs.day }
+						isVisible={ this.state.showPopover }
+						position="top">
+						{ this.buildTooltipData() }
+					</Tooltip>
+				}
 			</div>
 		);
 	}

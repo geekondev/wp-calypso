@@ -28,6 +28,7 @@
 .editor-media-modal .dialog__content {
 	position: static;
 	color: $gray-dark;
+	height: 100%;
 }
 
 .editor-media-modal .section-nav {
@@ -320,5 +321,13 @@
 		.is-mobile {
 			display: none;
 		}
+	}
+}
+
+.editor-media-modal__plan-storage {
+	display: none;
+
+	@include breakpoint( ">480px" ) {
+		display: inline-block;
 	}
 }

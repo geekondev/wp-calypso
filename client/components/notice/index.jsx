@@ -4,20 +4,20 @@
 import React, { PropTypes } from 'react';
 import classnames from 'classnames';
 import noop from 'lodash/noop';
+import { localize } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import Gridicon from 'components/gridicon';
 
-export default React.createClass( {
-	displayName: 'Notice',
+export const Notice = React.createClass( {
 	dismissTimeout: null,
 
 	getDefaultProps() {
 		return {
 			duration: 0,
-			status: 'is-info',
+			status: null,
 			showDismiss: true,
 			className: '',
 			onDismissClick: noop
@@ -51,15 +51,21 @@ export default React.createClass( {
 	},
 
 	renderChildren() {
-		let content;
+		let content, text;
 
 		if ( typeof this.props.children === 'string' ) {
-			return <span className="notice__text">{ this.props.children }</span>;
+			return <span className="notice__text"><span>{ this.props.children }</span></span>;
 		}
 
 		if ( this.props.text ) {
+			if ( typeof this.props.text === 'string' ) {
+				text = <span>{ this.props.text }</span>;
+			} else {
+				text = this.props.text;
+			}
+
 			content = [ this.props.children ];
-			content.unshift( <span key="notice_text" className="notice__text">{ this.props.text }</span> );
+			content.unshift( <span key="notice_text" className="notice__text">{ text }</span> );
 		} else {
 			content = <span key="notice_text" className="notice__text">{ this.props.children }</span>;
 		}
@@ -109,7 +115,7 @@ export default React.createClass( {
 			dismiss = (
 				<span tabIndex="0" className="notice__dismiss" onClick={ this.props.onDismissClick } >
 					<Gridicon icon="cross" size={ 24 } />
-					<span className="screen-reader-text">{ this.translate( 'Dismiss' ) }</span>
+					<span className="screen-reader-text">{ this.props.translate( 'Dismiss' ) }</span>
 				</span>
 				);
 		}
@@ -117,9 +123,13 @@ export default React.createClass( {
 		return (
 			<div className={ classnames( this.props.className, noticeClass ) }>
 				<Gridicon className="notice__icon" icon={ this.props.icon || this.getIcon() } size={ 24 } />
-				{ this.renderChildren() }
+				<div className="notice__content">
+					{ this.renderChildren() }
+				</div>
 				{ dismiss }
 			</div>
 		);
 	}
 } );
+
+export default localize( Notice );

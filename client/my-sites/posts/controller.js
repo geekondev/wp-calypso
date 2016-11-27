@@ -4,8 +4,10 @@
 var page = require( 'page' ),
 	ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
-	qs = require( 'querystring' ),
-	debug = require( 'debug' )( 'calypso:my-sites:posts' );
+	debug = require( 'debug' )( 'calypso:my-sites:posts' ),
+	i18n = require( 'i18n-calypso' );
+
+import { Provider } from 'react-redux';
 
 /**
  * Internal Dependencies
@@ -13,11 +15,10 @@ var page = require( 'page' ),
 var user = require( 'lib/user' )(),
 	sites = require( 'lib/sites-list' )(),
 	route = require( 'lib/route' ),
-	i18n = require( 'lib/mixins/i18n' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	titlecase = require( 'to-title-case' ),
 	trackScrollPage = require( 'lib/track-scroll-page' ),
-	titleActions = require( 'lib/screen-title/actions' );
+	setTitle = require( 'state/document-head/actions' ).setDocumentHeadTitle;
 
 module.exports = {
 
@@ -60,7 +61,7 @@ module.exports = {
 			return;
 		}
 
-		titleActions.setTitle( i18n.translate( 'Blog Posts', { textOnly: true } ), { siteID: siteID } );
+		context.store.dispatch( setTitle( i18n.translate( 'Blog Posts', { textOnly: true } ) ) ); // FIXME: Auto-converted from the Flux setTitle action. Please use <DocumentHead> instead.
 
 		if ( siteID ) {
 			baseAnalyticsPath = basePath + '/:site';
@@ -77,20 +78,22 @@ module.exports = {
 		analytics.pageView.record( baseAnalyticsPath, analyticsPageTitle );
 
 		ReactDom.render(
-			React.createElement( Posts, {
-				context: context,
-				siteID: siteID,
-				author: author,
-				statusSlug: statusSlug,
-				sites: sites,
-				search: search,
-				trackScrollPage: trackScrollPage.bind(
-					null,
-					baseAnalyticsPath,
-					analyticsPageTitle,
-					'Posts'
-				)
-			} ),
+			React.createElement( Provider, { store: context.store },
+				React.createElement( Posts, {
+					context: context,
+					siteID: siteID,
+					author: author,
+					statusSlug: statusSlug,
+					sites: sites,
+					search: search,
+					trackScrollPage: trackScrollPage.bind(
+						null,
+						baseAnalyticsPath,
+						analyticsPageTitle,
+						'Posts'
+					)
+				} )
+			),
 			document.getElementById( 'primary' )
 		);
 	}

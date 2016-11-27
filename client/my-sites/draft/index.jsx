@@ -11,7 +11,6 @@ var React = require( 'react' ),
  */
 var CompactCard = require( 'components/card/compact' ),
 	Gridicon = require( 'components/gridicon' ),
-	Notice = require( 'components/notice' ),
 	NoticeAction = require( 'components/notice/notice-action' ),
 	SiteIcon = require( 'components/site-icon' ),
 	PostRelativeTimeStatus = require( 'my-sites/post-relative-time-status' ),
@@ -21,6 +20,10 @@ var CompactCard = require( 'components/card/compact' ),
 	updatePostStatus = require( 'lib/mixins/update-post-status' ),
 	utils = require( 'lib/posts/utils' ),
 	hasTouch = require( 'lib/touch-detect' ).hasTouch;
+
+import Gravatar from 'components/gravatar';
+import photon from 'photon';
+import Notice from 'components/notice';
 
 module.exports = React.createClass( {
 
@@ -35,14 +38,16 @@ module.exports = React.createClass( {
 		sites: React.PropTypes.object,
 		onTitleClick: React.PropTypes.func,
 		postImages: React.PropTypes.object,
-		selected: React.PropTypes.bool
+		selected: React.PropTypes.bool,
+		showAuthor: React.PropTypes.bool
 	},
 
 	getDefaultProps: function() {
 		return {
 			showAllActions: false,
 			onTitleClick: noop,
-			selected: false
+			selected: false,
+			showAuthor: false
 		};
 	},
 
@@ -152,6 +157,16 @@ module.exports = React.createClass( {
 			imageUrl = '//' + image.hostname + image.pathname + '?w=680px';
 		}
 
+		if ( post && post.canonical_image ) {
+			image = url.parse( post.canonical_image.uri, true );
+
+			if ( image.hostname.indexOf( 'files.wordpress.com' ) > 0 ) {
+				imageUrl = '//' + image.hostname + image.pathname + '?w=680px';
+			} else {
+				imageUrl = photon( post.canonical_image.uri, { width: 680 } );
+			}
+		}
+
 		classes = [
 			'draft',
 			{
@@ -176,6 +191,7 @@ module.exports = React.createClass( {
 				<h3 className="draft__title">
 					{ post.status === 'pending' &&
 						<span className="draft__pending-label">{ this.translate( 'Pending' ) }</span> }
+					{ this.props.showAuthor && <Gravatar user={ post.author } size={ 22 } /> }
 					<a href={ editPostURL } onClick={ this.props.onTitleClick }>
 						{ post.format === 'aside' ? excerpt : title }
 					</a>

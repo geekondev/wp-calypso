@@ -7,7 +7,7 @@ import noop from 'lodash/noop';
 /**
  * Internal dependencies
  */
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import observe from 'lib/mixins/data-observe';
 import PostActions from 'lib/posts/actions';
 import MediaDropZone from 'my-sites/media-library/drop-zone';
@@ -111,7 +111,7 @@ export default React.createClass( {
 				PostActions.blockSave( 'MEDIA_MODAL_TRANSIENT_INSERT' );
 			}
 
-			onInsertMedia( markup.get( selectedItems[ 0 ] ) );
+			onInsertMedia( markup.get( site, selectedItems[ 0 ] ) );
 			MediaActions.setLibrarySelectedItems( site.ID, [] );
 		} else {
 			// In all other cases, show the media modal list view

@@ -9,8 +9,8 @@ import noop from 'lodash/noop';
 /**
  * Internal dependencies
  */
-import Site from 'my-sites/site';
-import SitePlaceholder from 'my-sites/site/placeholder';
+import Site from 'blocks/site';
+import SitePlaceholder from 'blocks/site/placeholder';
 import SiteSelector from 'components/site-selector';
 import sitesList from 'lib/sites-list';
 import Gridicon from 'components/gridicon';
@@ -67,6 +67,11 @@ export default React.createClass( {
 		this.setState( { open: ! this.state.open } );
 	},
 
+	onClose( e ) {
+		this.setState( { open: false } );
+		this.props.onClose && this.props.onClose( e );
+	},
+
 	render() {
 		return (
 			<div className={ classNames( 'sites-dropdown', { 'is-open': this.state.open } ) }>
@@ -85,7 +90,7 @@ export default React.createClass( {
 						<SiteSelector
 							sites={ sites }
 							autoFocus={ true }
-							onClose={ this.props.onClose }
+							onClose={ this.onClose }
 							onSiteSelect={ this.selectSite }
 							selected={ this.state.selected }
 							hideSelected={ true }

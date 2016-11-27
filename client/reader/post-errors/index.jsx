@@ -7,11 +7,12 @@ var React = require( 'react' ),
 var FeedSubscriptionStore = require( 'lib/reader-feed-subscriptions/index' ),
 	FeedSubscriptionActions = require( 'lib/reader-feed-subscriptions/actions' ),
 	FeedSubscriptionStoreErrorTypes = require( 'lib/reader-feed-subscriptions/constants' ).error,
-	Notice = require( 'components/notice' ),
 	SiteBlockStore = require( 'lib/reader-site-blocks/index' ),
 	SiteBlockActions = require( 'lib/reader-site-blocks/actions' ),
 	SiteBlockStoreErrorTypes = require( 'lib/reader-site-blocks/constants' ).error,
 	stats = require( 'reader/stats' );
+
+import Notice from 'components/notice';
 
 var PostErrors = React.createClass( {
 
@@ -105,10 +106,12 @@ var PostError = React.createClass( {
 			FeedSubscriptionActions.dismissError( error );
 			stats.recordAction( 'dismiss_follow_error' );
 			stats.recordGaEvent( 'Clicked Dismiss Follow Error' );
+			stats.recordTrack( 'calypso_reader_follow_error_dismissed' );
 		} else if ( error.errorType === SiteBlockStoreErrorTypes.UNABLE_TO_BLOCK ) {
 			SiteBlockActions.dismissError( error );
 			stats.recordAction( 'dismiss_block_error' );
 			stats.recordGaEvent( 'Clicked Dismiss Block Error' );
+			stats.recordTrack( 'calypso_reader_block_error_dismissed' );
 		}
 	},
 

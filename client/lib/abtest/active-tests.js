@@ -1,4 +1,28 @@
 module.exports = {
+	// `browserNotifications` controls whether or not users see the
+	// nudge notice to enable browser notifications at the top of
+	// some Calypso screens; any users with this enabled will also
+	// have the preference available in /me/notifications;
+	// note: not renaming this test at this point in time so that we don't
+	// mess with any users that were put in the `enabled` variation -- don't
+	// want to take their browser notifications preference away from them!
+	browserNotifications: {
+		datestamp: '20160628',
+		variations: {
+			disabled: 95,
+			enabled: 5,
+		},
+		defaultVariation: 'disabled',
+		allowExistingUsers: true,
+	},
+	domainSuggestionClickableRow: {
+		datestamp: '20160802',
+		variations: {
+			clickableRow: 20,
+			clickableButton: 80
+		},
+		defaultVariation: 'clickableButton'
+	},
 	multiDomainRegistrationV1: {
 		datestamp: '20200721',
 		variations: {
@@ -8,103 +32,98 @@ module.exports = {
 		},
 		defaultVariation: 'singlePurchaseFlow'
 	},
-	translatorInvitation: {
-		datestamp: '20150910',
+	signupStore: {
+		datestamp: '20160927',
 		variations: {
-			noNotice: 1,
-			startNow: 1,
-			helpUs: 1,
-			tryItNow: 1,
-			startTranslating: 1,
-			improve: 1
+			designTypeWithoutStore: 0,
+			designTypeWithStore: 100,
 		},
-		defaultVariation: 'noNotice',
-		allowAnyLocale: true
+		defaultVariation: 'designTypeWithStore',
+		allowExistingUsers: false,
 	},
-	plansPageBusinessAATest: {
-		datestamp: '20160108',
+	signupStoreBenchmarking: {
+		datestamp: '20160927',
 		variations: {
-			originalA: 50,
-			originalB: 50
+			pressable: 97,
+			bluehost: 1,
+			bluehostWithWoo: 1,
+			siteground: 1
 		},
-		defaultVariation: 'originalA'
+		defaultVariation: 'pressable',
+		allowExistingUsers: false,
 	},
-	freeTrials: {
-		datestamp: '20160120',
+	signupThemeUpload: {
+		datestamp: '20160928',
 		variations: {
-			notOffered: 90,
-			offered: 10
+			showThemeUpload: 10,
+			hideThemeUpload: 90,
 		},
-		defaultVariation: 'notOffered'
+		defaultVariation: 'hideThemeUpload',
+		allowExistingUsers: false,
 	},
-	monthlyPlanPricing: {
-		datestamp: '20160118',
+	domainSuggestionPopover: {
+		datestamp: '20160809',
 		variations: {
-			yearly: 50,
-			monthly: 50
+			showPopover: 80,
+			hidePopover: 20,
 		},
-		defaultVariation: 'yearly'
+		defaultVariation: 'showPopover',
+		allowExistingUsers: false,
 	},
-	plansUpgradeButton: {
-		datestamp: '20160212', // Update to the day of deploy
+	domainDotBlogSubdomain: {
+		datestamp: '20161125',
 		variations: {
-			original: 20,
-			free: 20,
-			add: 20,
-			info: 20,
-			change: 20
+			excludeDotBlogSubdomain: 50,
+			includeDotBlogSubdomain: 50,
 		},
-		defaultVariation: 'original'
+		defaultVariation: 'excludeDotBlogSubdomain',
+		allowAnyLocale: true,
 	},
-	plansFeatureList: {
-		datestamp: '20160215',
-		variations: {
-			list: 33,
-			andMore: 33,
-			description: 34
-		},
-		defaultVariation: 'description'
-	},
-	headstart: {
-		datestamp: '20160215',
-		variations: {
-			original: 20,
-			notTested: 60,
-			headstart: 20
-		},
-		defaultVariation: 'original'
-	},
-	checkoutFooter: {
-		datestamp: '20160215',
+	paidNuxThankYouPage: {
+		datestamp: '20161114',
 		variations: {
 			original: 50,
-			noFooter: 50
+			emailNudgeOnTop: 50,
 		},
-		defaultVariation: 'original'
+		defaultVariation: 'original',
 	},
-	altThemes: {
-		datestamp: '20160215',
+	siteTitleStep: {
+		datestamp: '20160928',
 		variations: {
-			original: 20,
-			altThemes: 20,
-			notTested: 60
+			showSiteTitleStep: 5,
+			hideSiteTitleStep: 95,
 		},
-		defaultVariation: 'original'
+		defaultVariation: 'hideSiteTitleStep',
+		allowExistingUsers: false
 	},
-	freePlansDefault: {
-		datestamp: '20160219',
-		variations: {
-			allPlans: 90,
-			skipForFree: 10
-		},
-		defaultVariation: 'allPlans'
-	},
-	domainSearchResultsCount: {
-		datestamp: '20160223',
+	domainToPersonalPlanNudge3: {
+		datestamp: '20161109',
 		variations: {
 			original: 50,
-			moreResults: 50
+			nudge: 50
 		},
-		defaultVariation: 'original'
+		defaultVariation: 'original',
+		allowExistingUsers: true
+	},
+
+	gSuiteOnSignup: {
+		datestamp: '20161025',
+		variations: {
+			original: 50,
+			removed: 50
+		},
+		defaultVariation: 'original',
+		allowExistingUsers: true
+	},
+
+	jetpackConnectPlansFirst: {
+		datestamp: '20161024',
+		variations: {
+			showPlansBeforeAuth: 50,
+			showPlansAfterAuth: 50
+		},
+		defaultVariation: 'showPlansAfterAuth',
+		allowExistingUsers: true
 	},
 };
+

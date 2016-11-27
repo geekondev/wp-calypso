@@ -1,10 +1,6 @@
 .map-domain-step {
 	padding: 0;
 
-	fieldset {
-		clear: left;
-	}
-
 	form.map-domain-step__form {
 		padding: 20px;
 		margin-bottom: 9px;
@@ -19,9 +15,14 @@
 	}
 
 	.domain-product-price {
-		@include breakpoint( ">660px" ) {
+		float: left;
+		margin-bottom: 20px;
+		min-width: 0;
+
+		@include breakpoint( ">960px" ) {
 			float: right;
 			margin-top: -5px;
+			margin-bottom: 0;
 		}
 	}
 
@@ -31,26 +32,34 @@
 }
 
 .map-domain-step__domain-description {
-	@include breakpoint( ">660px" ) {
+	@include breakpoint( ">960px" ) {
+		max-width: 75%;
 		float: left;
 		margin-bottom: 20px;
 	}
 }
 
-input.map-domain-step__external-domain {
-	@include breakpoint( ">660px" ) {
-		float: left;
-		width: calc( 100% - 90px );
-	}
-}
-
-.map-domain-step__go {
-	margin: 10px 0 0 0;
+.map-domain-step__add-domain {
+	display: flex;
+	flex-flow: column;
 	width: 100%;
 
 	@include breakpoint( ">660px" ) {
-		float: right;
-		margin: 0;
-		width: 80px;
+		flex-flow: row;
+	}
+}
+
+input.map-domain-step__external-domain {
+	flex-grow: 1;
+	width: auto;
+}
+
+.map-domain-step__go {
+	flex-grow: 1;
+	margin: 10px 0 0 0;
+
+	@include breakpoint( ">660px" ) {
+		flex-grow: 0;
+		margin: 0 0 0 10px;
 	}
 }

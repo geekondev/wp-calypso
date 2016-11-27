@@ -2,8 +2,9 @@
  * External dependencies
  */
 var React = require( 'react' ),
-	classNames = require( 'classnames' ),
-	debug = require( 'debug' )( 'calypso:stats:module-followers-page' );
+	classNames = require( 'classnames' );
+import { connect } from 'react-redux';
+import { localize } from 'i18n-calypso';
 
 /**
  * Internal dependencies
@@ -12,18 +13,17 @@ var StatsList = require( '../stats-list' ),
 	StatsListLegend = require( '../stats-list/legend' ),
 	StatsModuleSelectDropdown = require( '../stats-module/select-dropdown' ),
 	StatsModulePlaceholder = require( '../stats-module/placeholder' ),
-	toggle = require( '../mixin-toggle' ),
-	skeleton = require( '../mixin-skeleton' ),
 	ErrorPanel = require( '../stats-error' ),
 	Pagination = require( '../pagination' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	Card = require( 'components/card' ),
-	Gridicon = require( 'components/gridicon' );
+	SectionHeader = require( 'components/section-header' ),
+	Button = require( 'components/button' );
+import observe from 'lib/mixins/data-observe';
+import { getSelectedSiteId } from 'state/ui/selectors';
 
-module.exports = React.createClass( {
-	displayName: 'StatModuleFollowersPage',
-
-	mixins: [ toggle( 'FollowersPage' ), skeleton( 'data' ) ],
+const StatModuleFollowersPage = React.createClass( {
+	mixins: [ observe( 'followersList' ) ],
 
 	data: function( nextProps ) {
 		var props = nextProps || this.props;
@@ -44,15 +44,16 @@ module.exports = React.createClass( {
 	},
 
 	filterSelect: function() {
+		const { translate } = this.props;
 		var selectFilter,
 			options = [
 				{
 					value: 'wpcom',
-					label: this.translate( 'WordPress.com Followers' )
+					label: translate( 'WordPress.com Followers' )
 				},
 				{
 					value: 'email',
-					label: this.translate( 'Email Followers' )
+					label: translate( 'Email Followers' )
 				}
 			];
 
@@ -68,14 +69,12 @@ module.exports = React.createClass( {
 	},
 
 	render: function() {
-		debug( 'Rendering stats followers page' );
-
+		const { translate } = this.props;
 		var data = this.data(),
 			hasError = this.props.followersList.isError(),
 			noData = this.props.followersList.isEmpty( 'subscribers' ),
 			isLoading = this.props.followersList.isLoading(),
 			followers,
-			moduleHeaderTitle,
 			labelLegend,
 			valueLegend,
 			pagination,
@@ -83,36 +82,32 @@ module.exports = React.createClass( {
 			startIndex,
 			endIndex,
 			emailExportUrl,
-			emailExportLink,
 			itemType,
-			classes,
-			infoIcon = this.state.showInfo ? 'info' : 'info-outline';
+			classes;
 
 		classes = [
 			'stats-module',
-			'is-expanded',
 			'summary',
 			'is-followers-page',
 			{
 				'is-loading': isLoading,
-				'is-showing-info': this.state.showInfo,
 				'has-no-data': noData,
 				'is-showing-error': hasError || noData
 			}
 		];
 
 		switch ( this.props.followType ) {
-		case 'comment':
-			itemType = this.translate( 'Comments' );
-			break;
+			case 'comment':
+				itemType = translate( 'Comments' );
+				break;
 
-		case 'email':
-			itemType = this.translate( 'Email' );
-			break;
+			case 'email':
+				itemType = translate( 'Email' );
+				break;
 
-		case 'wpcom':
-			itemType = this.translate( 'WordPress.com' );
-			break;
+			case 'wpcom':
+				itemType = translate( 'WordPress.com' );
+				break;
 		}
 
 		if ( data.total ) {
@@ -123,7 +118,7 @@ module.exports = React.createClass( {
 				endIndex = data.total;
 			}
 
-			paginationSummary = this.translate( 'Showing %(startIndex)s - %(endIndex)s of %(total)s %(itemType)s followers', {
+			paginationSummary = translate( 'Showing %(startIndex)s - %(endIndex)s of %(total)s %(itemType)s followers', {
 				context: 'pagination',
 				comment: '"Showing [start index] - [end index] of [total] [item]" Example: Showing 21 - 40 of 300 WordPress.com followers',
 				args: {
@@ -144,63 +139,33 @@ module.exports = React.createClass( {
 		pagination = <Pagination page={ this.props.page } perPage={ this.props.perPage } total={ data.total } pageClick={ this.props.pageClick } />;
 
 		if ( data && data.posts ) {
-			followers = <StatsList data={ data.posts } moduleName='Followers' />;
-			labelLegend = this.translate( 'Post', {
+			followers = <StatsList data={ data.posts } moduleName="Followers" />;
+			labelLegend = translate( 'Post', {
 				context: 'noun'
 			} );
-			valueLegend = this.translate( 'Followers' );
+			valueLegend = translate( 'Followers' );
 		} else if ( data && data.subscribers ) {
-			followers = <StatsList data={ data.subscribers } followList={ this.props.followList } moduleName='Followers' />;
-			labelLegend = this.translate( 'Follower' );
-			valueLegend = this.translate( 'Since' );
+			followers = <StatsList data={ data.subscribers } followList={ this.props.followList } moduleName="Followers" />;
+			labelLegend = translate( 'Follower' );
+			valueLegend = translate( 'Since' );
 		}
 
-		moduleHeaderTitle = (
-			<h4 className="module-header-title">{ this.translate( 'Followers' ) }</h4>
-			);
-
 		if ( 'email' === this.props.followType ) {
-			emailExportUrl = 'https://dashboard.wordpress.com/wp-admin/index.php?page=stats&blog=' + this.props.site.ID + '&blog_subscribers=csv&type=email';
-
-			emailExportLink = (
-				<div className="module-content-text">
-					<ul className="documentation">
-						<li>
-							<a href={ emailExportUrl } target="_blank" onClick={ this.recordDownloadClick }>
-								<Gridicon icon="cloud-download" />
-								{ this.translate( 'Download all email followers as CSV', { context: 'Action shown in stats followers module to download all email followers.' } ) }
-							</a>
-						</li>
-					</ul>
-				</div>
-			);
+			emailExportUrl = 'https://dashboard.wordpress.com/wp-admin/index.php?page=stats&blog=' + this.props.siteId + '&blog_subscribers=csv&type=email';
 		}
 
 		return (
-			<Card className={ classNames.apply( null, classes ) }>
-				<div className="followers">
-					<div className="module-header">
-						{ moduleHeaderTitle }
-						<ul className="module-header-actions">
-							<li className="module-header-action toggle-info">
-								<a href="#" className="module-header-action-link" aria-label={ this.translate( 'Show or hide panel information', { textOnly: true, context: 'Stats panel action' } ) } title={ this.translate( 'Show or hide panel information', { textOnly: true, context: 'Stats panel action' } ) } onClick={ this.toggleInfo } >
-									<Gridicon icon={ infoIcon } />
-								</a>
-							</li>
-						</ul>
-					</div>
-
+			<div className="followers">
+				<SectionHeader label={ translate( 'Followers' ) }>
+					{ emailExportUrl
+						? ( <Button compact href={ emailExportUrl }>{ translate( 'Download Data as CSV' ) }</Button> )
+						: null }
+				</SectionHeader>
+				<Card className={ classNames( classes ) }>
 					<div className="module-content">
-						<div className="module-content-text module-content-text-info">
-							<p>{ this.translate( 'Keep track of your overall number of followers, and how long each one has been following your site.' ) }</p>
-							<ul className="documentation">
-								<li><a href="http://en.support.wordpress.com/followers/" target="_blank"><Gridicon icon="folder" /> { this.translate( 'About Followers' ) }</a></li>
-							</ul>
-						</div>
-
 						{ this.filterSelect() }
 
-						{ ( noData && ! hasError ) ? <ErrorPanel className='is-empty-message' message={ this.translate( 'No followers' ) } /> : null }
+						{ ( noData && ! hasError ) ? <ErrorPanel className="is-empty-message" message={ translate( 'No followers' ) } /> : null }
 
 						{ paginationSummary }
 
@@ -209,17 +174,23 @@ module.exports = React.createClass( {
 						<StatsListLegend value={ valueLegend } label={ labelLegend } />
 
 						{ followers }
-						
-						{ hasError ? <ErrorPanel className={ 'network-error' } /> : null }
-						
+
+						{ hasError ? <ErrorPanel className="network-error" /> : null }
+
 						<StatsModulePlaceholder isLoading={ isLoading } />
 
 						{ pagination }
-
-						{ emailExportLink }
 					</div>
-				</div>
-			</Card>
+				</Card>
+			</div>
 		);
 	}
 } );
+
+export default connect( ( state ) => {
+	const siteId = getSelectedSiteId( state );
+
+	return {
+		siteId
+	};
+} )( localize( StatModuleFollowersPage ) );

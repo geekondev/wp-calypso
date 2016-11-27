@@ -13,7 +13,7 @@ var ButtonsLabelEditor = require( './label-editor' ),
 	ButtonsPreviewAction = require( './preview-action' ),
 	ButtonsTray = require( './tray'),
 	decodeEntities = require( 'lib/formatting' ).decodeEntities,
-	analytics = require( 'analytics' );
+	analytics = require( 'lib/analytics' );
 
 module.exports = React.createClass( {
 	displayName: 'SharingButtonsPreview',
@@ -86,13 +86,11 @@ module.exports = React.createClass( {
 			} else {
 				return this.translate( 'Add sharing buttons', { context: 'Sharing: Buttons edit label' } );
 			}
-		} else {
-			if ( enabledButtonsExist ) {
-				return this.translate( 'Edit “More” buttons', { context: 'Sharing: Buttons edit label' } );
-			} else {
-				return this.translate( 'Add “More” button', { context: 'Sharing: Buttons edit label' } );
-			}
+		} else if ( enabledButtonsExist ) {
+			return this.translate( 'Edit “More” buttons', { context: 'Sharing: Buttons edit label' } );
 		}
+
+		return this.translate( 'Add “More” button', { context: 'Sharing: Buttons edit label' } );
 	},
 
 	getButtonsTrayToggleButtonElement: function( visibility ) {

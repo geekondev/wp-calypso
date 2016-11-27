@@ -2,12 +2,11 @@
  * External dependencies
  */
 import React from 'react';
-import config from 'config';
 
 /**
  * Internal dependencies
  */
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import accept from 'lib/accept';
 import Gridicon from 'components/gridicon';
 import PluginsLog from 'lib/plugins/log-store';
@@ -155,8 +154,7 @@ module.exports = React.createClass( {
 			return null;
 		}
 
-		if ( this.props.plugin.slug === 'jetpack' ||
-				! config.isEnabled( 'manage/plugins/browser' ) ) {
+		if ( this.props.plugin.slug === 'jetpack' ) {
 			return null;
 		}
 

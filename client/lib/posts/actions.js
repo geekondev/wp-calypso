@@ -21,6 +21,7 @@ var wpcom = require( 'lib/wp' ),
 	versionCompare = require( 'lib/version-compare' ),
 	Dispatcher = require( 'dispatcher' ),
 	stats = require( './stats' );
+import { normalizeTermsForApi } from 'state/posts/utils';
 
 var PostActions;
 
@@ -83,17 +84,10 @@ function handleMetadataOperation( key, value, operation ) {
  */
 function normalizeApiAttributes( attributes ) {
 	attributes = clone( attributes );
+	attributes = normalizeTermsForApi( attributes );
 
 	if ( attributes.author ) {
 		attributes.author = attributes.author.ID;
-	}
-
-	if ( attributes.categories ) {
-		// Force category IDs to strings to work with ctype_digit in some versions of the API.
-		// (ctype_digit returns false for integers between -128 and 255).
-		attributes.categories_by_id = attributes.categories.map( category => category.toString() );
-		delete attributes.category_ids;
-		delete attributes.categories;
 	}
 
 	return attributes;
@@ -103,16 +97,16 @@ PostActions = {
 	/**
 	 * Start keeping track of edits to a new post
 	 *
-	 * @param {Number|String} site - site identifier
-	 * @param {Object} options - edit options
+	 * @param {Number} siteId  Site ID
+	 * @param {Object} options Edit options
 	 */
-	startEditingNew: function( site, options ) {
+	startEditingNew: function( siteId, options ) {
 		var args;
 		options = options || {};
 
 		args = {
 			type: 'DRAFT_NEW_POST',
-			siteId: site.ID,
+			siteId: siteId,
 			postType: options.type || 'post',
 			title: options.title,
 			content: options.content,
@@ -124,28 +118,28 @@ PostActions = {
 	/**
 	 * Load an existing post and keep track of edits to it
 	 *
-	 * @param {object} site to load post from
-	 * @param {number} postId ID of post to load
+	 * @param {Number} siteId Site ID to load post from
+	 * @param {Number} postId Post ID to load
 	 */
-	startEditingExisting: function( site, postId ) {
+	startEditingExisting: function( siteId, postId ) {
 		var currentPost = PostEditStore.get(),
 			postHandle;
 
-		if ( ! site.ID ) {
+		if ( ! siteId ) {
 			return;
 		}
 
-		if ( currentPost && currentPost.site_ID === site.ID && currentPost.ID === postId ) {
+		if ( currentPost && currentPost.site_ID === siteId && currentPost.ID === postId ) {
 			return; // already editing same post
 		}
 
 		Dispatcher.handleViewAction( {
 			type: 'START_EDITING_POST',
-			siteId: site.ID,
+			siteId: siteId,
 			postId: postId
 		} );
 
-		postHandle = wpcom.site( site.ID ).post( postId );
+		postHandle = wpcom.site( siteId ).post( postId );
 
 		postHandle.get( { context: 'edit', meta: 'autosave' }, function( error, data ) {
 			Dispatcher.handleServerAction( {
@@ -291,6 +285,7 @@ PostActions = {
 	 *
 	 * @param {object} attributes post attributes to change before saving
 	 * @param {function} callback receives ( err, post ) arguments
+	 * @param {object} options object with optional recordSaveEvent property. True if you want to record the save event.
 	 */
 	saveEdited: function( attributes, callback, options ) {
 		var post, postHandle, query, changedAttributes, rawContent, mode, isNew;
@@ -408,7 +403,7 @@ PostActions = {
 	trash: function( post, callback ) {
 		var postHandle = wpcom.site( post.site_ID ).post( post.ID );
 
-		postHandle.del( PostActions.receiveUpdate.bind( null, callback ) );
+		postHandle.delete( PostActions.receiveUpdate.bind( null, callback ) );
 	},
 
 	/**
@@ -538,7 +533,7 @@ PostActions = {
 			siteId: siteId
 		} );
 
-		wpcom.site( siteId ).postCounts( options, function( error, data ) {
+		wpcom.undocumented().site( siteId ).postCounts( options, function( error, data ) {
 			Dispatcher.handleServerAction( {
 				type: 'RECEIVE_POST_COUNTS',
 				error: error,

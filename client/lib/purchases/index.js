@@ -1,17 +1,19 @@
-/** @ssr-ready **/
-
 /**
  * External dependencies
  */
 import find from 'lodash/find';
 import includes from 'lodash/includes';
 import moment from 'moment';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-import i18n from 'lib/mixins/i18n';
-import { isDomainRegistration, isTheme, isPlan } from 'lib/products-values';
+import {
+	isDomainRegistration,
+	isPlan,
+	isTheme
+} from 'lib/products-values';
 
 function getIncludedDomain( purchase ) {
 	return purchase.includedDomain;
@@ -33,20 +35,20 @@ function getPurchasesBySite( purchases, sites ) {
 			const siteObject = find( sites, { ID: currentValue.siteId } );
 
 			result = result.concat( {
-				domain: currentValue.domain,
 				id: currentValue.siteId,
 				name: currentValue.siteName,
 				/* if the purchase is attached to a deleted site,
 				 * there will be no site with this ID in `sites`, so
 				 * we fall back on the domain. */
 				slug: siteObject ? siteObject.slug : currentValue.domain,
-				title: currentValue.siteName ? currentValue.siteName : currentValue.domain,
-				purchases: [ currentValue ]
+				title: currentValue.siteName || currentValue.domain || '',
+				purchases: [ currentValue ],
+				domain: siteObject ? siteObject.domain : currentValue.domain
 			} );
 		}
 
 		return result;
-	}, [] );
+	}, [] ).sort( ( a, b ) => a.title.toLowerCase() > b.title.toLowerCase() ? 1 : -1 );
 }
 
 function getName( purchase ) {
@@ -79,11 +81,15 @@ function hasPrivateRegistration( purchase ) {
  * Also returns true for purchases whether or not they are after the refund period.
  * Purchases included with a plan can't be cancelled.
  *
- * @param {Object} purchase
- * @return {boolean}
+ * @param {Object} purchase - the purchase with which we are concerned
+ * @return {boolean} whether the purchase is cancelable
  */
 function isCancelable( purchase ) {
 	if ( isIncludedWithPlan( purchase ) ) {
+		return false;
+	}
+
+	if ( isPendingTransfer( purchase ) ) {
 		return false;
 	}
 
@@ -123,6 +129,10 @@ function isPaidWithPaypal( purchase ) {
 	return 'paypal' === purchase.payment.type;
 }
 
+function isPendingTransfer( purchase ) {
+	return purchase.pendingTransfer;
+}
+
 function isRedeemable( purchase ) {
 	return purchase.isRedeemable;
 }
@@ -133,8 +143,8 @@ function isRedeemable( purchase ) {
  * Domains and domain mappings can be refunded up to 48 hours.
  * Purchases included with plan can't be refunded.
  *
- * @param {Object} purchase
- * @return {boolean}
+ * @param {Object} purchase - the purchase with which we are concerned
+ * @return {boolean} if the purchase is refundable
  */
 function isRefundable( purchase ) {
 	return purchase.isRefundable;
@@ -144,7 +154,7 @@ function isRefundable( purchase ) {
  * Checks whether the specified purchase can be removed from a user account.
  * Purchases included with a plan can't be removed.
  *
- * @param {Object} purchase
+ * @param {Object} purchase - the purchase with which we are concerned
  * @return {boolean} true if the purchase can be removed, false otherwise
  */
 function isRemovable( purchase ) {
@@ -159,8 +169,21 @@ function isRenewable( purchase ) {
 	return purchase.isRenewable;
 }
 
+function isRenewal( purchase ) {
+	return purchase.isRenewal;
+}
+
 function isRenewing( purchase ) {
 	return includes( [ 'active', 'autoRenewing' ], purchase.expiryStatus );
+}
+
+function isSubscription( purchase ) {
+	const nonSubscriptionFunctions = [
+		isDomainRegistration,
+		isOneTimePurchase
+	];
+
+	return ! nonSubscriptionFunctions.some( fn => fn( purchase ) );
 }
 
 function isPaidWithCreditCard( purchase ) {
@@ -211,10 +234,6 @@ function purchaseType( purchase ) {
 	return null;
 }
 
-function shouldFetchPurchases( purchases ) {
-	return ! purchases.hasLoadedFromServer && ! purchases.isFetching;
-}
-
 function showCreditCardExpiringWarning( purchase ) {
 	return ! isIncludedWithPlan( purchase ) &&
 		isPaidWithCreditCard( purchase ) &&
@@ -242,9 +261,10 @@ export {
 	isRefundable,
 	isRemovable,
 	isRenewable,
+	isRenewal,
 	isRenewing,
+	isSubscription,
 	paymentLogoType,
 	purchaseType,
-	shouldFetchPurchases,
 	showCreditCardExpiringWarning,
-}
+};

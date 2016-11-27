@@ -1,5 +1,3 @@
-/** @ssr-ready **/
-
 export function isFetchingNextPage( state ) {
 	return state.themes.themesList.getIn( [ 'queryState', 'isFetchingNextPage' ] );
 }
@@ -14,4 +12,8 @@ export function getThemesList( state ) {
 
 export function getQueryParams( state ) {
 	return state.themes.themesList.get( 'query' ).toObject();
+}
+
+export function isFetchError( state ) {
+	return state.themes.themesList.getIn( [ 'queryState', 'error' ] );
 }

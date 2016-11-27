@@ -1,13 +1,8 @@
 /**
  * External dependencies
  */
-var assign = require( 'lodash/assign' ),
-	isArray = require( 'lodash/isArray' ),
-	debug = require( 'debug' )( 'calypso:sites-plugins:sites-plugins-store' ),
-	sortBy = require( 'lodash/sortBy' ),
-	uniq = require( 'lodash/uniq' ),
-	compact = require( 'lodash/compact' ),
-	values = require( 'lodash/values' );
+var debug = require( 'debug' )( 'calypso:sites-plugins:sites-plugins-store' );
+import { assign, isArray, sortBy, uniq, compact, values, find } from 'lodash';
 
 /**
  * Internal dependencies
@@ -206,7 +201,7 @@ PluginsStore = {
 			return [];
 		}
 
-		if ( plugins.filter && !! pluginFilter ) {
+		if ( plugins.filter && !! pluginFilter && _filters[ pluginFilter ] ) {
 			plugins = plugins.filter( _filters[ pluginFilter ] );
 		}
 		return plugins;
@@ -215,6 +210,9 @@ PluginsStore = {
 	// Get Plugins for a single site
 	getSitePlugins: function( site ) {
 		var storedList;
+		if ( ! site ) {
+			return [];
+		}
 		if ( ! _pluginsBySite[ site.ID ] && ! _fetching[ site.ID ] ) {
 			storedList = getPluginsBySiteFromStorage( site.ID );
 
@@ -236,8 +234,8 @@ PluginsStore = {
 		if ( ! plugins ) {
 			return plugins;
 		}
-		plugins = plugins.filter( _filters.isEqual.bind( this, pluginSlug ) );
-		return plugins[ 0 ];
+
+		return find( plugins, _filters.isEqual.bind( this, pluginSlug ) );
 	},
 
 	// Array of sites with a particular plugin.
@@ -248,8 +246,8 @@ PluginsStore = {
 		if ( ! plugins ) {
 			return;
 		}
-		plugins = plugins.filter( _filters.isEqual.bind( this, pluginSlug ) );
-		plugin = plugins.pop();
+
+		plugin = find( plugins, _filters.isEqual.bind( this, pluginSlug ) );
 		if ( ! plugin ) {
 			return null;
 		}

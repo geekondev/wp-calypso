@@ -1,35 +1,42 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	page = require( 'page' ),
-	debug = require( 'debug' )( 'calypso:stats:site' );
+import React from 'react';
+import page from 'page';
+import debugFactory from 'debug';
+import { find } from 'lodash';
+import { connect } from 'react-redux';
+import { localize } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-var observe = require( 'lib/mixins/data-observe' ),
-	HeaderCake = require( 'components/header-cake' ),
-	StatsModule = require( '../stats-module' ),
-	StatsStrings = require( '../stats-strings' )(),
-	Countries = require( '../stats-countries' ),
-	SummaryChart = require( '../stats-summary-chart' ),
-	VideoPlayDetails = require( '../stats-video-details' );
+import observe from 'lib/mixins/data-observe';
+import HeaderCake from 'components/header-cake';
+import StatsModule from '../stats-module';
+import statsStringsFactory from '../stats-strings';
+import Countries from '../stats-countries';
+import SummaryChart from '../stats-summary-chart';
+import VideoPlayDetails from '../stats-video-details';
+import Main from 'components/main';
+import StatsFirstView from '../stats-first-view';
+import { getSelectedSite } from 'state/ui/selectors';
 
-module.exports = React.createClass( {
-	displayName: 'StatsSummary',
+const debug = debugFactory( 'calypso:stats:site' );
+const StatsStrings = statsStringsFactory();
 
-	mixins: [ observe( 'sites', 'summaryList' ) ],
+const StatsSummary = React.createClass( {
+	mixins: [ observe( 'summaryList' ) ],
 
 	getActiveFilter: function() {
-		return this.props.filters().filter( function( filter ) {
+		return find( this.props.filters(), ( filter ) => {
 			return this.props.path === filter.path || ( filter.altPaths && -1 !== filter.altPaths.indexOf( this.props.path ) );
-		}, this ).shift();
+		} );
 	},
 
 	goBack: function() {
-		var pathParts = this.props.path.split( '/' ),
-			queryString = this.props.context.querystring ? '?' + this.props.context.querystring : null;
+		const pathParts = this.props.path.split( '/' );
+		const queryString = this.props.context.querystring ? '?' + this.props.context.querystring : null;
 
 		if ( history.length ) {
 			history.back();
@@ -57,21 +64,21 @@ module.exports = React.createClass( {
 	},
 
 	render: function() {
-		var site = this.props.sites.getSelectedSite(),
-			summaryViews = [],
-			title,
-			summaryView,
-			chartTitle,
-			barChart;
+		const { site, translate } = this.props;
+		const summaryViews = [];
+		let title;
+		let summaryView;
+		let chartTitle;
+		let barChart;
 
 		debug( 'Rendering summary-top-posts.jsx', this.props );
 
 		switch ( this.props.context.params.module ) {
 
 			case 'referrers':
-				title = this.translate( 'Referrers' );
+				title = translate( 'Referrers' );
 				summaryView = <StatsModule
-					key='referrers-summary'
+					key="referrers-summary"
 					path={ 'referrers' }
 					moduleStrings={ StatsStrings.referrers }
 					site={ site }
@@ -81,9 +88,9 @@ module.exports = React.createClass( {
 				break;
 
 			case 'clicks':
-				title = this.translate( 'Clicks' );
+				title = translate( 'Clicks' );
 				summaryView = <StatsModule
-					key='clicks-summary'
+					key="clicks-summary"
 					path={ 'clicks' }
 					moduleStrings={ StatsStrings.clicks }
 					site={ site }
@@ -93,10 +100,10 @@ module.exports = React.createClass( {
 				break;
 
 			case 'countryviews':
-				title = this.translate( 'Countries' );
+				title = translate( 'Countries' );
 				summaryView = <Countries
-					key='countries-summary'
-					path='countries-summary'
+					key="countries-summary"
+					path="countries-summary"
 					site={ site }
 					dataList={ this.props.summaryList }
 					period={ this.props.period }
@@ -104,9 +111,9 @@ module.exports = React.createClass( {
 				break;
 
 			case 'posts':
-				title = this.translate( 'Posts & Pages' );
+				title = translate( 'Posts & Pages' );
 				summaryView = <StatsModule
-					key='posts-summary'
+					key="posts-summary"
 					path={ 'posts' }
 					moduleStrings={ StatsStrings.posts }
 					site={ site }
@@ -116,23 +123,26 @@ module.exports = React.createClass( {
 				break;
 
 			case 'authors':
-				title = this.translate( 'Authors' );
+				title = translate( 'Authors' );
+				// TODO: should be refactored so that className doesn't have to be passed in
+				/* eslint-disable wpcalypso/jsx-classname-namespace */
 				summaryView = <StatsModule
-					key='authors-summary'
+					key="authors-summary"
 					path={ 'authors' }
 					moduleStrings={ StatsStrings.authors }
 					site={ site }
 					dataList={ this.props.summaryList }
 					period={ this.props.period }
 					followList={ this.props.followList }
-					className='authorviews'
+					className="stats__author-views"
 					summary={ true } />;
+				/* eslint-enable wpcalypso/jsx-classname-namespace */
 				break;
 
 			case 'videoplays':
-				title = this.translate( 'Videos' );
+				title = translate( 'Videos' );
 				summaryView = <StatsModule
-					key='videoplays-summary'
+					key="videoplays-summary"
 					path={ 'videoplays' }
 					moduleStrings={ StatsStrings.videoplays }
 					site={ site }
@@ -142,42 +152,58 @@ module.exports = React.createClass( {
 					summary={ true } />;
 				break;
 
+			case 'podcastdownloads':
+				title = translate( 'Podcasts' );
+				summaryView = <StatsModule
+					key="podcastdownloads-summary"
+					path={ 'podcastdownloads' }
+					moduleStrings={ StatsStrings.podcastdownloads }
+					site={ site }
+					dataList={ this.props.summaryList }
+					period={ this.props.period }
+					followList={ this.props.followList }
+					summary={ true } />;
+				break;
+
 			case 'videodetails':
-				title = this.translate( 'Video' );
+				title = translate( 'Video' );
 
 				if ( this.props.summaryList.response.post ) {
 					title = this.props.summaryList.response.post.post_title;
 				}
 
+				// TODO: a separate StatsSectionTitle component should be created
+				/* eslint-disable wpcalypso/jsx-classname-namespace */
 				chartTitle = (
 					<h3 key="summary-title" className="stats-section-title">
-						{ this.translate( 'Video Details' ) }
+						{ translate( 'Video Details' ) }
 					</h3>
 				);
+				/* eslint-enable wpcalypso/jsx-classname-namespace */
 
 				summaryViews.push( chartTitle );
 
 				barChart = <SummaryChart
-					key='video-chart'
+					key="video-chart"
 					loading={ this.props.summaryList.isLoading() }
 					dataList={ this.props.summaryList }
 					activeKey="period"
-					dataKey='value'
-					labelKey='period'
+					dataKey="value"
+					labelKey="period"
 					labelClass="video"
-					tabLabel={ this.translate( 'Plays' ) } />;
+					tabLabel={ translate( 'Plays' ) } />;
 
 				summaryViews.push( barChart );
 
 				summaryView = <VideoPlayDetails
 					summaryList={ this.props.summaryList }
-					key='page-embeds' />;
+					key="page-embeds" />;
 				break;
 
 			case 'searchterms':
-				title = this.translate( 'Search Terms' );
+				title = translate( 'Search Terms' );
 				summaryView = <StatsModule
-					key='search-terms-summary'
+					key="search-terms-summary"
 					path={ 'searchterms' }
 					moduleStrings={ StatsStrings.search }
 					site={ site }
@@ -190,14 +216,21 @@ module.exports = React.createClass( {
 		summaryViews.push( summaryView );
 
 		return (
-			<div className="main main-column" role="main">
+			<Main>
+				<StatsFirstView />
 				<div id="my-stats-content">
 					<HeaderCake onClick={ this.goBack }>
 						{ title }
 					</HeaderCake>
 					{ summaryViews }
 				</div>
-			</div>
+			</Main>
 		);
 	}
 } );
+
+export default connect( ( state ) => {
+	return {
+		site: getSelectedSite( state )
+	};
+} )( localize( StatsSummary ) );

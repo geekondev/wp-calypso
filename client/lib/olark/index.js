@@ -5,22 +5,27 @@ import debugModule from 'debug';
 import config from 'config';
 import cookie from 'cookie';
 import store from 'store';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import sitesModule from 'lib/sites-list';
 import wpcom from 'lib/wp';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import emitter from 'lib/mixins/emitter';
 import userModule from 'lib/user';
-import { isBusiness, isEnterprise } from 'lib/products-values';
 import olarkApi from 'lib/olark-api';
 import notices from 'notices';
 import olarkEvents from 'lib/olark-events';
 import olarkStore from 'lib/olark-store';
 import olarkActions from 'lib/olark-store/actions';
-import i18n from 'lib/mixins/i18n';
+import {
+	olarkReady,
+	operatorsAway,
+	operatorsAvailable,
+	setChatAvailability,
+} from 'state/ui/olark/actions';
 
 /**
  * Module variables
@@ -30,7 +35,6 @@ const sites = sitesModule();
 const user = userModule();
 const wpcomUndocumented = wpcom.undocumented();
 const DAY_IN_SECONDS = 86400;
-const DAY_IN_MILLISECONDS = DAY_IN_SECONDS * 1000;
 
 /**
  * Loads the Olark store so that it can start receiving actions
@@ -53,22 +57,17 @@ const olark = {
 
 	userType: 'Unknown',
 
-	initialize() {
+	initialize( dispatch ) {
 		debug( 'Initializing Olark Live Chat' );
 
-		if ( config.isEnabled( 'olark_use_wpcom_configuration' ) ) {
-			this.getOlarkConfiguration()
-				.then( ( configuration ) => this.configureOlark( configuration ) )
-				.catch( ( error ) => this.handleError( error ) );
-		} else {
-			this.once( 'eligible', this.configureOlark.bind( this ) );
-			this.checkChatEligibility();
-		}
+		this.getOlarkConfiguration()
+			.then( ( configuration ) => this.configureOlark( configuration, dispatch ) )
+			.catch( ( error ) => this.handleError( error ) );
 	},
 
 	handleError: function( error ) {
-		// error.error === 'authorization_required' when the user is logged out
-		// when https://github.com/Automattic/wp-calypso/issues/289 is fixed then we can remove this condition
+		// Hides notices for authorization errors as they should be legitimate (e.g. we use this error code to check
+		// whether the user is logged in when fetching the user profile)
 		if ( error && error.message && error.error !== 'authorization_required' ) {
 			notices.error( error.message );
 		}
@@ -92,46 +91,7 @@ const olark = {
 		} );
 	},
 
-	checkChatEligibility() {
-		var now = new Date().getTime(),
-			data = store.get( this.eligibilityKey );
-
-		if ( 'undefined' === typeof data ) {
-			this.fetchUpgradesCache();
-		} else {
-			// Our cache is old, so refetch and bail.
-			if ( data.lastChecked + DAY_IN_MILLISECONDS < now ) {
-				this.fetchUpgradesCache();
-				return;
-			}
-
-			if ( now > data.lastChecked && data.userIsEligible === true ) {
-				this.emit( 'eligible' );
-			}
-		}
-	},
-
-	fetchUpgradesCache() {
-		wpcom.req.get( { path: '/me/upgrades' }, ( error, data ) => {
-			if ( error ) {
-				return;
-			}
-
-			if ( ! this.hasChatEligibleUpgrade( data ) ) {
-				this.storeEligibility( false );
-				return;
-			}
-
-			this.storeEligibility( true );
-			this.emit( 'eligible' );
-		} );
-	},
-
-	storeEligibility( status ) {
-		store.set( this.eligibilityKey, { userIsEligible: status, lastChecked: new Date().getTime() } );
-	},
-
-	configureOlark: function( wpcomOlarkConfig = {} ) {
+	configureOlark: function( wpcomOlarkConfig = {}, dispatch ) {
 		var userData = user.get(),
 			siteUrl = this.getSiteUrl(),
 			updateDetailsEvents = [
@@ -162,8 +122,11 @@ const olark = {
 		olarkEvents.initialize();
 
 		olarkEvents.once( 'api.chat.onReady', olarkActions.setReady );
+		olarkEvents.once( 'api.chat.onReady', () => dispatch( olarkReady() ) );
 		olarkEvents.on( 'api.chat.onOperatorsAway', olarkActions.setOperatorsAway );
+		olarkEvents.on( 'api.chat.onOperatorsAway', () => dispatch( operatorsAway() ) );
 		olarkEvents.on( 'api.chat.onOperatorsAvailable', olarkActions.setOperatorsAvailable );
+		olarkEvents.on( 'api.chat.onOperatorsAvailable', () => dispatch( operatorsAvailable() ) );
 
 		olarkExpandedEvents.forEach( this.hookExpansionEventToStoreSync.bind( this ) );
 
@@ -195,6 +158,18 @@ const olark = {
 		} else {
 			this.showChatBox();
 		}
+
+		dispatch( setChatAvailability( wpcomOlarkConfig.availability ) );
+	},
+
+	updateOlarkGroupAndEligibility() {
+		this.getOlarkConfiguration()
+			.then( ( configuration ) => {
+				const isUserEligible = ( 'undefined' === typeof configuration.isUserEligible ) ? true : configuration.isUserEligible;
+				olarkApi( 'api.chat.setOperatorGroup', { group: configuration.group } );
+				olarkActions.setUserEligibility( isUserEligible );
+			} )
+			.catch( ( error ) => this.handleError( error ) );
 	},
 
 	syncStoreWithExpandedState() {
@@ -227,6 +202,7 @@ const olark = {
 		olarkApi.configure( 'system.mask_credit_cards', true );
 
 		olarkActions.setUserEligibility( isUserEligible );
+		olarkActions.setClosed( wpcomOlarkConfig.isClosed );
 
 		if ( wpcomOlarkConfig.locale ) {
 			olarkActions.setLocale( wpcomOlarkConfig.locale );
@@ -454,29 +430,9 @@ const olark = {
 				}
 			} );
 		} );
-	},
-
-	hasChatEligibleUpgrade( upgrades ) {
-		return upgrades && upgrades.some( ( upgrade ) => {
-			var userType;
-
-			if ( isBusiness( upgrade ) ) {
-				userType = 'Business';
-			}
-
-			if ( isEnterprise( upgrade ) ) {
-				userType = 'ENTERPRISE';
-			}
-
-			if ( ! userType ) {
-				return false;
-			}
-
-			this.userType = userType;
-			return true;
-		} );
 	}
 };
 
 emitter( olark );
-olark.initialize();
+
+module.exports = olark;

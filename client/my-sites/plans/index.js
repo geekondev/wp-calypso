@@ -1,55 +1,84 @@
 /**
  * External dependencies
  */
-var page = require( 'page' );
+import page from 'page';
 
 /**
  * Internal dependencies
  */
-var adTracking = require( 'analytics/ad-tracking' ),
-	config = require( 'config' ),
-	controller = require( 'my-sites/controller' ),
-	paths = require( './paths' ),
-	plansController = require( './controller' );
+import config from 'config';
+import controller from 'my-sites/controller';
+import plansController from './controller';
+import currentPlanController from './current-plan/controller';
 
-module.exports = function() {
+export default function() {
 	if ( config.isEnabled( 'manage/plans' ) ) {
 		page(
 			'/plans',
-			adTracking.retarget,
 			controller.siteSelection,
 			controller.sites
 		);
 
 		page(
 			'/plans/compare',
-			adTracking.retarget,
 			controller.siteSelection,
 			controller.navigation,
-			plansController.plansCompare
+			plansController.redirectToPlans
 		);
 
 		page(
 			'/plans/compare/:domain',
-			adTracking.retarget,
 			controller.siteSelection,
 			controller.navigation,
-			plansController.plansCompare
+			plansController.redirectToPlans
+		);
+
+		page(
+			'/plans/features',
+			controller.siteSelection,
+			controller.navigation,
+			plansController.redirectToPlans
+		);
+
+		page(
+			'/plans/features/:domain',
+			controller.siteSelection,
+			controller.navigation,
+			plansController.redirectToPlans
+		);
+
+		page(
+			'/plans/features/:feature/:domain',
+			plansController.features
+		);
+
+		page(
+			'/plans/my-plan',
+			controller.siteSelection,
+			controller.sites,
+			controller.navigation,
+			currentPlanController.currentPlan
+		);
+
+		page(
+			'/plans/my-plan/:site',
+			controller.siteSelection,
+			controller.navigation,
+			currentPlanController.currentPlan
 		);
 
 		page(
 			'/plans/select/:plan/:domain',
-			adTracking.retarget,
 			controller.siteSelection,
 			plansController.redirectToCheckout
 		);
 
+		// This route renders the plans page for both WPcom and Jetpack sites.
 		page(
-			paths.plansDestination(),
-			adTracking.retarget,
+			'/plans/:intervalType?/:site',
 			controller.siteSelection,
 			controller.navigation,
 			plansController.plans
 		);
 	}
-};
+}

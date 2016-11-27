@@ -3,10 +3,10 @@
  */
 import React from 'react';
 import debounce from 'lodash/debounce';
-import config from 'config';
 import { findDOMNode } from 'react-dom';
 import classNames from 'classnames';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
+import isEqual from 'lodash/isEqual';
 
 /**
  * Internal dependencies
@@ -21,11 +21,22 @@ import DropdownSeparator from 'components/select-dropdown/separator';
 import BulkSelect from 'components/bulk-select';
 import Tooltip from 'components/tooltip';
 
-let _actionBarVisible = true;
+const _actionBarVisible = true;
 
 // If the Action
 const MAX_ACTIONBAR_HEIGHT = 50;
 const MIN_ACTIONBAR_WIDTH = 600;
+
+function checkPropsChange( nextProps, propArr ) {
+	for ( let i = 0; i < propArr.length; i++ ) {
+		const prop = propArr[ i ];
+
+		if ( nextProps[ prop ] !== this.props[ prop ] ) {
+			return true;
+		}
+	}
+	return false;
+}
 
 export default React.createClass( {
 	displayName: 'Plugins-list-header',
@@ -48,9 +59,38 @@ export default React.createClass( {
 		haveActiveSelected: React.PropTypes.bool,
 		haveInactiveSelected: React.PropTypes.bool,
 		bulkManagement: React.PropTypes.bool,
-		sites: React.PropTypes.object.isRequired,
+		selectedSiteSlug: React.PropTypes.string,
 		plugins: React.PropTypes.array.isRequired,
 		selected: React.PropTypes.array.isRequired
+	},
+
+	shouldComponentUpdate( nextProps, nextState ) {
+		const propsToCheck = [ 'label', 'isBulkManagementActive', 'haveUpdatesSelected', 'pluginUpdateCount', 'haveActiveSelected', 'haveInactiveSelected', 'bulkManagement' ];
+		if ( checkPropsChange.call( this, nextProps, propsToCheck ) ) {
+			return true;
+		}
+
+		if ( this.props.plugins.length !== nextProps.plugins.length ) {
+			return true;
+		}
+
+		if ( ! isEqual( this.props.sites, nextProps.sites ) ) {
+			return true;
+		}
+
+		if ( this.props.selected.length !== nextProps.selected.length ) {
+			return true;
+		}
+
+		if ( this.state.actionBarVisible !== nextState.actionBarVisible ) {
+			return true;
+		}
+
+		if ( this.state.addPluginTooltip !== nextState.addPluginTooltip ) {
+			return true;
+		}
+
+		return false;
 	},
 
 	getInitialState() {
@@ -87,6 +127,14 @@ export default React.createClass( {
 		}, 1 );
 	},
 
+	showPluginTooltip() {
+		this.setState( { addPluginTooltip: true } );
+	},
+
+	hidePluginTooltip() {
+		this.setState( { addPluginTooltip: false } );
+	},
+
 	toggleBulkManagement() {
 		this.props.toggleBulkManagement();
 
@@ -95,10 +143,6 @@ export default React.createClass( {
 
 	onBrowserLinkClick() {
 		analytics.ga.recordEvent( 'Plugins', 'Clicked Add New Plugins' );
-	},
-
-	canAddNewPlugins() {
-		return config.isEnabled( 'manage/plugins/browser' );
 	},
 
 	canUpdatePlugins() {
@@ -122,10 +166,14 @@ export default React.createClass( {
 
 		if ( ! this.props.isBulkManagementActive ) {
 			if ( 0 < this.props.pluginUpdateCount ) {
+				const textUpdate = this.translate( 'Update', { context: 'button label' } );
+				const textNumber = this.numberFormat( this.props.pluginUpdateCount );
+				const textPlugin = this.translate( 1 < this.props.pluginUpdateCount ? 'Plugins' : 'Plugin', { context: 'button label' } );
+
 				rightSideButtons.push(
 					<ButtonGroup key="plugin-list-header__buttons-update-all">
 						<Button compact primary onClick={ this.props.updateAllPlugins } >
-							{ this.translate( 'Update All', { context: 'button label' } ) }
+							{ `${textUpdate} ${textNumber} ${textPlugin}` }
 						</Button>
 					</ButtonGroup>
 				);
@@ -137,32 +185,29 @@ export default React.createClass( {
 					</Button>
 				</ButtonGroup>
 			);
-			if ( this.canAddNewPlugins() ) {
-				const selectedSite = this.props.sites.getSelectedSite();
-				const browserUrl = '/plugins/browse' + ( selectedSite ? '/' + selectedSite.slug : '' );
+			const browserUrl = '/plugins/browse' + ( this.props.selectedSiteSlug ? '/' + this.props.selectedSiteSlug : '' );
 
-				rightSideButtons.push(
-					<ButtonGroup key="plugin-list-header__buttons-browser">
-						<Button
-							compact
-							href={ browserUrl }
-							onClick={ this.onBrowserLinkClick }
-							className="plugin-list-header__browser-button"
-							onMouseEnter={ () => this.setState( { addPluginTooltip: true } ) }
-							onMouseLeave={ () => this.setState( { addPluginTooltip: false } ) }
-							ref="addPluginButton"
-							aria-label={ this.translate( 'Browse all plugins', { context: 'button label' } ) }>
-							<Gridicon key="plus-icon" icon="plus-small" size={ 12 } /><Gridicon key="plugins-icon" icon="plugins" size={ 18 } />
-							<Tooltip
-								isVisible={ this.state.addPluginTooltip }
-								context={ this.refs && this.refs.addPluginButton }
-								position="bottom">
-								{ this.translate( 'Browse all plugins', { context: 'button tooltip' } ) }
-							</Tooltip>
-						</Button>
-					</ButtonGroup>
-				);
-			}
+			rightSideButtons.push(
+				<ButtonGroup key="plugin-list-header__buttons-browser">
+					<Button
+						compact
+						href={ browserUrl }
+						onClick={ this.onBrowserLinkClick }
+						className="plugin-list-header__browser-button"
+						onMouseEnter={ this.showPluginTooltip }
+						onMouseLeave={ this.hidePluginTooltip }
+						ref="addPluginButton"
+						aria-label={ this.translate( 'Browse all plugins', { context: 'button label' } ) }>
+						<Gridicon key="plus-icon" icon="plus-small" size={ 18 } /><Gridicon key="plugins-icon" icon="plugins" size={ 18 } />
+						<Tooltip
+							isVisible={ this.state.addPluginTooltip }
+							context={ this.refs && this.refs.addPluginButton }
+							position="bottom">
+							{ this.translate( 'Browse all plugins', { context: 'button tooltip' } ) }
+						</Tooltip>
+					</Button>
+				</ButtonGroup>
+			);
 		} else {
 			const updateButton = (
 				<Button
@@ -197,7 +242,7 @@ export default React.createClass( {
 						{ this.translate( 'Deactivate' ) }
 					</Button>
 				);
-			activateButtons.push( deactivateButton )
+			activateButtons.push( deactivateButton );
 			leftSideButtons.push( <ButtonGroup key="plugin-list-header__buttons-activate-buttons">{ activateButtons }</ButtonGroup> );
 
 			autoupdateButtons.push(

@@ -3,10 +3,12 @@
  */
 import React from 'react';
 import page from 'page';
+import { connect } from 'react-redux';
 
 /**
  * Internal dependencies
  */
+import config from 'config';
 import Main from 'components/main';
 import Card from 'components/card';
 import OlarkChatbox from 'components/olark-chatbox';
@@ -15,12 +17,21 @@ import olarkActions from 'lib/olark-store/actions';
 import olarkEvents from 'lib/olark-events';
 import olarkApi from 'lib/olark-api';
 import HelpContactForm from 'me/help/help-contact-form';
+import HelpContactClosed from 'me/help/help-contact-closed';
 import HelpContactConfirmation from 'me/help/help-contact-confirmation';
 import HeaderCake from 'components/header-cake';
 import wpcomLib from 'lib/wp';
 import notices from 'notices';
 import siteList from 'lib/sites-list';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
+import i18n from 'lib/i18n-utils';
+import { isOlarkTimedOut } from 'state/ui/olark/selectors';
+import { isCurrentUserEmailVerified } from 'state/current-user/selectors';
+import { isHappychatAvailable } from 'state/happychat/selectors';
+import QueryOlark from 'components/data/query-olark';
+import HelpUnverifiedWarning from '../help-unverified-warning';
+import { connectChat as connectHappychat, sendChatMessage as sendHappychatMessage } from 'state/happychat/actions';
+import { openChat as openHappychat } from 'state/ui/happychat/actions';
 
 /**
  * Module variables
@@ -29,10 +40,19 @@ const wpcom = wpcomLib.undocumented();
 const sites = siteList();
 let savedContactForm = null;
 
-module.exports = React.createClass( {
-	displayName: 'HelpContact',
+const HelpContact = React.createClass( {
+
+	componentWillReceiveProps( nextProps ) {
+		if ( nextProps.olarkTimedOut && this.olarkTimedOut !== nextProps.olarkTimedOut ) {
+			this.onOlarkUnavailable();
+		}
+	},
 
 	componentDidMount: function() {
+		if ( config.isEnabled( 'happychat' ) ) {
+			this.props.connectHappychat();
+		}
+
 		olarkStore.on( 'change', this.updateOlarkState );
 		olarkEvents.on( 'api.chat.onOperatorsAway', this.onOperatorsAway );
 		olarkEvents.on( 'api.chat.onOperatorsAvailable', this.onOperatorsAvailable );
@@ -94,6 +114,21 @@ module.exports = React.createClass( {
 		savedContactForm = null;
 	},
 
+	startHappychat: function( contactForm ) {
+		this.props.openHappychat();
+		const { message, siteSlug } = contactForm;
+		const site = sites.getSite( siteSlug );
+
+		const messages = [
+			`Site I need help with: ${ site ? site.URL : 'N/A' }`,
+			message
+		];
+
+		messages.forEach( this.props.sendHappychatMessage );
+
+		page( '/help' );
+	},
+
 	startChat: function( contactForm ) {
 		const { message, howCanWeHelp, howYouFeel, siteSlug } = contactForm;
 		const site = sites.getSite( siteSlug );
@@ -107,7 +142,9 @@ module.exports = React.createClass( {
 
 		notifications.forEach( olarkActions.sendNotificationToOperator );
 
-		analytics.tracks.recordEvent( 'calypso_help_live_chat_begin' );
+		analytics.tracks.recordEvent( 'calypso_help_live_chat_begin', {
+			site_plan_product_id: ( site ? site.plan.product_id : null )
+		} );
 
 		this.sendMessageToOperator( message );
 
@@ -144,11 +181,15 @@ module.exports = React.createClass( {
 					title: this.translate( 'We\'re on it!' ),
 					message: this.translate(
 						'We\'ve received your message, and you\'ll hear back from ' +
-						'one of our Happiness Engineers shortly.' )
+						'one of our Happiness Engineers shortly.'
+					)
 				}
 			} );
 
-			analytics.tracks.recordEvent( 'calypso_help_contact_submit', { ticket_type: 'kayako' } );
+			analytics.tracks.recordEvent( 'calypso_help_contact_submit', {
+				ticket_type: 'kayako',
+				site_plan_product_id: ( site ? site.plan.product_id : null )
+			} );
 		} );
 
 		this.clearSavedContactForm();
@@ -156,10 +197,11 @@ module.exports = React.createClass( {
 
 	submitSupportForumsTopic: function( contactForm ) {
 		const { subject, message } = contactForm;
+		const { locale } = this.state.olark;
 
 		this.setState( { isSubmitting: true } );
 
-		wpcom.submitSupportForumsTopic( subject, message, this.props.clientSlug, ( error, data ) => {
+		wpcom.submitSupportForumsTopic( subject, message, locale, this.props.clientSlug, ( error, data ) => {
 			if ( error ) {
 				// TODO: bump a stat here
 				notices.error( error.message );
@@ -272,19 +314,24 @@ module.exports = React.createClass( {
 		} );
 	},
 
-	onOperatorsAway: function() {
-		const IS_UNAVAILABLE = false;
+	trackContactFormAndFillSubject() {
 		const { details } = this.state.olark;
-
 		if ( ! details.isConversing ) {
 			analytics.tracks.recordEvent( 'calypso_help_offline_form_display', {
 				form_type: 'kayako'
 			} );
 		}
-
-		//Autofill the subject field since we will be showing it now that operators have went away.
 		this.autofillSubject();
+	},
 
+	onOlarkUnavailable() {
+		this.trackContactFormAndFillSubject();
+		this.showTimeoutNotice();
+	},
+
+	onOperatorsAway: function() {
+		const IS_UNAVAILABLE = false;
+		this.trackContactFormAndFillSubject();
 		this.showAvailabilityNotice( IS_UNAVAILABLE );
 	},
 
@@ -308,6 +355,18 @@ module.exports = React.createClass( {
 		}
 	},
 
+	showTimeoutNotice() {
+		const { isUserEligible, isOlarkReady } = this.state.olark;
+
+		if ( ! isUserEligible || isOlarkReady ) {
+			return;
+		}
+		notices.warning( this.translate(
+			'Our chat tools did not load. If you have an adblocker ' +
+			'please disable it and refresh this page.'
+		) );
+	},
+
 	/**
 	 * Auto fill the subject with the first five words contained in the message field of the contact form.
 	 */
@@ -329,9 +388,27 @@ module.exports = React.createClass( {
 		}
 	},
 
+	shouldUseHappychat: function() {
+		const { olark } = this.state;
+		const { isHappychatAvailable } = this.props;
+		let isEn = i18n.getLocaleSlug() === 'en';
+		isEn = olark.locale ? olark.locale === 'en' : isEn;
+
+		// if happychat is disabled in the config, do not use it
+		if ( ! config.isEnabled( 'happychat' ) ) {
+			return false;
+		}
+
+		if ( !isEn ) {
+			return false;
+		}
+
+		// if the happychat connection is able to accept chats, use it
+		return isHappychatAvailable && olark.isUserEligible;
+	},
+
 	canShowChatbox: function() {
 		const { olark, isChatEnded } = this.state;
-
 		return isChatEnded || ( olark.details.isConversing && olark.isOperatorAvailable );
 	},
 
@@ -341,15 +418,22 @@ module.exports = React.createClass( {
 	 */
 	getView: function() {
 		const { olark, confirmation, sitesInitialized, isSubmitting } = this.state;
+		const showHappychatVariation = this.shouldUseHappychat();
 		const showChatVariation = olark.isUserEligible && olark.isOperatorAvailable;
 		const showKayakoVariation = ! showChatVariation && ( olark.details.isConversing || olark.isUserEligible );
 		const showForumsVariation = ! ( showChatVariation || showKayakoVariation );
+		const showHelpLanguagePrompt = ( olark.locale !== i18n.getLocaleSlug() );
+		const showPreloadForm = ! ( olark.isOlarkReady && sitesInitialized ) && ! this.props.olarkTimedOut;
 
 		if ( confirmation ) {
 			return <HelpContactConfirmation { ...confirmation } />;
 		}
 
-		if ( ! ( olark.isOlarkReady && sitesInitialized ) ) {
+		if ( olark.isSupportClosed ) {
+			return <HelpContactClosed />;
+		}
+
+		if ( showPreloadForm ) {
 			return (
 				<div className="help-contact__placeholder">
 					<h4 className="help-contact__header">Loading contact form</h4>
@@ -375,6 +459,7 @@ module.exports = React.createClass( {
 				showHowCanWeHelpField: showKayakoVariation || showChatVariation,
 				showHowYouFeelField: showKayakoVariation || showChatVariation,
 				showSiteField: ( showKayakoVariation || showChatVariation ) && ( sites.get().length > 1 ),
+				showHelpLanguagePrompt: showHelpLanguagePrompt,
 				valueLink: { value: savedContactForm, requestChange: ( contactForm ) => savedContactForm = contactForm }
 			},
 			showChatVariation && {
@@ -383,7 +468,7 @@ module.exports = React.createClass( {
 			},
 			showKayakoVariation && {
 				onSubmit: this.submitKayakoTicket,
-				buttonLabel: isSubmitting ? this.translate( 'Submitting support ticket' ) : this.translate( 'Submit support ticket' )
+				buttonLabel: isSubmitting ? this.translate( 'Sending email' ) : this.translate( 'Email us' )
 			},
 			showForumsVariation && {
 				onSubmit: this.submitSupportForumsTopic,
@@ -399,6 +484,10 @@ module.exports = React.createClass( {
 							strong: <strong />
 						}
 					} )
+			},
+			showHappychatVariation && {
+				onSubmit: this.startHappychat,
+				buttonLabel: ( ( config( 'env' ) === 'development' ) || ( config( 'env_id' ) === 'stage' ) ) ? 'Happychat' : this.translate( 'Chat with us' )
 			}
 		);
 
@@ -412,10 +501,23 @@ module.exports = React.createClass( {
 		return (
 			<Main className="help-contact">
 				<HeaderCake onClick={ this.backToHelp } isCompact={ true }>{ this.translate( 'Contact Us' ) }</HeaderCake>
+				{ ! this.props.isEmailVerified && <HelpUnverifiedWarning /> }
 				<Card className={ this.canShowChatbox() ? 'help-contact__chat-form' : 'help-contact__form' }>
 					{ this.getView() }
 				</Card>
+				<QueryOlark />
 			</Main>
 		);
 	}
 } );
+
+export default connect(
+	( state ) => {
+		return {
+			olarkTimedOut: isOlarkTimedOut( state ),
+			isEmailVerified: isCurrentUserEmailVerified( state ),
+			isHappychatAvailable: isHappychatAvailable( state )
+		};
+	},
+	{ connectHappychat, openHappychat, sendHappychatMessage }
+)( HelpContact );

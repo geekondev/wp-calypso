@@ -1,53 +1,54 @@
 /**
  * External dependencies
  */
+import find from 'lodash/find';
 import React from 'react';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-import i18n from 'lib/mixins/i18n';
-import PurchaseDetail from './purchase-detail';
+import analytics from 'lib/analytics';
+import CustomDomainPurchaseDetail from './custom-domain-purchase-detail';
+import { isBusiness } from 'lib/products-values';
+import PurchaseDetail from 'components/purchase-detail';
+import support from 'lib/url/support';
 
-const BusinessPlanDetails = ( { isFreeTrial, selectedSite } ) => {
-	const showGetFreeDomainTip = ! isFreeTrial;
+function trackCoursesButtonClick() {
+	analytics.tracks.recordEvent( 'calypso_checkout_thank_you_courses_click' );
+}
+
+const BusinessPlanDetails = ( { selectedSite, sitePlans, selectedFeature } ) => {
+	const plan = find( sitePlans.data, isBusiness );
 
 	return (
 		<div>
-			{ showGetFreeDomainTip
-			? <PurchaseDetail
-					additionalClass="get-free-domain"
-					title={ i18n.translate( 'Get your custom domain' ) }
-					description={
-						i18n.translate(
-							"Replace your site's address, {{em}}%(siteDomain)s{{/em}}, with a custom domain. " +
-							'A free domain is included with your plan.',
-							{
-								args: { siteDomain: selectedSite.domain },
-								components: { em: <em /> }
-							}
-						)
-					}
-					buttonText={ i18n.translate( 'Claim your free domain' ) }
-					href={ '/domains/add/' + selectedSite.slug } />
-			: <PurchaseDetail
-					additionalClass="live-chat"
-					title={ i18n.translate( 'Start a Live Chat' ) }
-					description={ i18n.translate( 'Have a question? Chat live with WordPress.com Happiness Engineers.' ) }
-					buttonText={ i18n.translate( 'Talk to an Operator' ) }
-					href="//support.wordpress.com/live-chat/"
-					target="_blank" />
+			<CustomDomainPurchaseDetail
+				selectedSite={ selectedSite }
+				hasDomainCredit={ plan && plan.hasDomainCredit }
+			/>
+
+			<PurchaseDetail
+				icon="help"
+				title={ i18n.translate( 'Attend a live course' ) }
+				description={ i18n.translate( 'Register for one of our live courses led by Happiness Engineers ' +
+					'to get the most out of your site.'
+				) }
+				buttonText={ i18n.translate( 'Register for a course' ) }
+				href={ support.CALYPSO_COURSES }
+				onClick={ trackCoursesButtonClick } />
+
+			{ ! selectedFeature &&
+				<PurchaseDetail
+					icon="customize"
+					title={ i18n.translate( 'Find a new theme' ) }
+					description={ i18n.translate( 'All our premium themes are now available at no extra cost. Try them out now.' ) }
+					buttonText={ i18n.translate( 'Browse premium themes' ) }
+					href={ '/design/' + selectedSite.slug } />
 			}
 
 			<PurchaseDetail
-				additionalClass="unlimited-premium-themes"
-				title={ i18n.translate( 'Find a new theme' ) }
-				description={ i18n.translate( 'All our premium themes, normally ranging $18 to $175 in price, are now available at no extra cost.' ) }
-				buttonText={ i18n.translate( 'Browse premium themes' ) }
-				href={ '/design/' + selectedSite.slug } />
-
-			<PurchaseDetail
-				additionalClass="connect-google-analytics"
+				icon="stats-alt"
 				title={ i18n.translate( 'Stats from Google Analytics' ) }
 				description={ i18n.translate( 'Connect to Google Analytics for the perfect complement to WordPress.com stats.' ) }
 				buttonText={ i18n.translate( 'Connect Google Analytics' ) }
@@ -57,8 +58,12 @@ const BusinessPlanDetails = ( { isFreeTrial, selectedSite } ) => {
 };
 
 BusinessPlanDetails.propTypes = {
-	isFreeTrial: React.PropTypes.bool.isRequired,
-	selectedSite: React.PropTypes.object.isRequired
+	selectedSite: React.PropTypes.oneOfType( [
+		React.PropTypes.bool,
+		React.PropTypes.object
+	] ).isRequired,
+	selectedFeature: React.PropTypes.object,
+	sitePlans: React.PropTypes.object.isRequired
 };
 
 export default BusinessPlanDetails;

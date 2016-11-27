@@ -1,181 +1,92 @@
 /**
  * External dependencies
  */
-var connect = require( 'react-redux' ).connect,
-	find = require( 'lodash/find' ),
-	page = require( 'page' ),
-	React = require( 'react' );
+import { connect } from 'react-redux';
+import { localize } from 'i18n-calypso';
+import React from 'react';
 
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
-	fetchSitePlans = require( 'state/sites/plans/actions' ).fetchSitePlans,
-	getABTestVariation = require( 'lib/abtest' ).getABTestVariation,
-	getCurrentPlan = require( 'lib/plans' ).getCurrentPlan,
-	shouldFetchSitePlans = require( 'lib/plans' ).shouldFetchSitePlans,
-	getPlansBySite = require( 'state/sites/plans/selectors' ).getPlansBySite,
-	Gridicon = require( 'components/gridicon' ),
-	isBusiness = require( 'lib/products-values' ).isBusiness,
-	isJpphpBundle = require( 'lib/products-values' ).isJpphpBundle,
-	isPremium = require( 'lib/products-values' ).isPremium,
-	Main = require( 'components/main' ),
-	Notice = require( 'components/notice' ),
-	observe = require( 'lib/mixins/data-observe' ),
-	paths = require( './paths' ),
-	PlanList = require( 'components/plans/plan-list' ),
-	PlanOverview = require( './plan-overview' ),
-	preventWidows = require( 'lib/formatting' ).preventWidows,
-	SidebarNavigation = require( 'my-sites/sidebar-navigation' ),
-	UpgradesNavigation = require( 'my-sites/upgrades/navigation' );
+import DocumentHead from 'components/data/document-head';
+import { getPlans } from 'state/plans/selectors';
+import { getSelectedSite, getSelectedSiteId } from 'state/ui/selectors';
+import Main from 'components/main';
+import PageViewTracker from 'lib/analytics/page-view-tracker';
+import PlansFeaturesMain from 'my-sites/plans-features-main';
+import SidebarNavigation from 'my-sites/sidebar-navigation';
+import TrackComponentView from 'lib/analytics/track-component-view';
+import UpgradesNavigation from 'my-sites/upgrades/navigation';
+import QueryPlans from 'components/data/query-plans';
+import QuerySitePlans from 'components/data/query-site-plans';
 
-var Plans = React.createClass( {
-	displayName: 'Plans',
-
-	mixins: [ observe( 'sites', 'plans' ) ],
-
-	getInitialState: function() {
-		return { openPlan: '' };
+const Plans = React.createClass( {
+	propTypes: {
+		cart: React.PropTypes.object.isRequired,
+		context: React.PropTypes.object.isRequired,
+		intervalType: React.PropTypes.string,
+		plans: React.PropTypes.array.isRequired,
+		selectedSite: React.PropTypes.object,
+		selectedSiteId: React.PropTypes.number
 	},
 
-	componentDidMount: function() {
-		this.props.fetchSitePlans( this.props.sitePlans, this.props.sites.getSelectedSite() );
+	getDefaultProps() {
+		return {
+			intervalType: 'yearly'
+		};
 	},
 
-	componentWillReceiveProps: function() {
-		this.props.fetchSitePlans( this.props.sitePlans, this.props.sites.getSelectedSite() );
-	},
-
-	openPlan: function( planId ) {
-		this.setState( { openPlan: planId === this.state.openPlan ? '' : planId } );
-	},
-
-	recordComparePlansClick: function() {
-		analytics.ga.recordEvent( 'Upgrades', 'Clicked Compare Plans Link' );
-	},
-
-	comparePlansLink: function() {
-		var url = '/plans/compare',
-			selectedSite = this.props.sites.getSelectedSite();
-
-		var compareString = this.translate( 'Compare Plans' );
-
-		if ( selectedSite.jetpack ) {
-			compareString = this.translate( 'Compare Options' );
+	componentDidMount() {
+		// Scroll to the top
+		if ( typeof window !== 'undefined' ) {
+			window.scrollTo( 0, 0 );
 		}
+	},
 
-		if ( this.props.plans.get().length <= 0 ) {
-			return '';
-		}
-
-		if ( selectedSite ) {
-			url += '/' + selectedSite.slug;
-		}
-
+	renderPlaceholder() {
 		return (
-			<a href={ url } className="compare-plans-link" onClick={ this.recordComparePlansClick }>
-				<Gridicon icon="clipboard" size={ 18 } />
-				{ compareString }
-			</a>
-		);
-	},
+			<div>
+				<DocumentHead title={ this.props.translate( 'Plans', { textOnly: true } ) } />
+				<Main wideLayout={ true } >
+					<SidebarNavigation />
 
-	redirectToDefault() {
-		page.redirect( paths.plans( this.props.sites.getSelectedSite().slug ) );
-	},
-
-	renderNotice() {
-		if ( 'free-trial-canceled' === this.props.destinationType ) {
-			return (
-				<Notice onDismissClick={ this.redirectToDefault } status="is-success">
-					{ this.translate( 'Your trial has been removed. Thanks for giving it a try!' ) }
-				</Notice>
-			);
-		}
-	},
-
-	renderTrialCopy: function() {
-		var message,
-			businessPlan,
-			premiumPlan;
-
-		if ( ! this.props.sitePlans.hasLoadedFromServer || getABTestVariation( 'freeTrials' ) !== 'offered' ) {
-			return null;
-		}
-
-		businessPlan = find( this.props.sitePlans.data, isBusiness );
-		premiumPlan = find( this.props.sitePlans.data, isPremium );
-
-		if ( businessPlan.canStartTrial && premiumPlan.canStartTrial ) {
-			message = this.translate( 'Try WordPress.com Premium or Business free for 14 days, no credit card required' );
-		}
-
-		if ( businessPlan.canStartTrial && ! premiumPlan.canStartTrial ) {
-			message = this.translate( 'Try WordPress.com Business free for 14 days, no credit card required' );
-		}
-
-		if ( ! businessPlan.canStartTrial && premiumPlan.canStartTrial ) {
-			message = this.translate( 'Try WordPress.com Premium free for 14 days, no credit card required' );
-		}
-
-		if ( ! businessPlan.canStartTrial && ! premiumPlan.canStartTrial ) {
-			return null;
-		}
-
-		return (
-			<div className="plans__trial-copy">
-				<span className="plans__trial-copy-text">
-					{ preventWidows( message, 2 ) }
-				</span>
+					<div id="plans" className="plans has-sidebar">
+					</div>
+				</Main>
 			</div>
 		);
 	},
 
-	render: function() {
-		var selectedSite = this.props.sites.getSelectedSite(),
-			hasJpphpBundle,
-			currentPlan;
+	render() {
+		const { selectedSite, selectedSiteId, translate } = this.props;
 
-		if ( this.props.sitePlans.hasLoadedFromServer ) {
-			currentPlan = getCurrentPlan( this.props.sitePlans.data );
-			hasJpphpBundle = isJpphpBundle( currentPlan );
-		}
-
-		if ( this.props.sitePlans.hasLoadedFromServer && currentPlan.freeTrial ) {
-			return (
-				<PlanOverview
-					path={ this.props.context.path }
-					cart={ this.props.cart }
-					destinationType={ this.props.context.params.destinationType }
-					plan={ currentPlan }
-					selectedSite={ selectedSite } />
-			);
+		if ( this.props.isPlaceholder ) {
+			return this.renderPlaceholder();
 		}
 
 		return (
 			<div>
-				{ this.renderNotice() }
-
-				<Main>
+				<DocumentHead title={ translate( 'Plans', { textOnly: true } ) } />
+				<PageViewTracker path="/plans/:site" title="Plans" />
+				<TrackComponentView eventName="calypso_plans_view" />
+				<Main wideLayout={ true } >
 					<SidebarNavigation />
 
 					<div id="plans" className="plans has-sidebar">
 						<UpgradesNavigation
 							path={ this.props.context.path }
 							cart={ this.props.cart }
-							selectedSite={ this.props.sites.getSelectedSite() } />
+							selectedSite={ selectedSite } />
 
-						{ this.renderTrialCopy() }
+						<QueryPlans />
+						<QuerySitePlans siteId={ selectedSiteId } />
 
-						<PlanList
-							sites={ this.props.sites }
-							plans={ this.props.plans.get() }
-							enableFreeTrials={ getABTestVariation( 'freeTrials' ) === 'offered' }
-							sitePlans={ this.props.sitePlans }
-							onOpen={ this.openPlan }
-							onSelectPlan={ this.props.onSelectPlan }
-							cart={ this.props.cart } />
-						{ ! hasJpphpBundle && this.comparePlansLink() }
+						<PlansFeaturesMain
+							site={ selectedSite }
+							intervalType={ this.props.intervalType }
+							hideFreePlan={ true }
+							selectedFeature={ this.props.selectedFeature }
+						/>
 					</div>
 				</Main>
 			</div>
@@ -183,19 +94,15 @@ var Plans = React.createClass( {
 	}
 } );
 
-module.exports = connect(
-	function mapStateToProps( state, props ) {
+export default connect(
+	( state ) => {
+		const selectedSiteId = getSelectedSiteId( state );
+		const isPlaceholder = ! selectedSiteId;
 		return {
-			sitePlans: getPlansBySite( state, props.sites.getSelectedSite() )
-		};
-	},
-	function mapDispatchToProps( dispatch ) {
-		return {
-			fetchSitePlans( sitePlans, site ) {
-				if ( shouldFetchSitePlans( sitePlans, site ) ) {
-					dispatch( fetchSitePlans( site.ID ) );
-				}
-			}
+			isPlaceholder,
+			plans: getPlans( state ),
+			selectedSite: getSelectedSite( state ),
+			selectedSiteId: selectedSiteId
 		};
 	}
-)( Plans );
+)( localize( Plans ) );

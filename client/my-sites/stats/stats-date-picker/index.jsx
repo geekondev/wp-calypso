@@ -3,17 +3,26 @@
  */
 import React, { PropTypes } from 'react';
 
+/**
+ * Internal dependencies
+ */
+import userUtils from 'lib/user/utils';
+
 export default React.createClass( {
 	displayName: 'StatsDatePicker',
 
 	propTypes: {
 		period: PropTypes.string.isRequired,
-		date: PropTypes.object.isRequired,
+		date: PropTypes.oneOfType( [
+			PropTypes.object.isRequired,
+			PropTypes.string.isRequired
+		] ),
 		summary: PropTypes.bool
 	},
 
 	dateForDisplay() {
-		const date = this.moment( this.props.date );
+		const locale = userUtils.getLocaleSlug();
+		const date = this.moment( this.props.date ).locale( locale );
 		let formattedDate;
 
 		switch ( this.props.period ) {
@@ -61,7 +70,7 @@ export default React.createClass( {
 		return(
 			<div>
 				{ this.props.summary
-					? <h4 className="module-header-title" key="header-title">{ sectionTitle }</h4>
+					? <span>{ sectionTitle }</span>
 					: <h3 className="stats-section-title">{ sectionTitle }</h3>
 				}
 			</div>

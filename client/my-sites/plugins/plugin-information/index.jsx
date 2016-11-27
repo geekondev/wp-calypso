@@ -2,7 +2,7 @@
  * External dependencies
  */
 import React from 'react';
-import i18n from 'lib/mixins/i18n';
+import i18n from 'i18n-calypso';
 import classNames from 'classnames';
 
 /**
@@ -14,7 +14,7 @@ import Gridicon from 'components/gridicon';
 import Version from 'components/version';
 import PluginRatings from 'my-sites/plugins/plugin-ratings/';
 import versionCompare from 'lib/version-compare';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 
 export default React.createClass( {
 	_WPORG_PLUGINS_URL: 'wordpress.org/plugins/',
@@ -52,6 +52,7 @@ export default React.createClass( {
 				icon={ true }
 				href={ this.props.plugin.plugin_url }
 				onClick={ recordEvent }
+				target="_blank"
 				className="plugin-information__external-link" >
 				{ this.translate( 'Plugin homepage' ) }
 			</ExternalLink>
@@ -68,6 +69,7 @@ export default React.createClass( {
 				icon={ true }
 				href={ 'https://' + this._WPORG_PLUGINS_URL + this.props.plugin.slug + '/' }
 				onClick={ recordEvent }
+				target="_blank"
 				className="plugin-information__external-link" >
 				{ this.translate( 'WordPress.org Plugin page' ) }
 			</ExternalLink>
@@ -80,8 +82,8 @@ export default React.createClass( {
 			const syncIcon = this.props.hasUpdate ? <Gridicon icon="sync" size={ 18 } /> : null;
 
 			return <div className="plugin-information__last-updated">
-				{ this.translate( 'Released %(dateFromNow)s', { args: { dateFromNow } } ) }
 				{ syncIcon }
+				{ this.translate( 'Released %(dateFromNow)s', { args: { dateFromNow } } ) }
 			</div>;
 		}
 	},
@@ -156,7 +158,6 @@ export default React.createClass( {
 									? <Version version={ this.props.pluginVersion } icon="plugins" className="plugin-information__version" />
 									: null
 								}
-								{ this.renderLastUpdated() }
 							</div>
 							<div className="plugin-information__version-shell">
 								{ this.renderSiteVersion() }

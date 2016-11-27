@@ -1,29 +1,29 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	debug = require( 'debug' )( 'calypso:my-sites:current-site' ),
-	url = require( 'url' );
+import React from 'react';
+import debugFactory from 'debug';
+import { connect } from 'react-redux';
+
+const debug = debugFactory( 'calypso:my-sites:current-site' );
 
 /**
  * Internal dependencies
  */
-var AllSites = require( 'my-sites/all-sites' ),
-	analytics = require( 'analytics' ),
+const AllSites = require( 'my-sites/all-sites' ),
+	analytics = require( 'lib/analytics' ),
 	Button = require( 'components/button' ),
 	Card = require( 'components/card' ),
-	Notice = require( 'components/notice' ),
-	NoticeAction = require( 'components/notice/notice-action' ),
-	layoutFocus = require( 'lib/layout-focus' ),
-	Site = require( 'my-sites/site' ),
+	Site = require( 'blocks/site' ),
 	Gridicon = require( 'components/gridicon' ),
-	config = require( 'config' ),
 	UpgradesActions = require( 'lib/upgrades/actions' ),
 	DomainsStore = require( 'lib/domains/store' ),
-	DomainWarnings = require( 'my-sites/upgrades/components/domain-warnings' ),
-	paths = require( 'my-sites/upgrades/paths' );
+	DomainWarnings = require( 'my-sites/upgrades/components/domain-warnings' );
 
-module.exports = React.createClass( {
+import SiteNotice from './notice';
+import { setLayoutFocus } from 'state/ui/layout-focus/actions';
+
+const CurrentSite = React.createClass( {
 	displayName: 'CurrentSite',
 
 	componentDidMount: function() {
@@ -32,13 +32,14 @@ module.exports = React.createClass( {
 
 	propTypes: {
 		sites: React.PropTypes.object.isRequired,
-		siteCount: React.PropTypes.number.isRequired
+		siteCount: React.PropTypes.number.isRequired,
+		setLayoutFocus: React.PropTypes.func.isRequired,
 	},
 
 	componentWillMount() {
 		const selectedSite = this.getSelectedSite();
 
-		if ( selectedSite ) {
+		if ( selectedSite && ! selectedSite.jetpack ) {
 			UpgradesActions.fetchDomains( selectedSite.ID );
 		}
 		this.prevSelectedSite = selectedSite;
@@ -59,7 +60,7 @@ module.exports = React.createClass( {
 	componentWillUpdate() {
 		const selectedSite = this.getSelectedSite();
 
-		if ( selectedSite && this.prevSelectedSite !== selectedSite ) {
+		if ( selectedSite && this.prevSelectedSite !== selectedSite && ! selectedSite.jetpack ) {
 			UpgradesActions.fetchDomains( selectedSite.ID );
 		}
 		this.prevSelectedSite = selectedSite;
@@ -72,7 +73,7 @@ module.exports = React.createClass( {
 	switchSites: function( event ) {
 		event.preventDefault();
 		event.stopPropagation();
-		layoutFocus.set( 'sites' );
+		this.props.setLayoutFocus( 'sites' );
 		if ( this.refs.site ) {
 			this.refs.site.closeActions();
 		}
@@ -88,85 +89,40 @@ module.exports = React.createClass( {
 		return this.props.sites.getSelectedSite();
 	},
 
-	getSiteRedirectNotice: function( site ) {
-		const isSiteRedirected = site.options && site.options.is_redirect;
-
-		if ( ! isSiteRedirected ) {
-			return null;
-		}
-		const { hostname } = url.parse( site.URL );
-		let href = 'https://wordpress.com/my-domains';
-
-		if ( config.isEnabled( 'upgrades/domain-management/list' ) ) {
-			href = paths.domainManagementList( site.domain );
-		}
-
-		return (
-			<Notice
-				showDismiss={ false }
-				isCompact={ true }
-				text={ this.translate( 'Redirects to {{a}}%(url)s{{/a}}', {
-					args: { url: hostname },
-					components: { a: <a href={ site.URL }/> }
-				} ) }>
-				<NoticeAction href={ href }>
-					{ this.translate( 'Edit' ) }
-				</NoticeAction>
-			</Notice>
-		);
-	},
-
-	getDomainExpirationNotices: function() {
-		let domainStore = this.state.domainsStore.getBySite( this.getSelectedSite().ID ),
+	getDomainWarnings: function() {
+		const domainStore = this.state.domainsStore.getBySite( this.getSelectedSite().ID ),
 			domains = domainStore && domainStore.list || [];
+
 		return (
 			<DomainWarnings
+				isCompact
 				selectedSite={ this.getSelectedSite() }
 				domains={ domains }
-				ruleWhiteList={ [ 'expiredDomains', 'expiringDomains' ] } />
+				ruleWhiteList={ [
+					'unverifiedDomainsCanManage',
+					'unverifiedDomainsCannotManage',
+					'expiredDomainsCanManage',
+					'expiringDomainsCanManage',
+					'expiredDomainsCannotManage',
+					'expiringDomainsCannotManage',
+					'wrongNSMappedDomains'
+				] } />
 		);
 	},
 
-	getSiteNotices: function( site ) {
-		return (
-			<div>
-				{ this.getDomainExpirationNotices() }
-				{ this.getSiteRedirectNotice( site ) }
-			</div>
-		);
-	},
-
-	focusContent: function() {
-		layoutFocus.set( 'content' );
-	},
-
-	addNewWordPressButton: function() {
-		return (
-			<span className="current-site__add-new-site">
-				<Button compact borderless
-					href={ config( 'signup_url' ) + '?ref=calypso-selector' }
-					onClick={ this.focusContent }
-				>
-					<Gridicon icon="add-outline" /> { this.translate( 'Add New WordPress' ) }
-				</Button>
-			</span>
-		);
-	},
-
-	trackHomepageClick: function() {
+	previewSite: function( event ) {
 		analytics.ga.recordEvent( 'Sidebar', 'Clicked View Site' );
+		this.props.onClick && this.props.onClick( event );
 	},
 
 	render: function() {
-		var site,
-			hasOneSite = this.props.siteCount === 1;
+		let site;
 
 		if ( ! this.props.sites.initialized ) {
 			return (
 				<Card className="current-site is-loading">
-					{ hasOneSite
-						? this.addNewWordPressButton()
-						: <span className="current-site__switch-sites">&nbsp;</span>
+					{ this.props.siteCount > 1 &&
+						<span className="current-site__switch-sites">&nbsp;</span>
 					}
 					<div className="site">
 						<a className="site__content">
@@ -188,11 +144,10 @@ module.exports = React.createClass( {
 
 		return (
 			<Card className="current-site">
-				{ hasOneSite
-					? this.addNewWordPressButton()
-					: <span className="current-site__switch-sites">
+				{ this.props.siteCount > 1 &&
+					<span className="current-site__switch-sites">
 						<Button compact borderless onClick={ this.switchSites }>
-							<Gridicon icon="arrow-left" size={ 16 } />
+							<Gridicon icon="arrow-left" size={ 18 } />
 							{ this.translate( 'Switch Site' ) }
 						</Button>
 					</span>
@@ -203,12 +158,18 @@ module.exports = React.createClass( {
 						homeLink={ true }
 						enableActions={ true }
 						externalLink={ true }
-						onSelect={ this.trackHomepageClick }
+						onClick={ this.previewSite }
+						onSelect={ this.previewSite }
+						tipTarget="site-card-preview"
 						ref="site" />
-					: <AllSites sites={ this.props.sites } />
+					: <AllSites sites={ this.props.sites.get() } />
 				}
-				{ this.getSiteNotices( site ) }
+				{ ! site.jetpack && this.getDomainWarnings() }
+				<SiteNotice site={ site } />
 			</Card>
 		);
 	}
 } );
+
+// TODO: make this pure when sites can be retrieved from the Redux state
+module.exports = connect( null, { setLayoutFocus }, null, { pure: false } )( CurrentSite );

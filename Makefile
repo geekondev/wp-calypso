@@ -1,10 +1,7 @@
-# get Makefile directory name: http://stackoverflow.com/a/5982798/376773
-THIS_MAKEFILE_PATH:=$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
-THIS_DIR:=$(shell cd $(dir $(THIS_MAKEFILE_PATH));pwd)
+SINGLE_QUOTE := '
+# We need to escape single quote as '\''
+THIS_DIR := '$(subst $(SINGLE_QUOTE),$(SINGLE_QUOTE)\$(SINGLE_QUOTE)$(SINGLE_QUOTE),$(CURDIR))'
 
-empty:=
-space:=$(empty) $(empty)
-THIS_DIR:= $(subst $(space),\$(space),$(THIS_DIR))
 ifeq ($(OS),Windows_NT)
 SEPARATOR := ;
 else
@@ -21,14 +18,13 @@ NODE_BIN := $(THIS_DIR)/node_modules/.bin
 NODE ?= node
 NPM ?= npm
 BUNDLER ?= $(BIN)/bundler
+I18N_CALYPSO ?= $(NODE_BIN)/i18n-calypso
 SASS ?= $(NODE_BIN)/node-sass --include-path 'client'
 RTLCSS ?= $(NODE_BIN)/rtlcss
-AUTOPREFIXER ?= $(NODE_BIN)/autoprefixer
+AUTOPREFIXER ?= $(NODE_BIN)/postcss -r --use autoprefixer --autoprefixer.browsers "last 2 versions, > 1%, Safari >= 8, iOS >= 8, Firefox ESR, Opera 12.1"
 RECORD_ENV ?= $(BIN)/record-env
-GET_I18N ?= $(BIN)/get-i18n
-I18NLINT ?= $(BIN)/i18nlint
-LIST_ASSETS ?= $(BIN)/list-assets
-ALL_DEVDOCS_JS ?= $(THIS_DIR)/server/devdocs/bin/generate-devdocs-index
+ALL_DEVDOCS_JS ?= server/devdocs/bin/generate-devdocs-index
+COMPONENTS_USAGE_STATS_JS ?= server/devdocs/bin/generate-components-usage-stats.js
 
 # files used as prereqs
 SASS_FILES := $(shell \
@@ -55,6 +51,14 @@ MD_FILES := $(shell \
 		-name '*.md' \
 	| sed 's/ /\\ /g' \
 )
+COMPONENTS_USAGE_STATS_FILES = $(shell \
+	find client \
+		-not \( -path '*/docs/*' -prune \) \
+		-not \( -path '*/test/*' -prune \) \
+		-not \( -path '*/docs-example/*' -prune \) \
+		-type f \
+		\( -name '*.js' -or -name '*.jsx' \) \
+)
 CLIENT_CONFIG_FILE := client/config/index.js
 
 # variables
@@ -64,19 +68,6 @@ CALYPSO_ENV ?= $(NODE_ENV)
 export NODE_ENV := $(NODE_ENV)
 export CALYPSO_ENV := $(CALYPSO_ENV)
 export NODE_PATH := server$(SEPARATOR)client$(SEPARATOR).
-
-# We use `semver` to check the version of Node.js before installing npm
-# packages or running scripts.  Since this is before npm runs, we need to grab
-# the version of `semver` installed with the npm executable.
-ifeq ($(OS),Windows_NT)
-# On Windows, the npm global install path is under AppData:
-# http://stackoverflow.com/a/26894197
-# `semver` is in the base `node_modules` folder for the `node` installation.
-export SEMVER_GLOBAL_PATH := $(dir $(shell which $(NODE)))/node_modules/npm/node_modules/semver
-else
-# On OS X and Linux, npm is just a globally installed npm package.
-export SEMVER_GLOBAL_PATH := $(shell $(NPM) -g root)/npm/node_modules/semver
-endif
 
 .DEFAULT_GOAL := install
 
@@ -95,13 +86,16 @@ install: node_modules
 run: welcome githooks install build
 	@$(NODE) build/bundle-$(CALYPSO_ENV).js
 
-node-version:
-	@$(BIN)/check-node-version
+dashboard: install
+	@$(NODE_BIN)/webpack-dashboard -- make run
 
 # a helper rule to ensure that a specific module is installed,
 # without relying on a generic `npm install` command
-node_modules/%: | node-version
+node_modules/%:
 	@$(NPM) install $(notdir $@)
+
+node-version: node_modules/semver
+	@$(BIN)/check-node-version
 
 # ensures that the `node_modules` directory is installed and up-to-date with
 # the dependencies listed in the "package.json" file.
@@ -110,22 +104,16 @@ node_modules: package.json | node-version
 	@$(NPM) install
 	@touch node_modules
 
-# run `make test` in all discovered Makefiles
 test: build
-	@$(BIN)/run-all-tests
+	@$(NPM) test
 
 lint: node_modules/eslint node_modules/eslint-plugin-react node_modules/babel-eslint mixedindentlint
-	@$(NODE_BIN)/eslint --quiet $(JS_FILES)
+	@$(NPM) run lint
 
 eslint: lint
 
 eslint-branch: node_modules/eslint node_modules/eslint-plugin-react node_modules/babel-eslint
-	@git diff --name-only $$(git merge-base $$(git rev-parse --abbrev-ref HEAD) master)..HEAD | grep '\.jsx\?$$' | xargs $(NODE_BIN)/eslint
-
-# Skip test directories (with the sed regex) for i18nlint in lieu of proper
-# ignore functionality
-i18n-lint:
-	@echo "$(JS_FILES)" | sed 's/\([^ ]*\/test\/[^ ]* *\)//g' | xargs -n1 $(I18NLINT)
+	@git diff --name-only $$(git merge-base $$(git rev-parse --abbrev-ref HEAD) master)..HEAD | grep '\.jsx\?$$' | xargs $(NODE_BIN)/eslint --cache
 
 # Skip files that are auto-generated
 mixedindentlint: node_modules/mixedindentlint
@@ -158,6 +146,13 @@ public/editor.css: node_modules $(SASS_FILES)
 server/devdocs/search-index.js: $(MD_FILES) $(ALL_DEVDOCS_JS)
 	@$(ALL_DEVDOCS_JS) $(MD_FILES)
 
+server/devdocs/components-usage-stats.json: $(COMPONENTS_USAGE_STATS_FILES) $(COMPONENTS_USAGE_STATS_JS)
+	@$(COMPONENTS_USAGE_STATS_JS) $(COMPONENTS_USAGE_STATS_FILES)
+
+build-dll: node_modules
+	@mkdir -p build
+	@CALYPSO_ENV=$(CALYPSO_ENV) $(NODE_BIN)/webpack --display-error-details --config webpack-dll.config.js
+
 build-server: install
 	@mkdir -p build
 	@CALYPSO_ENV=$(CALYPSO_ENV) $(NODE_BIN)/webpack --display-error-details --config webpack.config.node.js
@@ -166,27 +161,29 @@ build: install build-$(CALYPSO_ENV)
 
 build-css: public/style.css public/style-rtl.css public/style-debug.css public/editor.css
 
-build-development: build-server $(CLIENT_CONFIG_FILE) server/devdocs/search-index.js build-css
+build-development: server/devdocs/components-usage-stats.json build-server build-dll $(CLIENT_CONFIG_FILE) server/devdocs/search-index.js build-css
 
-build-wpcalypso: build-server $(CLIENT_CONFIG_FILE) server/devdocs/search-index.js build-css
+build-wpcalypso: server/devdocs/components-usage-stats.json build-server build-dll $(CLIENT_CONFIG_FILE) server/devdocs/search-index.js build-css
 	@$(BUNDLER)
 
-build-desktop build-desktop-mac-app-store build-horizon build-stage build-production: build-server $(CLIENT_CONFIG_FILE) build-css
+build-horizon build-stage build-production: build-server build-dll $(CLIENT_CONFIG_FILE) build-css
+	@$(BUNDLER)
+
+build-desktop build-desktop-mac-app-store: build-server $(CLIENT_CONFIG_FILE) build-css
 	@$(BUNDLER)
 
 # the `clean` rule deletes all the files created from `make build`, but not
 # those created by `make install`
 clean:
-	@rm -rf public/style*.css public/style-debug.css.map public/*.js $(CLIENT_CONFIG_FILE) server/devdocs/search-index.js public/editor.css build/* server/bundler/*.json
+	@rm -rf public/style*.css public/style-debug.css.map public/*.js $(CLIENT_CONFIG_FILE) server/devdocs/search-index.js server/devdocs/components-usage-stats.json public/editor.css build/* server/bundler/*.json .babel-cache
 
 # the `distclean` rule deletes all the files created from `make install`
-distclean:
+distclean: clean
 	@rm -rf node_modules
 
-# create list of translations, saved as `./calypso-strings.php`
+# create list of translations, saved as `./calypso-strings.pot`
 translate: node_modules $(CLIENT_CONFIG_FILE)
-	@CALYPSO_ENV=stage $(BUNDLER)
-	@CALYPSO_ENV=stage $(LIST_ASSETS) | xargs $(GET_I18N) ./calypso-strings.php calypso_i18n_strings
+	$(I18N_CALYPSO) --format pot --output-file ./calypso-strings.pot $(JS_FILES)
 
 # install all git hooks
 githooks: githooks-commit githooks-push
@@ -199,9 +196,19 @@ githooks-commit:
 githooks-push:
 	@if [ ! -e .git/hooks/pre-push ]; then ln -s ../../bin/pre-push .git/hooks/pre-push; fi
 
+# generate a new shrinkwrap
+shrinkwrap: node-version
+	@! lsof -Pi :3000 -sTCP:LISTEN -t || ( echo "Please stop your Calypso instance running on port 3000 and try again." && exit 1 )
+	@type shonkwrap || ( echo "Please install shonkwrap globally and try again: 'npm install -g shonkwrap'" && exit 1 )
+	@rm -rf node_modules
+	@rm -f npm-shrinkwrap.json
+	@$(NPM) install --no-optional
+	@$(NPM) install --no-optional # remove this when this is fixed in npm 3
+	@shonkwrap --dev
+
 # rule that can be used as a prerequisite for other rules to force them to always run
 FORCE:
 
-.PHONY: build build-development build-server
+.PHONY: build build-development build-server build-dll build-desktop build-desktop-mac-app-store build-horizon build-stage build-production build-wpcalypso
 .PHONY: run install test clean distclean translate route node-version
 .PHONY: githooks githooks-commit githooks-push

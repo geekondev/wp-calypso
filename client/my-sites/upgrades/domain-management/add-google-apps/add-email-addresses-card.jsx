@@ -21,7 +21,6 @@ const analyticsMixin = require( 'lib/mixins/analytics' ),
 	FormTextInputWithAffixes = require( 'components/forms/form-text-input-with-affixes' ),
 	cartItems = require( 'lib/cart-values' ).cartItems,
 	paths = require( 'my-sites/upgrades/paths' ),
-	Notice = require( 'components/notice' ),
 	ValidationErrorList = require( 'notices/validation-error-list' ),
 	upgradesActions = require( 'lib/upgrades/actions' ),
 	{ hasGoogleApps, getGoogleAppsSupportedDomains } = require( 'lib/domains' ),
@@ -29,6 +28,8 @@ const analyticsMixin = require( 'lib/mixins/analytics' ),
 	validateUsers = googleAppsLibrary.validate,
 	filterUsers = googleAppsLibrary.filter,
 	DomainsSelect = require( './domains-select' );
+
+import Notice from 'components/notice';
 
 const AddEmailAddressesCard = React.createClass( {
 	mixins: [ analyticsMixin( 'domainManagement', 'addGoogleApps' ) ],
@@ -133,7 +134,8 @@ const AddEmailAddressesCard = React.createClass( {
 	},
 
 	emailAddressFieldset( index ) {
-		const field = this.state.fieldsets[ index ];
+		const field = this.state.fieldsets[ index ],
+			contactText = this.translate( 'contact', { context: 'part of e-mail address', comment: 'As it would be part of an e-mail address contact@example.com' } );
 		let suffix, select;
 
 		if ( this.props.selectedDomainName ) {
@@ -153,7 +155,7 @@ const AddEmailAddressesCard = React.createClass( {
 				<FormTextInputWithAffixes
 					onChange={ this.handleFieldChange.bind( this, 'username', index ) }
 					onFocus={ this.handleFieldFocus.bind( this, 'Email', index ) }
-					placeholder={ this.translate( 'e.g. contact', { textOnly: true, comment: 'Placeholder example email username: contact@...' } ) }
+					placeholder={ this.translate( 'e.g. %(example)s', { args: { example: contactText } } ) }
 					suffix={ suffix }
 					type="text"
 					value={ field.username.value } />
@@ -168,7 +170,7 @@ const AddEmailAddressesCard = React.createClass( {
 		let command = { fieldsets: {} };
 
 		command.fieldsets[ index ] = {};
-		command.fieldsets[ index ][ fieldName ] = { value: { $set: newValue } };
+		command.fieldsets[ index ][ fieldName ] = { value: { $set: newValue.trim() } };
 
 		if ( fieldName === 'domain' ) {
 			this.recordEvent( 'domainChange', newValue, index );
@@ -264,7 +266,7 @@ const AddEmailAddressesCard = React.createClass( {
 		} );
 		googleAppsCartItems.forEach( upgradesActions.addItem );
 
-		page( '/checkout/' + this.props.selectedSite.domain );
+		page( '/checkout/' + this.props.selectedSite.slug );
 	},
 
 	handleCancel( event ) {
@@ -272,7 +274,7 @@ const AddEmailAddressesCard = React.createClass( {
 
 		this.recordEvent( 'cancelClick', this.props.selectedDomainName );
 
-		page( paths.domainManagementEmail( this.props.selectedSite.domain, this.props.selectedDomainName ) );
+		page( paths.domainManagementEmail( this.props.selectedSite.slug, this.props.selectedDomainName ) );
 	}
 } );
 
@@ -284,7 +286,7 @@ function getGoogleAppsCartItems( { domains, fieldsets } ) {
 	groups = mapValues( groups, function( group ) {
 		return map( group, function( fieldset ) {
 			return {
-				email: fieldset.username.value + '@' + fieldset.domain.value
+				email: `${ fieldset.username.value }@${ fieldset.domain.value }`.toLowerCase()
 			};
 		} );
 	} );

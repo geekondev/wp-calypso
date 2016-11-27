@@ -12,10 +12,10 @@
 	}
 }
 
-.remove-purchase__dialog.dialog__content {
-	h1 {
-		height: auto;
-		overflow: hidden;
-		text-overflow: ellipsis;
+.remove-purchase__chat-button {
+	display: block;
+
+	@include breakpoint( ">480px" ) {
+		float: left;
 	}
 }

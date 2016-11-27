@@ -13,7 +13,7 @@ var MenuEditableItem = require( './menu-editable-item' ),
 	siteMenus = require( 'lib/menu-data' ),
 	itemTypes = require( './menu-item-types' ),
 	MenuItemDropTarget = require( './menu-item-drop-target' ),
-	analytics = require( 'analytics' );
+	analytics = require( 'lib/analytics' );
 
 /**
  * Components
@@ -182,7 +182,7 @@ var MenuItem = React.createClass( {
 		var draggedItem = this.props.dragDrop( 'getDraggedItem' );
 		return draggedItem &&
 			( draggedItem.id === this.props.item.id ||
-			  siteMenus.isAncestor( draggedItem, this.props.item ) );
+				siteMenus.isAncestor( draggedItem, this.props.item ) );
 	},
 
 	isCorrupt: function() {

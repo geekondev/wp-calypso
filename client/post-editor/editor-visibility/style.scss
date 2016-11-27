@@ -1,24 +1,11 @@
-.editor-visibility {
-	color: lighten( $gray, 20% );
-	height: 26px;
-	overflow: hidden;
-	display: inline;
-	transition: color 200ms;
-
+.editor-visibility.button {
 	&.is-dialog-open,
 	&.is-touch,
 	&:hover {
-		color: darken( $gray, 10% );
-
 		.editor-visibility__label {
 			color: darken( $gray, 10% );
 		}
 	}
-
-	.gridicon {
-		cursor: pointer;
-	}
-
 }
 
 .editor-visibility__dialog{
@@ -64,6 +51,10 @@
 			color: lighten( $gray, 15% );
 		}
 	}
+}
+
+.editor-visibility__tooltip .popover__inner {
+	white-space: nowrap;
 }
 
 .popover {

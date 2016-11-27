@@ -13,8 +13,8 @@ var debug = require( 'debug' )( 'calypso:user:settings' ),
  */
 var emitterClass = require( 'lib/mixins/emitter' ),
 	wpcom = require( 'lib/wp' ).undocumented(),
-	user = require( 'lib/user' )();
-
+	user = require( 'lib/user' )(),
+	userUtils = require( 'lib/user/utils' );
 /*
  * Decodes entities in those specific user settings properties
  * that the REST API returns already HTML-encoded
@@ -73,12 +73,14 @@ UserSettings.prototype.getSettings = function() {
  * Fetch user settings from WordPress.com API and store them in UserSettings instance
  */
 UserSettings.prototype.fetchSettings = function() {
-	if ( this.fetchingSettings ) {
+	if ( ! userUtils.isLoggedIn() || this.fetchingSettings ) {
 		return;
 	}
 
 	this.fetchingSettings = true;
+
 	debug( 'Fetching user settings' );
+
 	wpcom.me().settings().get( function( error, data ) {
 		if ( ! error ) {
 			this.settings = decodeUserSettingsEntities( data );
@@ -120,7 +122,6 @@ UserSettings.prototype.saveSettings = function( callback, settingsOverride ) {
 			} else {
 				// Removed freshly saved data from unsavedSettings
 				keys( data )
-					.filter( x => x !== '_headers' )
 					.forEach( x => delete this.unsavedSettings[ x ] );
 			}
 

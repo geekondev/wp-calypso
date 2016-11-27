@@ -17,25 +17,29 @@ const PostSelectorExample = React.createClass( {
 
 	getInitialState() {
 		return {
-			showTypeLabels: true
+			showTypeLabels: true,
+			selectedPostId: null,
 		};
+	},
+
+	setSelected( post ) {
+		this.setState( {
+			selectedPostId: post.ID,
+		} );
 	},
 
 	render() {
 		const primary = this.props.sites.getPrimary();
 
 		return (
-			<div className="design-assets__group">
-				<h2>
-					<a href="/devdocs/app-components/post-selector">Post Selector</a>
-				</h2>
+			<div>
 				<div style={ { width: 300 } }>
 					<FormLabel>
 						<input
 							type="checkbox"
 							checked={ this.state.showTypeLabels }
 							onChange={ () => this.setState( { showTypeLabels: ! this.state.showTypeLabels } ) } />
-						Show Type Labels
+						<span>Show Type Labels</span>
 					</FormLabel>
 					{ this.props.sites.initialized && (
 						<PostSelector
@@ -43,7 +47,9 @@ const PostSelectorExample = React.createClass( {
 							type="any"
 							orderBy="date"
 							order="DESC"
-							showTypeLabels={ this.state.showTypeLabels } />
+							showTypeLabels={ this.state.showTypeLabels }
+							selected={ this.state.selectedPostId }
+							onChange={ this.setSelected } />
 					) }
 				</div>
 			</div>

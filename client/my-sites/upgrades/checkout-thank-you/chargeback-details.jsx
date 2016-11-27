@@ -2,36 +2,30 @@
  * External dependencies
  */
 import React from 'react';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-import { isPlan } from 'lib/products-values';
-import i18n from 'lib/mixins/i18n';
-import PurchaseDetail from './purchase-detail';
+import paths from 'lib/paths';
+import PurchaseDetail from 'components/purchase-detail';
 
 const ChargebackDetails = ( { selectedSite } ) => {
 	return (
-		<div>
-			<PurchaseDetail
-				additionalClass="important"
-				title={ i18n.translate( 'Important!' ) }
-				description={ i18n.translate( 'The chargeback fee has been paid and you can now use the full features of your site.' ) }
-				buttonText={ i18n.translate( 'Write a Post' ) }
-				href={ '/post/' + selectedSite.slug } />
-
-			{ ! isPlan( selectedSite.plan ) ? <PurchaseDetail
-				additionalClass="upgrade-now"
-				title={ i18n.translate( 'Upgrade Now' ) }
-				description={ i18n.translate( 'Take your blog to the next level by upgrading to one of our plans.' ) }
-				buttonText={ i18n.translate( 'View Plans' ) }
-				href={ '/plans/' + selectedSite.slug } /> : null }
-		</div>
+		<PurchaseDetail
+			icon="create"
+			title={ i18n.translate( 'Get back to posting' ) }
+			description={ i18n.translate( 'You can now use the full features of your site, without limits.' ) }
+			buttonText={ i18n.translate( 'Write a Post' ) }
+			href={ paths.newPost( selectedSite ) } />
 	);
 };
 
 ChargebackDetails.propTypes = {
-	selectedSite: React.PropTypes.object.isRequired
+	selectedSite: React.PropTypes.oneOfType( [
+		React.PropTypes.bool,
+		React.PropTypes.object
+	] ).isRequired
 };
 
 export default ChargebackDetails;

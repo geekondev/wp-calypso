@@ -2,12 +2,12 @@
  * External dependencies
  */
 import React from 'react';
-import noop from 'lodash/noop';
+import { defer, noop } from 'lodash';
 
 /**
  * Internal dependencies
  */
-import SingleChildCSSTransitionGroup from 'components/single-child-css-transition-group';
+import CSSTransitionGroup from 'react-addons-css-transition-group';
 import RootChild from 'components/root-child';
 import DialogBase from './dialog-base';
 
@@ -18,6 +18,7 @@ export default React.createClass( {
 		enterTimeout: React.PropTypes.number,
 		leaveTimeout: React.PropTypes.number,
 		transitionLeave: React.PropTypes.bool,
+		onClose: React.PropTypes.func,
 		onClosed: React.PropTypes.func,
 		onClickOutside: React.PropTypes.func
 	},
@@ -33,30 +34,38 @@ export default React.createClass( {
 		};
 	},
 
+	checkOnClosed( ref ) {
+		if ( null === ref ) {
+			defer( this.props.onClosed );
+		}
+	},
+
 	render: function() {
-		const { isVisible, baseClassName, transitionLeave, enterTimeout, leaveTimeout } = this.props;
+		const {
+			isVisible,
+			baseClassName,
+			transitionLeave,
+			enterTimeout,
+			leaveTimeout
+		} = this.props;
 
 		return (
 			<RootChild>
-				<SingleChildCSSTransitionGroup
+				<CSSTransitionGroup
 					transitionName={ baseClassName || 'dialog' }
-					component="div"
 					transitionLeave={ transitionLeave }
-					onChildDidLeave={ this.onDialogDidLeave }
-					enterTimeout={ enterTimeout }
-					leaveTimeout={ leaveTimeout }>
+					transitionEnterTimeout={ enterTimeout }
+					transitionLeaveTimeout={ leaveTimeout }>
 					{ isVisible && (
-						<DialogBase { ...this.props } key="dialog" onDialogClose={ this.onDialogClose } />
+						<DialogBase
+							{ ...this.props }
+							ref={ this.checkOnClosed }
+							key="dialog"
+							onDialogClose={ this.onDialogClose } />
 					) }
-				</SingleChildCSSTransitionGroup>
+				</CSSTransitionGroup>
 			</RootChild>
 		);
-	},
-
-	onDialogDidLeave: function() {
-		if ( this.props.onClosed ) {
-			process.nextTick( this.props.onClosed );
-		}
 	},
 
 	onDialogClose: function( action ) {

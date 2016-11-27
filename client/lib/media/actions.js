@@ -4,7 +4,6 @@
 var debug = require( 'debug' )( 'calypso:media' ),
 	assign = require( 'lodash/assign' ),
 	uniqueId = require( 'lodash/uniqueId' ),
-	isPlainObject = require( 'lodash/isPlainObject' ),
 	path = require( 'path' );
 
 /**
@@ -21,8 +20,14 @@ var Dispatcher = require( 'dispatcher' ),
 /**
  * Module variables
  */
-var MediaActions = {},
-	_fetching = {};
+const MediaActions = {
+	_fetching: {}
+};
+
+/**
+ * Constants
+ */
+const ONE_YEAR_IN_MILLISECONDS = 31540000000;
 
 MediaActions.setQuery = function( siteId, query ) {
 	Dispatcher.handleViewAction( {
@@ -34,11 +39,11 @@ MediaActions.setQuery = function( siteId, query ) {
 
 MediaActions.fetch = function( siteId, itemId ) {
 	var fetchKey = [ siteId, itemId ].join();
-	if ( _fetching[ fetchKey ] ) {
+	if ( MediaActions._fetching[ fetchKey ] ) {
 		return;
 	}
 
-	_fetching[ fetchKey ] = true;
+	MediaActions._fetching[ fetchKey ] = true;
 	Dispatcher.handleViewAction( {
 		type: 'FETCH_MEDIA_ITEM',
 		siteId: siteId,
@@ -54,7 +59,7 @@ MediaActions.fetch = function( siteId, itemId ) {
 			data: data
 		} );
 
-		delete _fetching[ fetchKey ];
+		delete MediaActions._fetching[ fetchKey ];
 	} );
 };
 
@@ -84,84 +89,127 @@ MediaActions.fetchNextPage = function( siteId ) {
 	} );
 };
 
-MediaActions.add = function( siteId, file ) {
-	var query = {},
-		isUrl = 'string' === typeof file,
-		addHandler = isUrl ? 'addMediaUrls' : 'addMediaFiles',
-		fileUrl, transientMedia;
+MediaActions.createTransientMedia = function( id, file, date ) {
+	const transientMedia = { ID: id, 'transient': true };
 
-	if ( Array.isArray( file ) || file instanceof window.FileList ) {
-		Array.prototype.slice.call( file ).forEach( MediaActions.add.bind( null, siteId ) );
-		return;
+	if ( date ) {
+		transientMedia.date = date;
 	}
-
-	// Generate a fake transient media item that can be rendered into the list
-	// immediately, even before the media has persisted to the server
-	transientMedia = {
-		ID: uniqueId( 'media-' ),
-		date: new Date().toISOString(),
-		transient: true
-	};
 
 	if ( 'string' === typeof file ) {
 		// Generate from string
 		assign( transientMedia, {
 			file: file,
-			extension: path.extname( file ).slice( 1 ),
-			mime_type: MediaUtils.getMimeType( file ),
-			title: path.basename( file )
+			title: path.basename( file ),
+			extension: MediaUtils.getFileExtension( file ),
+			mime_type: MediaUtils.getMimeType( file )
 		} );
 	} else {
+		// Handle the case where a an object has been passed that wraps a
+		// Blob and contains a fileName
+		const fileContents = file.fileContents || file;
+		const fileName = file.fileName || file.name;
+
 		// Generate from window.File object
-		fileUrl = window.URL.createObjectURL( file );
+		const fileUrl = window.URL.createObjectURL( fileContents );
+
 		assign( transientMedia, {
 			URL: fileUrl,
 			guid: fileUrl,
-			file: file.name,
-			extension: path.extname( file.name ).slice( 1 ),
-			mime_type: MediaUtils.getMimeType( file.name ),
-			title: path.basename( file.name ),
+			file: fileName,
+			title: file.title || path.basename( fileName ),
+			extension: MediaUtils.getFileExtension( file.fileName || fileContents ),
+			mime_type: MediaUtils.getMimeType( file.fileName || fileContents ),
 			// Size is not an API media property, though can be useful for
 			// validation purposes if known
-			size: file.size
+			size: fileContents.size
 		} );
 	}
 
-	Dispatcher.handleViewAction( {
-		type: 'CREATE_MEDIA_ITEM',
-		siteId: siteId,
-		data: transientMedia
-	} );
+	return transientMedia;
+};
 
-	// Abort upload if file fails to pass validation.
-	if ( MediaValidationStore.getErrors( siteId, transientMedia.ID ).length ) {
-		return;
+MediaActions.add = function( siteId, files ) {
+	if ( files instanceof window.FileList ) {
+		files = [ ...files ];
 	}
 
-	// Assign parent ID if currently editing post
-	const post = PostEditStore.get();
-	if ( post && post.ID && ! isPlainObject( file ) ) {
-		file = {
-			parent_id: post.ID,
-			[ isUrl ? 'url' : 'file' ]: file
-		};
+	if ( ! Array.isArray( files ) ) {
+		files = [ files ];
 	}
 
-	debug( 'Uploading media to %d from %o', siteId, file );
-	wpcom.site( siteId )[ addHandler ]( query, file, function( error, data ) {
-		var item;
-		if ( data && data.media ) {
-			item = data.media[0];
+	// We offset the current time when generating a fake date for the transient
+	// media so that the first uploaded media doesn't suddenly become newest in
+	// the set once it finishes uploading. This duration is pretty arbitrary,
+	// but one would hope that it would never take this long to upload an item.
+	const baseTime = Date.now() + ONE_YEAR_IN_MILLISECONDS;
+
+	return files.reduce( ( lastUpload, file, i ) => {
+		// Generate a fake transient media item that can be rendered into the list
+		// immediately, even before the media has persisted to the server
+		const id = uniqueId( 'media-' );
+
+		// Assign a date such that the first item will be the oldest at the
+		// time of upload, as this is expected order when uploads finish
+		const mediaDate = new Date( baseTime - ( files.length - i ) ).toISOString();
+
+		const transientMedia = MediaActions.createTransientMedia( id, file, mediaDate );
+
+		Dispatcher.handleViewAction( {
+			type: 'CREATE_MEDIA_ITEM',
+			siteId: siteId,
+			data: transientMedia
+		} );
+
+		// Abort upload if file fails to pass validation.
+		if ( MediaValidationStore.getErrors( siteId, id ).length ) {
+			return Promise.resolve();
 		}
 
-		Dispatcher.handleServerAction( {
-			type: 'RECEIVE_MEDIA_ITEM',
-			error: error,
-			siteId: siteId,
-			id: transientMedia.ID,
-			data: item
+		// Determine upload mechanism by object type
+		const isUrl = 'string' === typeof file;
+		const addHandler = isUrl ? 'addMediaUrls' : 'addMediaFiles';
+
+		// Assign parent ID if currently editing post
+		const post = PostEditStore.get();
+		const title = file.title;
+		if ( post && post.ID ) {
+			file = {
+				parent_id: post.ID,
+				[ isUrl ? 'url' : 'file' ]: file
+			};
+		} else if ( file.fileContents ) {
+			//if there's no parent_id, but the file object is wrapping a Blob
+			//(contains fileContents, fileName etc) still wrap it in a new object
+			file = {
+				file: file
+			};
+		}
+
+		if ( title ) {
+			file.title = title;
+		}
+
+		debug( 'Uploading media to %d from %o', siteId, file );
+
+		return lastUpload.then( () => {
+			// Achieve series upload by waiting for the previous promise to
+			// resolve before starting this item's upload
+			const action = { type: 'RECEIVE_MEDIA_ITEM', id, siteId };
+			return wpcom.site( siteId )[ addHandler ]( {}, file ).then( ( data ) => {
+				Dispatcher.handleServerAction( Object.assign( action, {
+					data: data.media[ 0 ]
+				} ) );
+				// also refetch media limits
+				Dispatcher.handleServerAction( {
+					type: 'FETCH_MEDIA_LIMITS',
+					siteId: siteId
+				} );
+			} ).catch( ( error ) => {
+				Dispatcher.handleServerAction( Object.assign( action, { error } ) );
+			} );
 		} );
-	} );
+	}, Promise.resolve() );
 };
 
 MediaActions.edit = function( siteId, item ) {
@@ -174,31 +222,54 @@ MediaActions.edit = function( siteId, item ) {
 	} );
 };
 
-MediaActions.update = function( siteId, item ) {
-	var newItem;
-
+MediaActions.update = function( siteId, item, editMediaFile = false ) {
 	if ( Array.isArray( item ) ) {
 		item.forEach( MediaActions.update.bind( null, siteId ) );
 		return;
 	}
 
-	newItem = assign( {}, MediaStore.get( siteId, item.ID ), item );
+	const mediaId = item.ID;
+	const newItem = assign( {}, MediaStore.get( siteId, mediaId ), item );
 
-	Dispatcher.handleViewAction( {
+	// Let's update the media modal immediately
+	// with a fake transient media item
+	const updateAction = {
 		type: 'RECEIVE_MEDIA_ITEM',
-		siteId: siteId,
+		siteId,
 		data: newItem
-	} );
+	};
 
-	debug( 'Updating media for %d by ID %d to %o', siteId, item.ID, item );
-	wpcom.site( siteId ).media( item.ID ).update( item, function( error, data ) {
-		Dispatcher.handleServerAction( {
-			type: 'RECEIVE_MEDIA_ITEM',
-			error: error,
-			siteId: siteId,
-			data: data
+	if ( item.media ) {
+		// Show a fake transient media item that can be rendered into the list immediately,
+		// even before the media has persisted to the server
+		updateAction.data = { ...newItem, ...MediaActions.createTransientMedia( mediaId, item.media ) };
+	} else if ( editMediaFile && item.media_url ) {
+		updateAction.data = { ...newItem, ...MediaActions.createTransientMedia( mediaId, item.media_url ) };
+	}
+
+	if ( editMediaFile && updateAction.data ) {
+		// We need this to show a transient (edited) image in post/page editor after it has been edited there.
+		updateAction.data.isDirty = true;
+	}
+
+	debug( 'Updating media for %o by ID %o to %o', siteId, mediaId, updateAction );
+	Dispatcher.handleViewAction( updateAction );
+
+	const method = editMediaFile ? 'edit' : 'update';
+
+	wpcom
+		.site( siteId )
+		.media( item.ID )
+		[ method ]( item, function( error, data ) {
+			Dispatcher.handleServerAction( {
+				type: 'RECEIVE_MEDIA_ITEM',
+				error: error,
+				siteId: siteId,
+				data: editMediaFile
+					? { ...data, isDirty: true }
+					: data
+			} );
 		} );
-	} );
 };
 
 MediaActions.delete = function( siteId, item ) {
@@ -220,6 +291,11 @@ MediaActions.delete = function( siteId, item ) {
 			error: error,
 			siteId: siteId,
 			data: data
+		} );
+		// also refetch storage limits
+		Dispatcher.handleServerAction( {
+			type: 'FETCH_MEDIA_LIMITS',
+			siteId: siteId
 		} );
 	} );
 };

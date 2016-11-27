@@ -1,22 +1,19 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	isUndefined = require( 'lodash/isUndefined' );
+import isUndefined from 'lodash/isUndefined';
+import React from 'react';
+import get from 'lodash/get';
+import { isJetpackMonthlyPlan } from 'lib/products-values';
 
 /**
  * Internal dependencies
  */
-import { abtest } from 'lib/abtest';
+import WpcomPlanPrice from 'my-sites/plans/wpcom-plan-price';
 
-var JetpackPlanPrice = require( 'my-sites/plans/jetpack-plan-price' ),
-	WpcomPlanPrice = require( 'my-sites/plans/wpcom-plan-price' );
-
-module.exports = React.createClass( {
-	displayName: 'PlanPrice',
-
-	getFormattedPrice: function( plan ) {
-		let rawPrice, formattedPrice;
+const PlanPrice = React.createClass( {
+	getFormattedPrice( plan ) {
+		let rawPrice, formattedPrice, months;
 
 		if ( plan ) {
 			// the properties of a plan object from sites-list is snake_case
@@ -28,19 +25,25 @@ module.exports = React.createClass( {
 				return this.translate( 'Free', { context: 'Zero cost product price' } );
 			}
 
-			if ( abtest( 'monthlyPlanPricing' ) === 'monthly' && this.props.isInSignup ) {
-				const monthlyPrice = +( rawPrice / 12 ).toFixed( 2 );
-				formattedPrice = formattedPrice.replace( rawPrice, monthlyPrice );
-			}
+			months = isJetpackMonthlyPlan( plan ) ? 1 : 12;
 
-			return formattedPrice;
+			// could get $5.95, A$4.13, ¥298, €3,50, etc…
+			const getCurrencySymbol = price => /(\D+)\d+/.exec( price )[ 1 ];
+			const currencyDigits = currencySymbol => get( {
+				'¥': 0
+			}, currencySymbol, 2 );
+
+			const currencySymbol = getCurrencySymbol( formattedPrice );
+			const monthlyPrice = ( rawPrice / months ).toFixed( currencyDigits( currencySymbol ) );
+
+			return `${ currencySymbol }${ monthlyPrice }`;
 		}
 
 		return this.translate( 'Loading' );
 	},
 
-	getPrice: function() {
-		var standardPrice = this.getFormattedPrice( this.props.plan ),
+	getPrice() {
+		const standardPrice = this.getFormattedPrice( this.props.plan ),
 			discountedPrice = this.getFormattedPrice( this.props.sitePlan );
 
 		if ( this.props.sitePlan && this.props.sitePlan.rawDiscount > 0 ) {
@@ -50,36 +53,34 @@ module.exports = React.createClass( {
 		return ( <span>{ standardPrice }</span> );
 	},
 
-	render: function() {
+	render() {
 		let periodLabel;
-		const { plan, site, sitePlan: details } = this.props,
+		const { plan, sitePlan: details } = this.props,
 			hasDiscount = details && details.rawDiscount > 0;
 
 		if ( this.props.isPlaceholder ) {
 			return <div className="plan-price is-placeholder" />;
 		}
 
-		if ( abtest( 'monthlyPlanPricing' ) === 'monthly' && this.props.isInSignup && plan.raw_price !== 0 ) {
-			periodLabel = this.translate( 'per month, billed yearly' );
+		if ( ! plan ) {
+			periodLabel = '';
+		} else if ( plan.raw_price > 0 ) {
+			if ( isJetpackMonthlyPlan( plan ) ) {
+				periodLabel = this.translate( 'per month, billed monthly' );
+			} else {
+				periodLabel = this.translate( 'per month, billed yearly' );
+			}
 		} else {
-			periodLabel = hasDiscount ? this.translate( 'due today when you upgrade' ) : plan.bill_period_label
-		}
-
-		if ( site && site.jetpack ) {
-			return (
-				<JetpackPlanPrice
-					getPrice={ this.getPrice }
-					hasDiscount={ hasDiscount }
-					plan={ plan } />
-			);
+			periodLabel = hasDiscount ? this.translate( 'due today when you upgrade' ) : plan.bill_period_label;
 		}
 
 		return (
 			<WpcomPlanPrice
 				getPrice={ this.getPrice }
 				hasDiscount={ hasDiscount }
-				periodLabel={ periodLabel }
-				plan={ plan } />
+				periodLabel={ periodLabel } />
 		);
 	}
 } );
+
+export default PlanPrice;

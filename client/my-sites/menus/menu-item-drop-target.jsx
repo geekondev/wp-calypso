@@ -6,7 +6,7 @@ var React = require( 'react' );
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' );
+var analytics = require( 'lib/analytics' );
 
 /**
  * Target tap/click zone for choosing the placing of a new or moved item.
@@ -22,7 +22,6 @@ var MenuItemDropTarget = React.createClass( {
 	},
 
 	render: function() {
-
 		var label = {
 			move: {
 				before: this.translate( 'Move item above' ),

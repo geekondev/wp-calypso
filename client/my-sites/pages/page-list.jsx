@@ -16,8 +16,9 @@ var PostListFetcher = require( 'components/post-list-fetcher' ),
 	NoResults = require( 'my-sites/no-results' ),
 	actions = require( 'lib/posts/actions' ),
 	Placeholder = require( './placeholder' ),
-	mapStatus = require( 'lib/route' ).mapPostStatus,
-	config = require( 'config' );
+	mapStatus = require( 'lib/route' ).mapPostStatus;
+
+import BlogPostsPage from './blog-posts-page';
 
 var PageList = React.createClass( {
 
@@ -45,7 +46,7 @@ var PageList = React.createClass( {
 	}
 } );
 
-var Pages = React.createClass({
+var Pages = React.createClass( {
 
 	displayName: 'Pages',
 
@@ -117,8 +118,7 @@ var Pages = React.createClass({
 	},
 
 	getNoContentMessage: function() {
-		var selectedSite = this.props.sites.getSelectedSite(),
-			attributes, newPageLink;
+		var attributes, newPageLink;
 
 		if ( this.props.search ) {
 			return <NoResults
@@ -128,15 +128,10 @@ var Pages = React.createClass({
 						components: {
 							searchTerm: <em>{ this.props.search }</em>
 						}
-					} )	}
+					} ) }
 			/>;
 		} else {
-
-			if ( config.isEnabled( 'post-editor/pages' ) ) {
-				newPageLink = this.props.siteID ? '/page/' + this.props.siteID : '/page';
-			} else {
-				newPageLink = selectedSite ? '//wordpress.com/page/' + selectedSite.ID + '/new' : '//wordpress.com/page';
-			}
+			newPageLink = this.props.siteID ? '/page/' + this.props.siteID : '/page';
 
 			if ( this.props.hasRecentError ) {
 				attributes = {
@@ -195,10 +190,10 @@ var Pages = React.createClass({
 	addLoadingRows: function( rows, count ) {
 		var i;
 		for ( i = 0; i < count; i++ ) {
-			if ( i % 4 === 0) {
-				rows.push ( <Placeholder.Marker key={ 'placeholder-marker-' + i } /> );
+			if ( i % 4 === 0 ) {
+				rows.push( <Placeholder.Marker key={ 'placeholder-marker-' + i } /> );
 			}
-			rows.push ( <Placeholder.Page key={ 'placeholder-page-' + i } multisite={ this.props.siteID === false } /> );
+			rows.push( <Placeholder.Page key={ 'placeholder-page-' + i } multisite={ this.props.siteID === false } /> );
 		}
 	},
 
@@ -213,14 +208,14 @@ var Pages = React.createClass({
 				pages = this._insertTimeMarkers( pages );
 			}
 			rows = pages.map( function( page ) {
-					if ( ! ( 'site_ID' in page ) ) {
-						return page;
-					}
+				if ( ! ( 'site_ID' in page ) ) {
+					return page;
+				}
 					// Get the site the page belongs to
-					var site = this.props.sites.getSite( page.site_ID );
+				var site = this.props.sites.getSite( page.site_ID );
 
 					// Render each page
-					return (
+				return (
 						<Page key={ 'page-' + page.global_ID } page={ page } site={ site } multisite={ this.props.siteID === false } />
 					);
 			}, this );
@@ -229,6 +224,17 @@ var Pages = React.createClass({
 				this.addLoadingRows( rows, 1 );
 			}
 
+			const site = this.props.sites.getSelectedSite();
+			const status = this.props.status || 'published';
+
+			if ( site && status === 'published' ) {
+				rows.push(
+					<BlogPostsPage
+						key="blog-posts-page"
+						site={ site }
+					/>
+				);
+			}
 		} else if ( ( ! this.props.loading ) && this.props.sites.initialized ) {
 			rows.push( <div key="page-list-no-results">{ this.getNoContentMessage() }</div> );
 		} else {
@@ -242,6 +248,6 @@ var Pages = React.createClass({
 			</div>
 		);
 	}
-});
+} );
 
 module.exports = PageList;

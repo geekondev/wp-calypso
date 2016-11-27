@@ -1,28 +1,26 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	connect = require( 'react-redux' ).connect,
-	reject = require( 'lodash/reject' ),
-	classNames = require( 'classnames' );
+import React from 'react';
+import reject from 'lodash/reject';
+import classNames from 'classnames';
+import { localize } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-var CartBody = require( './cart-body' ),
-	CartMessagesMixin = require( './cart-messages-mixin' ),
-	CartButtons = require( './cart-buttons' ),
-	Popover = require( 'components/popover' ),
-	CartEmpty = require( './cart-empty' ),
-	CartPlanAd = require( './cart-plan-ad' ),
-	CartTrialAd = require( './cart-trial-ad' ),
-	isCredits = require( 'lib/products-values' ).isCredits,
-	Gridicon = require( 'components/gridicon' ),
-	fetchSitePlans = require( 'state/sites/plans/actions' ).fetchSitePlans,
-	getPlansBySite = require( 'state/sites/plans/selectors' ).getPlansBySite,
-	shouldFetchSitePlans = require( 'lib/plans' ).shouldFetchSitePlans;
+import CartBody from './cart-body';
+import CartBodyLoadingPlaceholder from './cart-body/loading-placeholder';
+import CartMessagesMixin from './cart-messages-mixin';
+import CartButtons from './cart-buttons';
+import Popover from 'components/popover';
+import CartEmpty from './cart-empty';
+import CartPlanAd from './cart-plan-ad';
+import CartTrialAd from './cart-trial-ad';
+import { isCredits } from 'lib/products-values';
+import Gridicon from 'components/gridicon';
 
-var PopoverCart = React.createClass( {
+const PopoverCart = React.createClass( {
 	propTypes: {
 		cart: React.PropTypes.object.isRequired,
 		selectedSite: React.PropTypes.oneOfType( [
@@ -35,10 +33,6 @@ var PopoverCart = React.createClass( {
 		pinned: React.PropTypes.bool.isRequired,
 		showKeepSearching: React.PropTypes.bool.isRequired,
 		onKeepSearchingClick: React.PropTypes.func.isRequired
-	},
-
-	componentDidMount: function() {
-		this.props.fetchSitePlans( this.props.sitePlans, this.props.selectedSite );
 	},
 
 	itemCount: function() {
@@ -68,7 +62,7 @@ var PopoverCart = React.createClass( {
 					<button className="cart-toggle-button"
 							ref="toggleButton"
 							onClick={ this.onToggle }>
-						<div className="popover-cart__label">{ this.translate( 'Cart' ) }</div>
+						<div className="popover-cart__label">{ this.props.translate( 'Cart' ) }</div>
 						<Gridicon icon='cart' size={ 24 } />
 						{ countBadge }
 					</button>
@@ -107,9 +101,11 @@ var PopoverCart = React.createClass( {
 	},
 
 	cartBody: function() {
-		var cartEmpty = this.props.cart.hasLoadedFromServer && ! this.props.cart.products.length;
+		if ( ! this.props.cart.hasLoadedFromServer ) {
+			return <CartBodyLoadingPlaceholder />;
+		}
 
-		if ( cartEmpty ) {
+		if ( ! this.props.cart.products.length ) {
 			return (
 				<CartEmpty selectedSite={ this.props.selectedSite } path={ this.props.path } />
 			);
@@ -117,10 +113,7 @@ var PopoverCart = React.createClass( {
 
 		return (
 			<div>
-				<CartTrialAd
-					cart={ this.props.cart }
-					selectedSite={ this.props.selectedSite }
-					sitePlans={ this.props.sitePlans } />
+				<CartTrialAd cart={ this.props.cart } />
 
 				<CartPlanAd
 					cart={ this.props.cart }
@@ -156,17 +149,4 @@ var PopoverCart = React.createClass( {
 	}
 } );
 
-module.exports = connect(
-	function( state, props ) {
-		return { sitePlans: getPlansBySite( state, props.selectedSite ) };
-	},
-	function( dispatch ) {
-		return {
-			fetchSitePlans( sitePlans, site ) {
-				if ( shouldFetchSitePlans( sitePlans, site ) ) {
-					dispatch( fetchSitePlans( site.ID ) );
-				}
-			}
-		};
-	}
-)( PopoverCart );
+export default localize( PopoverCart );

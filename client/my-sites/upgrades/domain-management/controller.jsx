@@ -2,39 +2,33 @@
  * External Dependencies
  */
 import page from 'page';
-import ReactDom from 'react-dom';
 import React from 'react';
-import { Provider } from 'react-redux';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal Dependencies
  */
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import DnsData from 'components/data/domain-management/dns' ;
 import DomainManagement from './domain-management';
 import DomainManagementData from 'components/data/domain-management';
 import EmailData from 'components/data/domain-management/email' ;
 import EmailForwardingData from 'components/data/domain-management/email-forwarding' ;
-import i18n from 'lib/mixins/i18n';
 import NameserversData from 'components/data/domain-management/nameservers';
 import paths from 'my-sites/upgrades/paths';
-import PrimaryDomainData from 'components/data/domain-management/primary-domain';
 import ProductsList from 'lib/products-list';
 import { renderWithReduxStore } from 'lib/react-helpers';
 import SiteRedirectData from 'components/data/domain-management/site-redirect';
 import SitesList from 'lib/sites-list';
 import TransferData from 'components/data/domain-management/transfer';
 import WhoisData from 'components/data/domain-management/whois';
-import titleActions from 'lib/screen-title/actions';
+import { setDocumentHeadTitle } from 'state/document-head/actions';
 
 const productsList = new ProductsList(),
 	sites = new SitesList();
 
 const setTitle = function( title, pageContext ) {
-	titleActions.setTitle(
-		title,
-		{ siteID: pageContext.params.site }
-	);
+	pageContext.store.dispatch( setDocumentHeadTitle( title ) );
 };
 
 module.exports = {
@@ -51,10 +45,10 @@ module.exports = {
 
 		renderWithReduxStore(
 			<DomainManagementData
-				component={ DomainManagement.List }
+				component={ DomainManagement.List.default }
 				context={ pageContext }
 				productsList={ productsList }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
 		);
@@ -62,7 +56,9 @@ module.exports = {
 
 	domainManagementEdit( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Edit' ),
+			i18n.translate( 'Edit %(domain)s', {
+				args: { domain: pageContext.params.domain }
+			} ),
 			pageContext
 		);
 
@@ -77,15 +73,15 @@ module.exports = {
 				context={ pageContext }
 				productsList={ productsList }
 				selectedDomainName={ pageContext.params.domain }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementPrimaryDomain: function( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Set Primary Domain' ),
+			i18n.translate( 'Set Primary Domain' ),
 			pageContext
 		);
 
@@ -95,19 +91,17 @@ module.exports = {
 		);
 
 		renderWithReduxStore(
-			<PrimaryDomainData
-				component={ DomainManagement.PrimaryDomain }
-				context={ pageContext }
+			<DomainManagement.PrimaryDomain
 				selectedDomainName={ pageContext.params.domain }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementContactsPrivacy( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Contacts and Privacy' ),
+			i18n.translate( 'Contacts and Privacy' ),
 			pageContext
 		);
 
@@ -125,12 +119,12 @@ module.exports = {
 				sites={ sites } />,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementEditContactInfo( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Contacts and Privacy › Edit Contact Info' ),
+			i18n.translate( 'Edit Contact Info' ),
 			pageContext
 		);
 
@@ -148,12 +142,12 @@ module.exports = {
 				sites={ sites } />,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementEmail( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Email' ),
+			i18n.translate( 'Email' ),
 			pageContext
 		);
 
@@ -168,7 +162,7 @@ module.exports = {
 				productsList={ productsList }
 				selectedDomainName={ pageContext.params.domain }
 				context={ pageContext }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
 		);
@@ -176,7 +170,7 @@ module.exports = {
 
 	domainManagementEmailForwarding( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Email › Email Forwarding' ),
+			i18n.translate( 'Email Forwarding' ),
 			pageContext
 		);
 
@@ -189,15 +183,15 @@ module.exports = {
 			<EmailForwardingData
 				component={ DomainManagement.EmailForwarding }
 				selectedDomainName={ pageContext.params.domain }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementDns( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Name Servers and DNS › DNS Records' ),
+			i18n.translate( 'DNS Records' ),
 			pageContext
 		);
 
@@ -210,14 +204,14 @@ module.exports = {
 			<DnsData
 				component={ DomainManagement.Dns }
 				selectedDomainName={ pageContext.params.domain }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 	domainManagementNameServers( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Name Servers and DNS' ),
+			i18n.translate( 'Name Servers and DNS' ),
 			pageContext
 		);
 
@@ -230,15 +224,15 @@ module.exports = {
 			<NameserversData
 				component={ DomainManagement.NameServers }
 				selectedDomainName={ pageContext.params.domain }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementPrivacyProtection( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Contacts and Privacy › Privacy Protection' ),
+			i18n.translate( 'Privacy Protection' ),
 			pageContext
 		);
 
@@ -256,12 +250,12 @@ module.exports = {
 				sites={ sites } />,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementAddGoogleApps( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Add Google Apps' ),
+			i18n.translate( 'Add G Suite' ),
 			pageContext
 		);
 
@@ -276,15 +270,15 @@ module.exports = {
 				context={ pageContext }
 				productsList={ productsList }
 				selectedDomainName={ pageContext.params.domain }
-				sites={ sites } />,
+			/>,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementRedirectSettings( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management › Redirect Settings' ),
+			i18n.translate( 'Redirect Settings' ),
 			pageContext
 		);
 
@@ -300,7 +294,7 @@ module.exports = {
 				sites={ sites } />,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	},
 
 	domainManagementIndex() {
@@ -309,7 +303,7 @@ module.exports = {
 
 	domainManagementTransfer( pageContext ) {
 		setTitle(
-			i18n.translate( 'Domain Management' ) + ' › ' + i18n.translate( 'Transfer Domain' ),
+			i18n.translate( 'Transfer Domain' ),
 			pageContext
 		);
 
@@ -320,6 +314,6 @@ module.exports = {
 				sites={ sites } />,
 			document.getElementById( 'primary' ),
 			pageContext.store
-		)
+		);
 	}
 };

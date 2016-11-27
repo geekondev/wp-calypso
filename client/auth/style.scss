@@ -2,25 +2,30 @@
  * Oauth login page, used in WordPress Desktop App
  */
 
-.is-section-login {
+.is-section-auth {
 	background: $blue-wordpress;
 	height: 100%;
 
-	.wp-content {
+	.layout__content {
 		height: 100%;
 		margin: 0 auto;
 		overflow: hidden;
 		max-width: none;
+		padding-top: 32px;
 		padding-left: 0;
 		padding-right: 0;
 	}
 
-	.wp-content:after {
+	.layout__content::after {
 		content: none;
 	}
 
-	.wp-primary {
+	.layout__primary {
 		height: 100%;
+	}
+
+	.masterbar {
+		display: none;
 	}
 }
 
@@ -143,7 +148,8 @@
 	margin: 0 auto 20px auto;
 }
 
-.auth__help {
+.auth__help,
+.auth__help:visited {
 	position: absolute;
 	top: 16px;
 	right: 16px;
@@ -252,4 +258,22 @@
 
 }
 
+.auth__welcome {
+	color: $white;
+}
 
+.auth__connect-intro {
+	width: 420px;
+	margin: 0 auto;
+}
+
+.auth__connect .button,
+.auth__connect .button:visited {
+	background: #00a8db;
+	border: #00a8db;
+	color: $white;
+}
+
+.auth .pulsing-dot {
+	top: 40%;
+}

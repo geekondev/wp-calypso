@@ -1,203 +1,221 @@
 /**
  * External Dependencies
  */
-import ReactDom from 'react-dom';
+import { partial } from 'lodash';
 import React from 'react';
 
 /**
  * Internal Dependencies
  */
-import analytics from 'analytics';
-import ConfirmCancelPurchase from './confirm-cancel-purchase';
-import ConfirmCancelPurchaseLoadingPlaceholder from './confirm-cancel-purchase/loading-placeholder';
-import CancelPurchase from './cancel-purchase';
-import CancelPurchaseLoadingPlaceholder from './cancel-purchase/loading-placeholder';
+import AddCardDetails from './payment/add-card-details';
+import AddCreditCard from './add-credit-card';
 import CancelPrivateRegistration from './cancel-private-registration';
+import CancelPurchase from './cancel-purchase';
+import ConfirmCancelDomain from './confirm-cancel-domain';
 import EditCardDetails from './payment/edit-card-details';
-import EditCardDetailsData from 'components/data/purchases/edit-card-details';
-import EditCardDetailsLoadingPlaceholder from './payment/edit-card-details/loading-placeholder';
-import EditPaymentMethod from './payment/edit-payment-method';
 import Main from 'components/main';
-import ManagePurchaseData from 'components/data/purchases/manage-purchase';
 import ManagePurchase from './manage-purchase';
 import NoSitesMessage from 'components/empty-content/no-sites-message';
 import paths from './paths';
-import PurchasesData from 'components/data/purchases';
 import PurchasesHeader from './list/header';
 import PurchasesList from './list';
+import { receiveSite } from 'state/sites/actions';
+import { concatTitle, recordPageView, renderPage } from 'lib/react-helpers';
+import { setAllSitesSelected, setSelectedSiteId } from 'state/ui/actions';
 import sitesFactory from 'lib/sites-list';
-import titleActions from 'lib/screen-title/actions';
+import { setDocumentHeadTitle } from 'state/document-head/actions';
 import titles from './titles';
 import userFactory from 'lib/user';
-import { isDataLoading } from './utils';
 
+const recordPurchasesPageView = partial( recordPageView, partial.placeholder, 'Purchases' );
 const sites = sitesFactory();
 const user = userFactory();
 
-function concatTitle( ...parts ) {
-	return parts.join( ' › ' );
-}
-
-function recordPageView( path, ...title ) {
-	analytics.pageView.record(
-		path,
-		concatTitle( 'Purchases', ...title )
-	);
-}
-
-function renderPage( component ) {
-	ReactDom.render(
-		component,
-		document.getElementById( 'primary' )
-	);
-}
-
-function setTitle( ...title ) {
-	titleActions.setTitle(
+// FIXME: Auto-converted from the Flux setTitle action. Please use <DocumentHead> instead.
+function setTitle( context, ...title ) {
+	context.store.dispatch( setDocumentHeadTitle(
 		concatTitle( titles.purchases, ...title )
-	);
+	) );
 }
+
+/**
+ * Populates `state.sites` and `state.ui` with the currently selected site.
+ * TODO: Remove this once `sites-list` is removed from Calypso.
+ *
+ * @param {String} siteSlug - The slug of a site.
+ * @param {Function} dispatch - Redux dispatcher
+ */
+const setSelectedSite = ( siteSlug, dispatch ) => {
+	const setSelectedSiteCalls = () => {
+		sites.setSelectedSite( siteSlug );
+		const selectedSite = sites.getSelectedSite();
+		dispatch( receiveSite( selectedSite ) );
+		dispatch( setSelectedSiteId( selectedSite.ID ) );
+	};
+
+	if ( sites.select( siteSlug ) ) {
+		setSelectedSiteCalls();
+	} else if ( ! sites.initialized ) {
+		sites.once( 'change', setSelectedSiteCalls );
+	} else {
+		// this is an edge case where the user has a purchase on a site they no
+		// longer have access to.
+		dispatch( setAllSitesSelected() );
+	}
+};
 
 export default {
-	cancelPurchase( context ) {
+	addCardDetails( context ) {
 		setTitle(
-			titles.cancelPurchase
+			context,
+			titles.addCardDetails
 		);
 
-		recordPageView(
-			paths.cancelPurchase(),
-			'Cancel Purchase'
+		recordPurchasesPageView(
+			paths.addCardDetails(),
+			'Add Card Details'
 		);
 
-		sites.setSelectedSite( context.params.site );
+		setSelectedSite( context.params.site, context.store.dispatch );
 
 		renderPage(
-			<ManagePurchaseData
-				component={ CancelPurchase }
-				isDataLoading={ isDataLoading }
-				loadingPlaceholder={ CancelPurchaseLoadingPlaceholder }
-				purchaseId={ context.params.purchaseId }
-				sites={ sites } />
+			context,
+			<AddCardDetails
+				purchaseId={ parseInt( context.params.purchaseId, 10 ) } />
+		);
+	},
+
+	addCreditCard( context ) {
+		recordPurchasesPageView(
+			paths.addCreditCard(),
+			'Add Credit Card'
+		);
+
+		renderPage(
+			context,
+			<AddCreditCard />
 		);
 	},
 
 	cancelPrivateRegistration( context ) {
 		setTitle(
+			context,
 			titles.cancelPrivateRegistration
 		);
 
-		recordPageView(
+		recordPurchasesPageView(
 			paths.cancelPrivateRegistration(),
 			'Cancel Private Registration'
 		);
 
-		sites.setSelectedSite( context.params.site );
+		setSelectedSite( context.params.site, context.store.dispatch );
 
 		renderPage(
-			<ManagePurchaseData
-				component={ CancelPrivateRegistration }
-				purchaseId={ context.params.purchaseId }
-				sites={ sites } />
+			context,
+			<CancelPrivateRegistration
+				purchaseId={ parseInt( context.params.purchaseId, 10 ) }
+			/>
 		);
 	},
 
-	confirmCancelPurchase( context ) {
+	cancelPurchase( context ) {
 		setTitle(
-			titles.confirmCancelPurchase
+			context,
+			titles.cancelPurchase
 		);
 
-		recordPageView(
-			paths.confirmCancelPurchase(),
-			'Confirm Cancel Purchase'
+		recordPurchasesPageView(
+			paths.cancelPurchase(),
+			'Cancel Purchase'
 		);
 
-		sites.setSelectedSite( context.params.site );
+		setSelectedSite( context.params.site, context.store.dispatch );
 
 		renderPage(
-			<ManagePurchaseData
-				component={ ConfirmCancelPurchase }
-				isDataLoading={ isDataLoading }
-				loadingPlaceholder={ ConfirmCancelPurchaseLoadingPlaceholder }
-				purchaseId={ context.params.purchaseId }
-				sites={ sites } />
+			context,
+			<CancelPurchase
+				purchaseId={ parseInt( context.params.purchaseId, 10 ) }
+			/>
+		);
+	},
+
+	confirmCancelDomain( context ) {
+		setTitle(
+			context,
+			titles.confirmCancelDomain
+		);
+
+		recordPurchasesPageView(
+			paths.confirmCancelDomain(),
+			'Confirm Cancel Domain'
+		);
+
+		setSelectedSite( context.params.site, context.store.dispatch );
+
+		renderPage(
+			context,
+			<ConfirmCancelDomain
+				purchaseId={ parseInt( context.params.purchaseId, 10 ) }
+			/>
 		);
 	},
 
 	editCardDetails( context ) {
 		setTitle(
+			context,
 			titles.editCardDetails
 		);
 
-		recordPageView(
+		recordPurchasesPageView(
 			paths.editCardDetails(),
 			'Edit Card Details'
 		);
 
-		sites.setSelectedSite( context.params.site );
+		setSelectedSite( context.params.site, context.store.dispatch );
 
 		renderPage(
-			<EditCardDetailsData
+			context,
+			<EditCardDetails
 				cardId={ context.params.cardId }
-				component={ EditCardDetails }
-				purchaseId={ context.params.purchaseId }
-				loadingPlaceholder={ EditCardDetailsLoadingPlaceholder }
-				sites={ sites } />
-		);
-	},
-
-	editPaymentMethod( context ) {
-		setTitle(
-			titles.editPaymentMethod
-		);
-
-		recordPageView(
-			paths.editPaymentMethod(),
-			'Edit Payment Method'
-		);
-
-		sites.setSelectedSite( context.params.site );
-
-		renderPage(
-			<ManagePurchaseData
-				component={ EditPaymentMethod }
-				purchaseId={ context.params.purchaseId }
-				sites={ sites } />
+				purchaseId={ parseInt( context.params.purchaseId, 10 ) } />
 		);
 	},
 
 	list( context ) {
-		setTitle();
+		setTitle( context );
 
-		recordPageView(
-			paths.list()
+		recordPurchasesPageView(
+			paths.purchasesRoot()
 		);
 
 		renderPage(
-			<PurchasesData
-				component={ PurchasesList }
+			context,
+			<PurchasesList
+				sites={ sites }
 				noticeType={ context.params.noticeType }
-				sites={ sites } />
+			/>
 		);
 	},
 
 	managePurchase( context ) {
 		setTitle(
+			context,
 			titles.managePurchase
 		);
 
-		analytics.pageView.record(
+		recordPurchasesPageView(
 			paths.managePurchase(),
 			'Manage Purchase'
 		);
 
-		sites.setSelectedSite( context.params.site );
+		setSelectedSite( context.params.site, context.store.dispatch );
 
 		renderPage(
-			<ManagePurchaseData
-				component={ ManagePurchase }
-				purchaseId={ context.params.purchaseId }
+			context,
+			<ManagePurchase
+				purchaseId={ parseInt( context.params.purchaseId, 10 ) }
 				destinationType={ context.params.destinationType }
-				sites={ sites } />
+			/>
 		);
 	},
 
@@ -206,14 +224,15 @@ export default {
 			return next();
 		}
 
-		setTitle();
+		setTitle( context );
 
-		recordPageView(
+		recordPurchasesPageView(
 			context.path,
 			'No Sites'
 		);
 
 		renderPage(
+			context,
 			<Main>
 				<PurchasesHeader section={ 'purchases' } />
 				<NoSitesMessage />

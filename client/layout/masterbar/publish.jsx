@@ -3,26 +3,27 @@
  */
 import React from 'react';
 import classNames from 'classnames';
+import { connect } from 'react-redux';
 
 /**
  * Internal dependencies
  */
 import MasterbarItem from './item';
-import config from 'config';
 import SitesPopover from 'components/sites-popover';
 import paths from 'lib/paths';
 import viewport from 'lib/viewport';
-import sections from 'sections';
+import { preload } from 'sections-preload';
+import { getSelectedSite } from 'state/ui/selectors';
 
-export default React.createClass( {
-	displayName: 'MasterbarItemNew',
-
+const MasterbarItemNew = React.createClass( {
 	propTypes: {
 		user: React.PropTypes.object,
 		sites: React.PropTypes.object,
 		isActive: React.PropTypes.bool,
 		className: React.PropTypes.string,
 		tooltip: React.PropTypes.string,
+		// connected props
+		selectedSite: React.PropTypes.object,
 	},
 
 	getInitialState() {
@@ -49,7 +50,7 @@ export default React.createClass( {
 		const visibleSiteCount = this.props.user.get().visible_site_count;
 
 		// if multi-site and editor enabled, show site-selector
-		if ( visibleSiteCount > 1 && config.isEnabled( 'post-editor' ) ) {
+		if ( visibleSiteCount > 1 ) {
 			this.toggleSitesPopover();
 			event.preventDefault();
 			return;
@@ -70,7 +71,7 @@ export default React.createClass( {
 
 	render() {
 		const classes = classNames( this.props.className );
-		const currentSite = this.props.sites.getSelectedSite() || this.props.user.get().primarySiteSlug;
+		const currentSite = this.props.selectedSite || this.props.user.get().primarySiteSlug;
 		const newPostPath = paths.newPost( currentSite );
 
 		return (
@@ -82,10 +83,11 @@ export default React.createClass( {
 				isActive={ this.props.isActive }
 				tooltip={ this.props.tooltip }
 				className={ classes }
-				preloadSection={ () => sections.preload( 'post-editor' ) }
+				preloadSection={ () => preload( 'post-editor' ) }
 			>
 				{ this.props.children }
 				<SitesPopover
+					id="popover__sites-popover-masterbar"
 					sites={ this.props.sites }
 					visible={ this.state.isShowingPopover }
 					context={ this.state.postButtonContext }
@@ -96,3 +98,7 @@ export default React.createClass( {
 		);
 	}
 } );
+
+export default connect( ( state ) => {
+	return { selectedSite: getSelectedSite( state ) };
+} )( MasterbarItemNew );

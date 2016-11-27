@@ -1,31 +1,33 @@
 /**
  * External dependencies
  */
-const React = require( 'react' );
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+import React from 'react';
+
 /**
  * Internal dependencies
  */
-const Gravatar = require( 'components/gravatar' ),
-	user = require( 'lib/user' )(),
-	AuthorSelector = require( 'components/author-selector' ),
-	PostActions = require( 'lib/posts/actions' ),
-	touchDetect = require( 'lib/touch-detect' ),
-	sites = require( 'lib/sites-list' )(),
-	config = require( 'config' ),
-	stats = require( 'lib/posts/stats' );
-import { setAuthor } from 'state/ui/editor/post/actions';
+import Gravatar from 'components/gravatar';
+import userFactory from 'lib/user';
+import AuthorSelector from 'blocks/author-selector';
+import PostActions from 'lib/posts/actions';
+import touchDetect from 'lib/touch-detect';
+import sitesFactory from 'lib/sites-list';
+import * as stats from 'lib/posts/stats';
 
-const EditorAuthor = React.createClass( {
+/**
+ * Module dependencies
+ */
+const user = userFactory();
+const sites = sitesFactory();
+
+export default React.createClass( {
+	displayName: 'EditorAuthor',
+
 	propTypes: {
-		setAuthor: React.PropTypes.func,
+		post: React.PropTypes.object,
+		isNew: React.PropTypes.bool
 	},
-	getDefaultProps: function() {
-		return {
-			setAuthor: () => {}
-		};
-	},
+
 	render: function() {
 		// if it's not a new post and we are still loading
 		// show a placeholder component
@@ -66,7 +68,6 @@ const EditorAuthor = React.createClass( {
 		stats.recordEvent( 'Changed Author' );
 		// TODO: REDUX - remove flux actions when whole post-editor is reduxified
 		PostActions.edit( { author: author } );
-		this.props.setAuthor( author );
 	},
 
 	userCanAssignAuthor: function() {
@@ -83,8 +84,3 @@ const EditorAuthor = React.createClass( {
 	},
 
 } );
-
-export default connect(
-	null,
-	dispatch => bindActionCreators( { setAuthor }, dispatch )
-)( EditorAuthor );

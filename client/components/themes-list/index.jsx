@@ -1,22 +1,28 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	times = require( 'lodash/times' ),
-	isEqual = require( 'lodash/isEqual' );
+import React from 'react';
+import times from 'lodash/times';
+import { localize } from 'i18n-calypso';
+import { identity, isEqual, noop } from 'lodash';
+import { connect } from 'react-redux';
 
 /**
  * Internal dependencies
  */
-var Theme = require( 'components/theme' ),
-	EmptyContent = require( 'components/empty-content' ),
-	InfiniteScroll = require( 'lib/mixins/infinite-scroll' ),
-	PER_PAGE = require( 'state/themes/themes-list/constants' ).PER_PAGE;
+import Theme from 'components/theme';
+import EmptyContent from 'components/empty-content';
+import InfiniteScroll from 'lib/mixins/infinite-scroll';
+import { PER_PAGE } from 'state/themes/themes-list/constants';
+import Card from 'components/card';
+import Button from 'components/button';
+import Gridicon from 'components/gridicon';
+import { recordTracksEvent } from 'state/analytics/actions';
 
 /**
  * Component
  */
-var ThemesList = React.createClass( {
+export const ThemesList = React.createClass( {
 
 	mixins: [ InfiniteScroll( 'fetchNextPage' ) ],
 
@@ -28,33 +34,45 @@ var ThemesList = React.createClass( {
 		getButtonOptions: React.PropTypes.func,
 		onScreenshotClick: React.PropTypes.func.isRequired,
 		onMoreButtonClick: React.PropTypes.func,
-		getActionLabel: React.PropTypes.func
+		getActionLabel: React.PropTypes.func,
+		isActive: React.PropTypes.func,
+		isPurchased: React.PropTypes.func,
+		// i18n function provided by localize()
+		translate: React.PropTypes.func,
+		showThemeUpload: React.PropTypes.bool,
+		themeUploadClickRecorder: React.PropTypes.func,
+		onThemeUpload: React.PropTypes.func
 	},
 
-	fetchNextPage: function( options ) {
+	fetchNextPage( options ) {
 		this.props.fetchNextPage( options );
 	},
 
-	getDefaultProps: function() {
+	getDefaultProps() {
 		return {
 			loading: false,
 			themes: [],
-			fetchNextPage: function() {},
-			optionsGenerator: function() {
-				return [];
-			},
-			getActionLabel: function() {
-				return '';
-			}
+			showThemeUpload: false,
+			themeUploadClickRecorder: identity,
+			onThemeUpload: identity,
+			fetchNextPage: noop,
+			optionsGenerator: () => [],
+			getActionLabel: () => '',
+			isActive: () => false,
+			isPurchased: () => false
 		};
 	},
 
-	shouldComponentUpdate: function( nextProps ) {
-		return this.props.loading !== nextProps.loading ||
-			! isEqual( this.props.themes, nextProps.themes );
+	shouldComponentUpdate( nextProps ) {
+		return nextProps.loading !== this.props.loading ||
+			! isEqual( nextProps.themes, this.props.themes ) ||
+			( nextProps.getButtonOptions, this.props.getButtonOptions ) ||
+			( nextProps.getScreenshotUrl !== this.props.getScreenshotUrl ) ||
+			( nextProps.onScreenshotClick !== this.props.onScreenshotClick ) ||
+			( nextProps.onMoreButtonClick !== this.props.onMoreButtonClick );
 	},
 
-	renderTheme: function( theme, index ) {
+	renderTheme( theme, index ) {
 		return <Theme
 			key={ 'theme-' + theme.id }
 			buttonContents={ this.props.getButtonOptions( theme ) }
@@ -63,38 +81,65 @@ var ThemesList = React.createClass( {
 			onMoreButtonClick={ this.props.onMoreButtonClick }
 			actionLabel={ this.props.getActionLabel( theme ) }
 			index={ index }
-			theme={ theme } />;
+			theme={ theme }
+			active={ this.props.isActive( theme.id ) }
+			purchased={ this.props.isPurchased( theme.id ) } />;
 	},
 
-	renderLoadingPlaceholders: function() {
+	renderLoadingPlaceholders() {
 		return times( PER_PAGE, function( i ) {
 			return <Theme key={ 'placeholder-' + i } theme={ { id: 'placeholder-' + i, name: 'Loading…' } } isPlaceholder={ true } />;
 		} );
 	},
 
 	// Invisible trailing items keep all elements same width in flexbox grid.
-	renderTrailingItems: function() {
+	renderTrailingItems() {
 		const NUM_SPACERS = 8; // gives enough spacers for a theoretical 9 column layout
 		return times( NUM_SPACERS, function( i ) {
 			return <div className="themes-list--spacer" key={ 'themes-list--spacer-' + i } />;
 		} );
 	},
 
-	renderEmpty: function() {
+	renderEmpty() {
 		return this.props.emptyContent ||
 			<EmptyContent
-				title={ this.translate( 'Sorry, no themes found.' ) }
-				line={ this.translate( 'Try a different search or more filters?' ) }
+				title={ this.props.translate( 'Sorry, no themes found.' ) }
+				line={ this.props.translate( 'Try a different search or more filters?' ) }
 				/>;
 	},
 
-	render: function() {
+	handleUploadThemeClick() {
+		this.props.themeUploadClickRecorder(); // tracking
+		this.props.onThemeUpload();            // redirect
+	},
+
+	renderThemeUploadBox() {
+		this.props.themes.pop();
+		return (
+			<Card className="theme themes-list__upload-container">
+				<Gridicon className="themes-list__upload-icon" icon="cloud-upload" size={ 100 } />
+				<div className="themes-list__upload-text">
+					{ this.props.translate( 'I already have a theme I\'d like to use for my website.' ) }
+				</div>
+				<Button
+					primary
+					onClick={ this.handleUploadThemeClick }
+					className="themes-list__upload-button"
+				>
+					{ this.props.translate( 'Upload Theme' ) }
+				</Button>
+			</Card>
+		);
+	},
+
+	render() {
 		if ( ! this.props.loading && this.props.themes.length === 0 ) {
 			return this.renderEmpty();
 		}
 
 		return (
 			<div className="themes-list">
+				{ this.props.showThemeUpload && this.renderThemeUploadBox() }
 				{ this.props.themes.map( this.renderTheme ) }
 				{ this.props.loading && this.renderLoadingPlaceholders() }
 				{ this.renderTrailingItems() }
@@ -103,4 +148,9 @@ var ThemesList = React.createClass( {
 	}
 } );
 
-module.exports = ThemesList;
+const mapDispatchToProps = dispatch => ( {
+	themeUploadClickRecorder: () =>
+		dispatch( recordTracksEvent( 'calypso_signup_theme_upload_click' ) )
+} );
+
+export default connect( null, mapDispatchToProps )( localize( ThemesList ) );

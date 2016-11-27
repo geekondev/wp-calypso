@@ -47,6 +47,7 @@ const CustomNameserversForm = React.createClass( {
 				{ ' ' }
 				<a href={ support.CHANGE_NAME_SERVERS }
 						target="_blank"
+						rel="noopener noreferrer"
 						onClick={ this.handleLearnMoreClick }>
 					{ this.translate( 'Learn more.' ) }
 				</a>
@@ -65,6 +66,7 @@ const CustomNameserversForm = React.createClass( {
 				{ ' ' }
 				<a href={ support.CHANGE_NAME_SERVERS_FINDING_OUT_NEW_NS }
 						target="_blank"
+						rel="noopener noreferrer"
 						onClick={ this.handleLookUpClick }>
 					{ this.translate( 'Look up the name servers for popular hosts.' ) }
 				</a>
@@ -122,7 +124,7 @@ const CustomNameserversForm = React.createClass( {
 		const classes = classnames( 'button is-primary is-full-width', { disabled: this.props.submitDisabled } );
 
 		if ( ! this.props.nameservers ) {
-			return <div className="custom-nameservers-form is-compact card">{ this.translate( 'Loading…' ) }</div>;
+			return null;
 		}
 
 		return (

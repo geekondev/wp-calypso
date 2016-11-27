@@ -1,107 +1,169 @@
 /**
  * External dependencies
  */
-var classNames = require( 'classnames' ),
-	connect = require( 'react-redux' ).connect,
-	find = require( 'lodash/find' ),
-	page = require( 'page' ),
-	React = require( 'react' );
+import { connect } from 'react-redux';
+import find from 'lodash/find';
+import page from 'page';
+import React from 'react';
+import moment from 'moment';
 
 /**
  * Internal dependencies
  */
-var activated = require( 'state/themes/actions' ).activated,
-	analytics = require( 'analytics' ),
-	BusinessPlanDetails = require( './business-plan-details' ),
-	Card = require( 'components/card' ),
-	ChargebackDetails = require( './chargeback-details' ),
-	CheckoutThankYouFooter = require( './footer' ),
-	CheckoutThankYouHeader = require( './header' ),
-	Dispatcher = require( 'dispatcher' ),
-	DomainMappingDetails = require( './domain-mapping-details' ),
-	DomainRegistrationDetails = require( './domain-registration-details' ),
-	fetchReceipt = require( 'state/receipts/actions' ).fetchReceipt,
-	GenericDetails = require( './generic-details' ),
-	getReceiptById = require( 'state/receipts/selectors' ).getReceiptById,
-	GoogleAppsDetails = require( './google-apps-details' ),
-	HeaderCake = require( 'components/header-cake' ),
-	isBusiness = require( 'lib/products-values' ).isBusiness,
-	isChargeback = require( 'lib/products-values' ).isChargeback,
-	isDomainMapping = require( 'lib/products-values' ).isDomainMapping,
-	isDomainProduct = require( 'lib/products-values' ).isDomainProduct,
-	isDomainRedemption = require( 'lib/products-values' ).isDomainRedemption,
-	isDomainRegistration = require( 'lib/products-values' ).isDomainRegistration,
-	isFreeTrial = require( 'lib/products-values' ).isFreeTrial,
-	isGoogleApps = require( 'lib/products-values' ).isGoogleApps,
-	isJetpackBusiness = require( 'lib/products-values' ).isJetpackBusiness,
-	isJetpackPremium = require( 'lib/products-values' ).isJetpackPremium,
-	isPlan = require( 'lib/products-values' ).isPlan,
-	isPremium = require( 'lib/products-values' ).isPremium,
-	isSiteRedirect = require( 'lib/products-values' ).isSiteRedirect,
-	isTheme = require( 'lib/products-values' ).isTheme,
-	JetpackBusinessPlanDetails = require( './jetpack-business-plan-details' ),
-	JetpackPremiumPlanDetails = require( './jetpack-premium-plan-details' ),
-	Main = require( 'components/main' ),
-	plansPaths = require( 'my-sites/plans/paths' ),
-	PremiumPlanDetails = require( './premium-plan-details' ),
-	PurchaseDetail = require( './purchase-detail' ),
-	refreshSitePlans = require( 'state/sites/plans/actions' ).refreshSitePlans,
-	SiteRedirectDetails = require( './site-redirect-details' ),
-	upgradesPaths = require( 'my-sites/upgrades/paths' );
+import { themeActivated } from 'state/themes/actions';
+import analytics from 'lib/analytics';
+import Card from 'components/card';
+import ChargebackDetails from './chargeback-details';
+import CheckoutThankYouFeaturesHeader from './features-header';
+import CheckoutThankYouHeader from './header';
+import DomainMappingDetails from './domain-mapping-details';
+import DomainRegistrationDetails from './domain-registration-details';
+import { fetchReceipt } from 'state/receipts/actions';
+import { fetchSitePlans, refreshSitePlans } from 'state/sites/plans/actions';
+import { getPlansBySite } from 'state/sites/plans/selectors';
+import { getReceiptById } from 'state/receipts/selectors';
+import { getCurrentUser, getCurrentUserDate } from 'state/current-user/selectors';
+import GoogleAppsDetails from './google-apps-details';
+import GuidedTransferDetails from './guided-transfer-details';
+import HappinessSupport from 'components/happiness-support';
+import HeaderCake from 'components/header-cake';
+import PlanThankYouCard from 'blocks/plan-thank-you-card';
+import {
+	isChargeback,
+	isDomainMapping,
+	isDomainProduct,
+	isDomainRedemption,
+	isDomainRegistration,
+	isGoogleApps,
+	isGuidedTransfer,
+	isJetpackPlan,
+	isPlan,
+	isPersonal,
+	isPremium,
+	isBusiness,
+	isSiteRedirect,
+	isTheme
+} from 'lib/products-values';
+import JetpackPlanDetails from './jetpack-plan-details';
+import Main from 'components/main';
+import PersonalPlanDetails from './personal-plan-details';
+import PremiumPlanDetails from './premium-plan-details';
+import BusinessPlanDetails from './business-plan-details';
+import PurchaseDetail from 'components/purchase-detail';
+import { getFeatureByKey, shouldFetchSitePlans } from 'lib/plans';
+import SiteRedirectDetails from './site-redirect-details';
+import Notice from 'components/notice';
+import upgradesPaths from 'my-sites/upgrades/paths';
+import { abtest } from 'lib/abtest';
 
 function getPurchases( props ) {
 	return props.receipt.data.purchases;
 }
 
-var CheckoutThankYou = React.createClass( {
-	componentDidMount: function() {
+function findPurchaseAndDomain( purchases, predicate ) {
+	const purchase = find( purchases, predicate );
+
+	return [ purchase, purchase.meta ];
+}
+
+const CheckoutThankYou = React.createClass( {
+	propTypes: {
+		productsList: React.PropTypes.object.isRequired,
+		receiptId: React.PropTypes.number,
+		selectedFeature: React.PropTypes.string,
+		selectedSite: React.PropTypes.oneOfType( [
+			React.PropTypes.bool,
+			React.PropTypes.object
+		] ).isRequired
+	},
+
+	componentDidMount() {
 		this.redirectIfThemePurchased();
-		this.refreshSitesAndSitePlansIfPlanPurchased();
+
+		if ( this.props.receipt.hasLoadedFromServer && this.hasPlanOrDomainProduct() ) {
+			this.props.refreshSitePlans( this.props.selectedSite );
+		} else if ( shouldFetchSitePlans( this.props.sitePlans, this.props.selectedSite ) ) {
+			this.props.fetchSitePlans( this.props.selectedSite );
+		}
 
 		if ( this.props.receiptId && ! this.props.receipt.hasLoadedFromServer && ! this.props.receipt.isRequesting ) {
 			this.props.fetchReceipt( this.props.receiptId );
 		}
 
 		analytics.tracks.recordEvent( 'calypso_checkout_thank_you_view' );
+
+		window.scrollTo( 0, 0 );
 	},
 
-	componentWillReceiveProps: function() {
+	componentWillReceiveProps( nextProps ) {
 		this.redirectIfThemePurchased();
-		this.refreshSitesAndSitePlansIfPlanPurchased();
-	},
 
-	refreshSitesAndSitePlansIfPlanPurchased: function() {
-		if ( this.props.receipt.hasLoadedFromServer && getPurchases( this.props ).some( isPlan ) ) {
-			// Refresh selected site plans if the user just purchased a plan
+		if (
+			! this.props.receipt.hasLoadedFromServer &&
+			nextProps.receipt.hasLoadedFromServer &&
+			this.hasPlanOrDomainProduct( nextProps )
+		) {
 			this.props.refreshSitePlans( this.props.selectedSite.ID );
-
-			// Refresh the list of sites to update the `site.plan` property
-			// needed to display the plan name on the right of the `Plans` menu item
-			Dispatcher.handleViewAction( {
-				type: 'FETCH_SITES'
-			} );
 		}
 	},
 
-	isDataLoaded: function() {
-		return ! this.props.receiptId || this.props.receipt.hasLoadedFromServer;
+	hasPlanOrDomainProduct( props = this.props ) {
+		return getPurchases( props ).some( purchase => isPlan( purchase ) || isDomainProduct( purchase ) );
 	},
 
-	redirectIfThemePurchased: function() {
+	renderConfirmationNotice: function() {
+		if ( ! this.props.user || ! this.props.user.email || this.props.email_verified ) {
+			return null;
+		}
+
+		const emailNudgeOnTop = abtest( 'paidNuxThankYouPage' ) === 'emailNudgeOnTop';
+
+		return (
+			<Notice
+				className="checkout-thank-you__verification-notice"
+				showDismiss={ false }
+				status={ emailNudgeOnTop ? 'is-warning' : '' }
+				>
+				{ this.translate( 'We’ve sent a message to {{strong}}%(email)s{{/strong}}. ' +
+					'Please check your email to confirm your address.', {
+						args: { email: this.props.user.email },
+						components: { strong: <strong className="checkout-thank-you__verification-notice-email" />
+				} } ) }
+			</Notice>
+		);
+	},
+
+	isDataLoaded() {
+		if ( this.isGenericReceipt() ) {
+			return true;
+		}
+
+		return this.props.sitePlans.hasLoadedFromServer && this.props.receipt.hasLoadedFromServer;
+	},
+
+	isGenericReceipt() {
+		return ! this.props.receiptId;
+	},
+
+	redirectIfThemePurchased() {
 		if ( this.props.receipt.hasLoadedFromServer && getPurchases( this.props ).every( isTheme ) ) {
-			this.props.activatedTheme( getPurchases( this.props )[ 0 ].meta, this.props.selectedSite );
+			this.props.activatedTheme( getPurchases( this.props )[ 0 ].meta, this.props.selectedSite.ID );
 
 			page.redirect( '/design/' + this.props.selectedSite.slug );
 		}
 	},
 
 	goBack() {
-		if ( this.isDataLoaded() ) {
+		if ( this.isDataLoaded() && ! this.isGenericReceipt() ) {
 			const purchases = getPurchases( this.props );
+			const site = this.props.selectedSite.slug;
 
 			if ( purchases.some( isPlan ) ) {
-				page( plansPaths.plans( this.props.selectedSite.slug ) );
-			} else if ( purchases.some( isDomainProduct ) || purchases.some( isDomainRedemption || purchases.some( isSiteRedirect ) ) ) {
+				page( `/plans/my-plan/${ site }` );
+			} else if (
+				purchases.some( isDomainProduct ) ||
+				purchases.some( isDomainRedemption || purchases.some( isSiteRedirect ) )
+			) {
 				page( upgradesPaths.domainManagementList( this.props.selectedSite.slug ) );
 			} else if ( purchases.some( isGoogleApps ) ) {
 				const purchase = find( purchases, isGoogleApps );
@@ -113,76 +175,99 @@ var CheckoutThankYou = React.createClass( {
 		}
 	},
 
-	render: function() {
-		var classes = classNames( 'checkout-thank-you', {
-			'is-placeholder': ! this.isDataLoaded()
-		} );
+	render() {
+		let purchases = null,
+			wasJetpackPlanPurchased = false,
+			wasOnlyDotcomPlanPurchased = false;
+		if ( this.isDataLoaded() && ! this.isGenericReceipt() ) {
+			purchases = getPurchases( this.props );
+			wasJetpackPlanPurchased = purchases.some( isJetpackPlan );
+			wasOnlyDotcomPlanPurchased = purchases.every( isPlan );
+		}
 
+		const userCreatedMoment = moment( this.props.userDate );
+		const isNewUser = userCreatedMoment.isAfter( moment().subtract( 2, 'hours' ) );
+		const emailNudgeOnTop = abtest( 'paidNuxThankYouPage' ) === 'emailNudgeOnTop';
+
+		// this placeholder is using just wp logo here because two possible states do not share a common layout
+		if ( ! purchases && ! this.isGenericReceipt() ) {
+			// disabled because we use global loader icon
+			/* eslint-disable wpcalypso/jsx-classname-namespace */
+			return (
+				<div className="wpcom-site__logo noticon noticon-wordpress"></div>
+			);
+			/* eslint-enable wpcalypso/jsx-classname-namespace */
+		}
+
+		// streamlined paid NUX thanks page
+		if ( isNewUser && wasOnlyDotcomPlanPurchased ) {
+			return (
+				<Main className="checkout-thank-you">
+					{ emailNudgeOnTop ? this.renderConfirmationNotice() : null }
+					<PlanThankYouCard siteId={ this.props.selectedSite.ID } />
+					{ ! emailNudgeOnTop ? this.renderConfirmationNotice() : null }
+				</Main>
+			);
+		}
+
+		// standard thanks page
 		return (
-			<Main className={ classes }>
-				<HeaderCake onClick={ this.goBack } isCompact backText={ this.translate( 'Back to my site' ) } />
+			<Main className="checkout-thank-you">
+				<HeaderCake
+					onClick={ this.goBack }
+					isCompact
+					backText={ this.translate( 'Back to my site' ) } />
 
 				<Card className="checkout-thank-you__content">
 					{ this.productRelatedMessages() }
 				</Card>
 
-				<CheckoutThankYouFooter
-					isDataLoaded={ this.isDataLoaded() }
-					receipt={ this.props.receipt } />
+				<Card className="checkout-thank-you__footer">
+					<HappinessSupport isJetpack={ wasJetpackPlanPurchased } />
+				</Card>
 			</Main>
 		);
-	},
-
-	freeTrialWasPurchased: function() {
-		if ( ! this.isDataLoaded() ) {
-			return false;
-		}
-
-		return getPurchases( this.props ).some( isFreeTrial );
 	},
 
 	/**
 	 * Retrieves the component (and any corresponding data) that should be displayed according to the type of purchase
 	 * just performed by the user.
 	 *
-	 * @returns {*[]} an array of varying size with the component instance, then an optional purchase object possibly followed by a domain name
+	 * @returns {*[]} an array of varying size with the component instance,
+	 * then an optional purchase object possibly followed by a domain name
 	 */
-	getComponentAndPrimaryPurchaseAndDomain: function() {
-		if ( this.isDataLoaded() ) {
+	getComponentAndPrimaryPurchaseAndDomain() {
+		if ( this.isDataLoaded() && ! this.isGenericReceipt() ) {
 			const purchases = getPurchases( this.props );
 
-			const findPurchaseAndDomain = ( purchases, predicate ) => {
-				const purchase = find( purchases, predicate );
-
-				return [ purchase, purchase.meta ];
-			};
-
-			if ( purchases.some( isJetpackPremium ) ) {
-				return [ JetpackPremiumPlanDetails, find( purchases, isJetpackPremium ) ];
-			} else if ( purchases.some( isJetpackBusiness ) ) {
-				return [ JetpackBusinessPlanDetails, find( purchases, isJetpackBusiness ) ];
+			if ( purchases.some( isJetpackPlan ) ) {
+				return [ JetpackPlanDetails, find( purchases, isJetpackPlan ) ];
+			} else if ( purchases.some( isPersonal ) ) {
+				return [ PersonalPlanDetails, find( purchases, isPersonal ) ];
 			} else if ( purchases.some( isPremium ) ) {
 				return [ PremiumPlanDetails, find( purchases, isPremium ) ];
 			} else if ( purchases.some( isBusiness ) ) {
 				return [ BusinessPlanDetails, find( purchases, isBusiness ) ];
-			} else if ( purchases.some( isGoogleApps ) ) {
-				return [ GoogleAppsDetails, ...findPurchaseAndDomain( purchases, isGoogleApps ) ];
 			} else if ( purchases.some( isDomainRegistration ) ) {
 				return [ DomainRegistrationDetails, ...findPurchaseAndDomain( purchases, isDomainRegistration ) ];
+			} else if ( purchases.some( isGoogleApps ) ) {
+				return [ GoogleAppsDetails, ...findPurchaseAndDomain( purchases, isGoogleApps ) ];
 			} else if ( purchases.some( isDomainMapping ) ) {
 				return [ DomainMappingDetails, ...findPurchaseAndDomain( purchases, isDomainMapping ) ];
 			} else if ( purchases.some( isSiteRedirect ) ) {
 				return [ SiteRedirectDetails, ...findPurchaseAndDomain( purchases, isSiteRedirect ) ];
 			} else if ( purchases.some( isChargeback ) ) {
 				return [ ChargebackDetails, find( purchases, isChargeback ) ];
+			} else if ( purchases.some( isGuidedTransfer ) ) {
+				return [ GuidedTransferDetails, find( purchases, isGuidedTransfer ) ];
 			}
 		}
 
-		return [ GenericDetails ];
+		return [];
 	},
 
-	productRelatedMessages: function() {
-		var selectedSite = this.props.selectedSite,
+	productRelatedMessages() {
+		const { selectedSite, sitePlans } = this.props,
 			[ ComponentClass, primaryPurchase, domain ] = this.getComponentAndPrimaryPurchaseAndDomain();
 
 		if ( ! this.isDataLoaded() ) {
@@ -190,13 +275,24 @@ var CheckoutThankYou = React.createClass( {
 				<div>
 					<CheckoutThankYouHeader
 						isDataLoaded={ false }
-						selectedSite={ this.props.selectedSite } />
+						selectedSite={ selectedSite } />
 
-					<PurchaseDetail isPlaceholder />
-					<PurchaseDetail isPlaceholder />
-					<PurchaseDetail isPlaceholder />
+					<CheckoutThankYouFeaturesHeader
+						isDataLoaded={ false } />
+
+					<div className="checkout-thank-you__purchase-details-list">
+						<PurchaseDetail isPlaceholder />
+						<PurchaseDetail isPlaceholder />
+						<PurchaseDetail isPlaceholder />
+					</div>
 				</div>
 			);
+		}
+
+		let purchases;
+
+		if ( ! this.isGenericReceipt() ) {
+			purchases = getPurchases( this.props );
 		}
 
 		return (
@@ -204,40 +300,52 @@ var CheckoutThankYou = React.createClass( {
 				<CheckoutThankYouHeader
 					isDataLoaded={ this.isDataLoaded() }
 					primaryPurchase={ primaryPurchase }
-					selectedSite={ this.props.selectedSite } />
+					selectedSite={ selectedSite } />
 
-				<div className="checkout-thank-you__features-header">
-					{ this.translate( "Get started with your site's new features" ) }
-				</div>
+				<CheckoutThankYouFeaturesHeader
+					isDataLoaded={ this.isDataLoaded() }
+					isGenericReceipt={ this.isGenericReceipt() }
+					purchases={ purchases } />
 
-				<div className="checkout-thank-you__purchase-details-list">
-					<ComponentClass
-						selectedSite={ selectedSite }
-						isFreeTrial={ this.freeTrialWasPurchased() }
-						domain={ domain } />
-				</div>
+				{ ComponentClass && (
+					<div className="checkout-thank-you__purchase-details-list">
+						<ComponentClass
+							domain={ domain }
+							purchases={ purchases }
+							registrarSupportUrl={ this.isGenericReceipt() ? null : primaryPurchase.registrarSupportUrl }
+							selectedSite={ selectedSite }
+							selectedFeature={ getFeatureByKey( this.props.selectedFeature ) }
+							sitePlans={ sitePlans } />
+					</div>
+				) }
 			</div>
 		);
 	}
 } );
 
-module.exports = connect(
-	function mapStateToProps( state, props ) {
+export default connect(
+	( state, props ) => {
 		return {
-			receipt: getReceiptById( state, props.receiptId )
+			receipt: getReceiptById( state, props.receiptId ),
+			sitePlans: getPlansBySite( state, props.selectedSite ),
+			user: getCurrentUser( state ),
+			userDate: getCurrentUserDate( state ),
 		};
 	},
-	function mapDispatchToProps( dispatch ) {
+	( dispatch ) => {
 		return {
-			activatedTheme: function( meta, selectedSite ) {
-				dispatch( activated( meta, selectedSite, 'calypstore', true ) );
+			activatedTheme( meta, site ) {
+				dispatch( themeActivated( meta, site, 'calypstore', true ) );
 			},
-			fetchReceipt: function( receiptId ) {
+			fetchReceipt( receiptId ) {
 				dispatch( fetchReceipt( receiptId ) );
 			},
-			refreshSitePlans: function( siteId ) {
-				dispatch( refreshSitePlans( siteId ) );
-			}
+			fetchSitePlans( site ) {
+				dispatch( fetchSitePlans( site.ID ) );
+			},
+			refreshSitePlans( site ) {
+				dispatch( refreshSitePlans( site.ID ) );
+			},
 		};
 	}
 )( CheckoutThankYou );

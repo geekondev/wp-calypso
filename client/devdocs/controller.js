@@ -1,61 +1,69 @@
 /**
  * External dependencies
  */
-var ReactDom = require( 'react-dom' ),
-	React = require( 'react' ),
-	qs = require( 'qs' ),
-	debounce = require( 'lodash/debounce' ),
-	page = require( 'page' ),
-	ReduxProvider = require( 'react-redux' ).Provider,
-	setSection = require( 'state/ui/actions' ).setSection,
-	EmptyContent = require( 'components/empty-content' );
+import ReactDom from 'react-dom';
+import React from 'react';
+import qs from 'qs';
+import debounce from 'lodash/debounce';
+import page from 'page';
+import { Provider as ReduxProvider } from 'react-redux';
+import url from 'url';
 
 /**
  * Internal dependencies
  */
-var DocsComponent = require( './main' ),
-	SingleDocComponent = require( './doc' ),
-	DesignAssetsComponent = require( './design' ),
-	AppComponents = require( './design/app-components' ),
-	Typography = require( './design/typography' ),
-	DevWelcome = require( './welcome' ),
-	Sidebar = require( './sidebar' ),
-	FormStateExamplesComponent = require( './form-state-examples' );
+import DocsComponent from './main';
+import SingleDocComponent from './doc';
+import DesignAssetsComponent from './design';
+import Blocks from './design/blocks';
+import Typography from './design/typography';
+import DevWelcome from './welcome';
+import Sidebar from './sidebar';
+import FormStateExamplesComponent from './form-state-examples';
+import EmptyContent from 'components/empty-content';
 
-var devdocs = {
+const devdocs = {
 
-	/**
+	/*
 	 * Documentation is rendered on #primary and doesn't expect a sidebar to exist
 	 * so #secondary needs to be cleaned up
 	 */
 	sidebar: function( context, next ) {
 		ReactDom.render(
-			React.createElement( Sidebar, {} ),
+			React.createElement( Sidebar, {
+				path: context.path,
+			} ),
 			document.getElementById( 'secondary' )
 		);
 
 		next();
 	},
 
-	/**
+	/*
 	 * Controller for page listing multiple developer docs
 	 */
 	devdocs: function( context ) {
 		function onSearchChange( searchTerm ) {
-			var query = context.query;
+			let query = context.query,
+				url = context.pathname;
+
 			if ( searchTerm ) {
 				query.term = searchTerm;
 			} else {
 				delete query.term;
 			}
 
-			page.replace( context.pathname + '?' + qs.stringify( query ).replace( /%20/g, '+' ),
+			const queryString = qs.stringify( query ).replace( /%20/g, '+' ).trim();
+
+			if ( queryString ) {
+				url += '?' + queryString;
+			}
+
+			page.replace( url,
 				context.state,
 				false,
 				false );
 		}
-
-		context.store.dispatch( setSection( 'devdocs' ) );
 
 		ReactDom.render(
 			React.createElement( DocsComponent, {
@@ -68,17 +76,15 @@ var devdocs = {
 		);
 	},
 
-	/**
+	/*
 	 * Controller for single developer document
 	 */
 	singleDoc: function( context ) {
-		context.store.dispatch( setSection( 'devdocs' ) );
-
 		ReactDom.render(
 			React.createElement( SingleDocComponent, {
 				path: context.params.path,
 				term: context.query.term,
-				sectionId: Object.keys( context.hash )[0]
+				sectionId: Object.keys( context.hash )[ 0 ]
 			} ),
 			document.getElementById( 'primary' )
 		);
@@ -86,23 +92,21 @@ var devdocs = {
 
 	// UI components
 	design: function( context ) {
-		context.store.dispatch( setSection( 'devdocs' ) );
-
 		ReactDom.render(
-			React.createElement( DesignAssetsComponent, {
-				component: context.params.component
-			} ),
+			React.createElement( ReduxProvider, { store: context.store },
+				React.createElement( DesignAssetsComponent, {
+					component: context.params.component
+				} )
+			),
 			document.getElementById( 'primary' )
 		);
 	},
 
-	// App components
-	appComponents: function( context ) {
-		context.store.dispatch( setSection( 'devdocs' ) );
-
+	// App Blocks
+	blocks: function( context ) {
 		ReactDom.render(
 			React.createElement( ReduxProvider, { store: context.store },
-				React.createElement( AppComponents, {
+				React.createElement( Blocks, {
 					component: context.params.component
 				} )
 			),
@@ -111,8 +115,6 @@ var devdocs = {
 	},
 
 	typography: function( context ) {
-		context.store.dispatch( setSection( 'devdocs' ) );
-
 		ReactDom.render(
 			React.createElement( Typography, {
 				component: context.params.component
@@ -130,10 +132,9 @@ var devdocs = {
 		);
 	},
 
-	pleaseLogIn: function( context ) {
-		context.store.dispatch( setSection( 'devdocs-start', {
-			hasSidebar: false
-		} ) );
+	pleaseLogIn: function( context ) { // eslint-disable-line no-unused-vars
+		const currentUrl = url.parse( location.href );
+		const redirectUrl = currentUrl.protocol + '//' + currentUrl.host + '/devdocs/welcome';
 
 		ReactDom.unmountComponentAtNode( document.getElementById( 'secondary' ) );
 
@@ -142,7 +143,7 @@ var devdocs = {
 				title: 'Log In to start hacking',
 				line: 'Required to access the WordPress.com API',
 				action: 'Log In to WordPress.com',
-				actionURL: 'https://wordpress.com/wp-login.php?redirect_to=http%3A%2F%2Fcalypso.localhost%3A3000/devdocs/welcome',
+				actionURL: 'https://wordpress.com/wp-login.php?redirect_to=' + encodeURIComponent( redirectUrl ),
 				secondaryAction: 'Register',
 				secondaryActionURL: '/start/developer',
 				illustration: '/calypso/images/drake/drake-nosites.svg'
@@ -152,9 +153,7 @@ var devdocs = {
 	},
 
 	// Welcome screen
-	welcome: function( context ) {
-		context.store.dispatch( setSection( 'devdocs' ) );
-
+	welcome: function( context ) { // eslint-disable-line no-unused-vars
 		ReactDom.render(
 			React.createElement( DevWelcome, {} ),
 			document.getElementById( 'primary' )

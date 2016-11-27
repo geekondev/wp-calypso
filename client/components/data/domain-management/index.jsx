@@ -1,18 +1,22 @@
 /**
  * External dependencies
  */
-var React = require( 'react' );
+import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
 
 /**
  * Internal dependencies
  */
-var StoreConnection = require( 'components/data/store-connection' ),
-	DomainsStore = require( 'lib/domains/store' ),
-	CartStore = require( 'lib/cart/store' ),
-	observe = require( 'lib/mixins/data-observe' ),
-	upgradesActions = require( 'lib/upgrades/actions' );
+import StoreConnection from 'components/data/store-connection';
+import DomainsStore from 'lib/domains/store';
+import CartStore from 'lib/cart/store';
+import observe from 'lib/mixins/data-observe';
+import * as upgradesActions from 'lib/upgrades/actions';
+import QuerySitePlans from 'components/data/query-site-plans';
+import { getPlansBySite } from 'state/sites/plans/selectors';
+import { getSelectedSite } from 'state/ui/selectors';
 
-var stores = [
+const stores = [
 	DomainsStore,
 	CartStore
 ];
@@ -24,48 +28,67 @@ function getStateFromStores( props ) {
 		domains: ( props.selectedSite ? DomainsStore.getBySite( props.selectedSite.ID ) : null ),
 		products: props.products,
 		selectedDomainName: props.selectedDomainName,
-		selectedSite: props.selectedSite
+		selectedSite: props.selectedSite,
+		sitePlans: props.sitePlans
 	};
 }
 
-module.exports = React.createClass( {
-	displayName: 'DomainManagementData',
-
+const DomainManagementData = React.createClass( {
 	propTypes: {
-		context: React.PropTypes.object.isRequired,
-		productsList: React.PropTypes.object.isRequired,
-		selectedDomainName: React.PropTypes.string,
-		sites: React.PropTypes.object.isRequired
+		context: PropTypes.object.isRequired,
+		productsList: PropTypes.object.isRequired,
+		selectedDomainName: PropTypes.string,
+		selectedSite: PropTypes.object,
+		sitePlans: PropTypes.object.isRequired
 	},
 
 	mixins: [ observe( 'productsList' ) ],
 
 	componentWillMount: function() {
-		if ( this.props.sites.getSelectedSite() ) {
-			upgradesActions.fetchDomains( this.props.sites.getSelectedSite().ID );
-		}
+		const { selectedSite } = this.props;
 
-		this.prevSelectedSite = this.props.sites.getSelectedSite();
+		if ( selectedSite ) {
+			upgradesActions.fetchDomains( selectedSite.ID );
+		}
 	},
 
-	componentWillUpdate: function() {
-		if ( this.prevSelectedSite !== this.props.sites.getSelectedSite() ) {
-			upgradesActions.fetchDomains( this.props.sites.getSelectedSite().ID );
-		}
+	componentWillUpdate: function( nextProps ) {
+		const { selectedSite: prevSite } = this.props;
+		const { selectedSite: nextSite } = nextProps;
 
-		this.prevSelectedSite = this.props.sites.getSelectedSite();
+		if ( nextSite !== prevSite ) {
+			upgradesActions.fetchDomains( nextSite.ID );
+		}
 	},
 
 	render: function() {
 		return (
-			<StoreConnection
-				component={ this.props.component }
-				stores={ stores }
-				getStateFromStores={ getStateFromStores }
-				products={ this.props.productsList.get() }
-				selectedDomainName={ this.props.selectedDomainName }
-				selectedSite={ this.props.sites.getSelectedSite() }
-				context={ this.props.context } />
+			<div>
+				<StoreConnection
+					component={ this.props.component }
+					stores={ stores }
+					getStateFromStores={ getStateFromStores }
+					products={ this.props.productsList.get() }
+					selectedDomainName={ this.props.selectedDomainName }
+					selectedSite={ this.props.selectedSite }
+					sitePlans={ this.props.sitePlans }
+					context={ this.props.context }
+				/>
+				{ this.props.selectedSite &&
+					<QuerySitePlans siteId={ this.props.selectedSite.ID } />
+				}
+			</div>
 		);
 	}
 } );
+
+const mapStateToProps = state => {
+	const selectedSite = getSelectedSite( state );
+
+	return {
+		sitePlans: getPlansBySite( state, selectedSite ),
+		selectedSite,
+	};
+};
+
+export default connect( mapStateToProps )( DomainManagementData );

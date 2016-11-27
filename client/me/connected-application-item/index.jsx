@@ -11,7 +11,7 @@ var React = require( 'react' ),
 import eventRecorder from 'me/event-recorder';
 import ConnectedApplicationIcon from 'me/connected-application-icon';
 import safeProtocolUrl from 'lib/safe-protocol-url';
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import Button from 'components/button';
 import FoldableCard from 'components/foldable-card';
 
@@ -98,6 +98,7 @@ export default React.createClass( {
 					components: {
 						siteLink: <a
 							target="_blank"
+							rel="noopener noreferrer"
 							href={ safeProtocolUrl( this.props.connection.site.site_URL ) }
 							onClick={ this.recordClickEvent( 'Connected Application Scope Blog Link' ) }
 						/>
@@ -141,6 +142,7 @@ export default React.createClass( {
 						href={ safeProtocolUrl( URL ) }
 						onClick={ this.recordClickEvent( 'Connected Application Website Link' ) }
 						target="_blank"
+						rel="noopener noreferrer"
 					>
 						{ safeProtocolUrl( URL ) }
 					</a>

@@ -2,13 +2,13 @@
  * External Dependencies
  */
 import React, { Component, PropTypes } from 'react';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import InfoPopover from 'components/info-popover';
 import viewport from 'lib/viewport';
-import i18n from 'lib/mixins/i18n';
 
 /**
  * Local dependencies
@@ -68,7 +68,7 @@ class PostScheduleClock extends Component {
 			hour = checkTimeValue( this.refs.timeHourRef.value ),
 			minute = checkTimeValue( this.refs.timeMinuteRef.value );
 
-		if ( false !== hour && hour <= 24 ) {
+		if ( false !== hour && hour < 24 ) {
 			modifiers.hour = Number( hour );
 		}
 

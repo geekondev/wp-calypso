@@ -5,6 +5,7 @@ var React = require( 'react' ),
 	LinkedStateMixin = require( 'react-addons-linked-state-mixin' ),
 	notices = require( 'notices' ),
 	debug = require( 'debug' )( 'calypso:my-sites:ads-settings' );
+import { connect } from 'react-redux';
 
 /**
  * Internal dependencies
@@ -23,17 +24,21 @@ var Card = require( 'components/card' ),
 	FormTextInput = require( 'components/forms/form-text-input' ),
 	WordadsActions = require( 'lib/ads/actions' ),
 	SettingsStore = require( 'lib/ads/settings-store' ),
-	protectForm = require( 'lib/mixins/protect-form' ),
 	sites = require( 'lib/sites-list' )();
 
-module.exports = React.createClass( {
+import { dismissWordAdsSuccess } from 'state/wordads/approve/actions';
+import { protectForm } from 'lib/protect-form';
+
+const AdsFormSettings = React.createClass( {
 
 	displayName: 'AdsFormSettings',
 
-	mixins: [ LinkedStateMixin, protectForm.mixin ],
+	mixins: [ LinkedStateMixin ],
 
 	propTypes: {
 		site: React.PropTypes.object.isRequired,
+		markChanged: React.PropTypes.func.isRequired,
+		markSaved: React.PropTypes.func.isRequired
 	},
 
 	componentWillMount: function() {
@@ -49,9 +54,11 @@ module.exports = React.createClass( {
 
 	updateSettings: function() {
 		var settings = this.getSettingsFromStore();
+		const site = sites.getSelectedSite();
 		this.setState( settings );
 
 		// set/clear any notices on update
+		site && this.props.dismissWordAdsSuccess( site.ID );
 		if ( settings.error && settings.error.message ) {
 			notices.error( settings.error.message );
 		} else if ( settings.notice ) {
@@ -107,7 +114,7 @@ module.exports = React.createClass( {
 		event.preventDefault();
 		WordadsActions.updateSettings( sites.getSelectedSite(), this.packageState() );
 		this.setState( { notice: null, error: null } );
-		this.markSaved();
+		this.props.markSaved();
 	},
 
 	getSettingsFromStore: function( siteInstance ) {
@@ -137,7 +144,7 @@ module.exports = React.createClass( {
 			optimized_ads: false,
 			paypal: '',
 			show_to_logged_in: 'yes',
-			state: '',
+			state: 'AL',
 			taxid_last4: '',
 			tos: 'signed',
 			us_resident: 'no',
@@ -170,7 +177,7 @@ module.exports = React.createClass( {
 	},
 
 	_fetchIfEmpty: function( site ) {
-		var site = site || this.props.site;
+		site = site || this.props.site;
 		if ( ! site || ! site.ID ) {
 			return;
 		}
@@ -234,7 +241,7 @@ module.exports = React.createClass( {
 						disabled={ this.state.isLoading } />
 					<span>
 						{ this.translate( 'Show optimized ads. ' ) }
-						<a target="_blank" href="https://wordads.co/optimized-ads/">
+						<a target="_blank" rel="noopener noreferrer" href="https://wordads.co/optimized-ads/">
 							{ this.translate( 'Learn More' ) }
 						</a>
 					</span>
@@ -365,7 +372,7 @@ module.exports = React.createClass( {
 						checkedLink={ this.linkState( 'tos' ) }
 						disabled={ this.state.isLoading || 'signed' === this.state.tos } />
 					<span>{ this.translate( 'I have read and agree to the {{a}}WordAds Terms of Service{{/a}}.', {
-						components: { a: <a href="https://wordpress.com/tos-wordads/" target="_blank" /> }
+						components: { a: <a href="https://wordpress.com/tos-wordads/" target="_blank" rel="noopener noreferrer" /> }
 					} ) }</span>
 				</FormLabel>
 			</FormFieldset>
@@ -375,7 +382,7 @@ module.exports = React.createClass( {
 	render: function() {
 		return (
 			<Card className="settings">
-				<form id="wordads-settings" onSubmit={ this.submitForm } onChange={ this.markChanged }>
+				<form id="wordads-settings" onSubmit={ this.submitForm } onChange={ this.props.markChanged }>
 					<FormButtonsBar>
 						<FormButton
 							disabled={ this.state.isLoading || this.state.isSubmitting }>
@@ -400,3 +407,5 @@ module.exports = React.createClass( {
 		);
 	}
 } );
+
+export default connect( null, { dismissWordAdsSuccess } )( protectForm( AdsFormSettings ) );

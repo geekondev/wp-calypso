@@ -3,28 +3,34 @@
  */
 import debugModule from 'debug';
 import pick from 'lodash/pick';
+import throttle from 'lodash/throttle';
 
 /**
  * Internal dependencies
  */
 import { createReduxStore, reducer } from 'state';
-import { SERIALIZE, DESERIALIZE, SERVER_DESERIALIZE } from 'state/action-types'
-import { getLocalForage } from 'lib/localforage';
+import {
+	SERIALIZE,
+	DESERIALIZE,
+	SERVER_DESERIALIZE
+} from 'state/action-types';
+import localforage from 'lib/localforage';
+import { isSupportUserSession } from 'lib/user/support-user-interop';
 import config from 'config';
 
 /**
  * Module variables
  */
 const debug = debugModule( 'calypso:state' );
-const localforage = getLocalForage();
 
 const DAY_IN_HOURS = 24;
 const HOUR_IN_MS = 3600000;
+export const SERIALIZE_THROTTLE = 500;
 export const MAX_AGE = 7 * DAY_IN_HOURS * HOUR_IN_MS;
 
 function getInitialServerState() {
 	// Bootstrapped state from a server-render
-	if ( typeof window === 'object' && window.initialReduxState ) {
+	if ( typeof window === 'object' && window.initialReduxState && ! isSupportUserSession() ) {
 		const serverState = reducer( window.initialReduxState, { type: SERVER_DESERIALIZE } );
 		return pick( serverState, Object.keys( window.initialReduxState ) );
 	}
@@ -62,18 +68,27 @@ function loadInitialStateFailed( error ) {
 	return createReduxStore();
 }
 
-function persistOnChange( reduxStore ) {
-	reduxStore.subscribe( function() {
-		localforage.setItem( 'redux-state', serialize( reduxStore.getState() ) )
+export function persistOnChange( reduxStore, serializeState = serialize ) {
+	let state;
+	reduxStore.subscribe( throttle( function() {
+		const nextState = reduxStore.getState();
+		if ( state && nextState === state ) {
+			return;
+		}
+
+		state = nextState;
+
+		localforage.setItem( 'redux-state', serializeState( state ) )
 			.catch( ( setError ) => {
 				debug( 'failed to set redux-store state', setError );
 			} );
-	} );
+	}, SERIALIZE_THROTTLE, { leading: false, trailing: true } ) );
+
 	return reduxStore;
 }
 
 export default function createReduxStoreFromPersistedInitialState( reduxStoreReady ) {
-	if ( config.isEnabled( 'persist-redux' ) ) {
+	if ( config.isEnabled( 'persist-redux' ) && ! isSupportUserSession() ) {
 		localforage.getItem( 'redux-state' )
 			.then( loadInitialState )
 			.catch( loadInitialStateFailed )
@@ -84,4 +99,3 @@ export default function createReduxStoreFromPersistedInitialState( reduxStoreRea
 		reduxStoreReady( loadInitialState( {} ) );
 	}
 }
-

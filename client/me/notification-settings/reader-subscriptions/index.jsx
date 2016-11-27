@@ -8,7 +8,7 @@ import LinkedStateMixin from 'react-addons-linked-state-mixin';
  * Internal dependencies
  */
 import MeSidebarNavigation from 'me/sidebar-navigation';
-import protectForm from 'lib/mixins/protect-form';
+import { protectForm } from 'lib/protect-form';
 import formBase from 'me/form-base';
 import Card from 'components/card';
 import Navigation from 'me/notification-settings/navigation';
@@ -26,10 +26,10 @@ import observe from 'lib/mixins/data-observe';
 import eventRecorder from 'me/event-recorder';
 import Main from 'components/main';
 
-module.exports = React.createClass( {
+module.exports = protectForm( React.createClass( {
 	displayName: 'NotificationSubscriptions',
 
-	mixins: [ formBase, LinkedStateMixin, protectForm.mixin, observe( 'userSettings' ), eventRecorder ],
+	mixins: [ formBase, LinkedStateMixin, observe( 'userSettings' ), eventRecorder ],
 
 	getDeliveryHourLabel( hour ) {
 		return this.translate(
@@ -46,14 +46,14 @@ module.exports = React.createClass( {
 
 	render() {
 		return (
-			<Main className="notifications">
+			<Main className="notifications-settings">
 				<MeSidebarNavigation />
 				<ReauthRequired twoStepAuthorization={ twoStepAuthorization } />
 
 				<Navigation path={ this.props.path } />
 
 				<Card className="me-notification-settings">
-					<form id="notification-settings" onChange={ this.markChanged } onSubmit={ this.submitForm } >
+					<form id="notification-settings" onChange={ this.props.markChanged } onSubmit={ this.submitForm } >
 						<FormSectionHeading>{ this.translate( 'Subscriptions Delivery' ) }</FormSectionHeading>
 						<p>
 							{ this.translate( '{{readerLink}}Use the Reader{{/readerLink}} to adjust delivery settings for your existing subscriptions.',
@@ -89,7 +89,7 @@ module.exports = React.createClass( {
 									id="subscription_delivery_jabber_default"
 									name="subscription_delivery_jabber_default"
 									onClick={ this.recordCheckboxEvent( 'Notification Delivery by Jabber' ) } />
-									{ this.translate( 'Default delivery via Jabber instant message' ) }
+									<span>{ this.translate( 'Default delivery via Jabber instant message' ) }</span>
 							</FormLabel>
 						</FormFieldset>
 
@@ -158,7 +158,7 @@ module.exports = React.createClass( {
 									id="subscription_delivery_email_blocked"
 									name="subscription_delivery_email_blocked"
 									onClick={ this.recordCheckboxEvent( 'Block All Notification Emails' ) }/>
-									{ this.translate( 'Block all email updates from blogs you’re following on WordPress.com' ) }
+									<span>{ this.translate( 'Block all email updates from blogs you’re following on WordPress.com' ) }</span>
 							</FormLabel>
 						</FormFieldset>
 
@@ -173,4 +173,4 @@ module.exports = React.createClass( {
 			</Main>
 		);
 	}
-} );
+} ) );

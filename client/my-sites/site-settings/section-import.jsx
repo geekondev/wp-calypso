@@ -2,7 +2,7 @@
  * External dependencies
  */
 import React, { PropTypes } from 'react';
-import includes from 'lodash/includes';
+import config from 'config';
 
 /**
  * Internal dependencies
@@ -12,17 +12,22 @@ import EmptyContent from 'components/empty-content';
 import ImporterStore, { getState as getImporterState } from 'lib/importer/store';
 import Interval, { EVERY_FIVE_SECONDS } from 'lib/interval';
 import WordPressImporter from 'my-sites/importer/importer-wordpress';
+import MediumImporter from 'my-sites/importer/importer-medium';
 import { fetchState } from 'lib/importer/actions';
-import { appStates, WORDPRESS } from 'lib/importer/constants';
+import { appStates, WORDPRESS, MEDIUM } from 'state/imports/constants';
+import EmailVerificationGate from 'components/email-verification/email-verification-gate';
 
 export default React.createClass( {
 	displayName: 'SiteSettingsImport',
 
 	propTypes: {
-		site: PropTypes.shape( {
-			slug: PropTypes.string.isRequired,
-			title: PropTypes.string.isRequired
-		} )
+		site: React.PropTypes.oneOfType( [
+			React.PropTypes.bool,
+			PropTypes.shape( {
+				slug: PropTypes.string.isRequired,
+				title: PropTypes.string.isRequired
+			} )
+		] )
 	},
 
 	componentDidMount: function() {
@@ -107,20 +112,26 @@ export default React.createClass( {
 
 		return (
 			<div className="section-import">
-				<Interval onTick={ this.updateFromAPI } period={ EVERY_FIVE_SECONDS } />
-				<CompactCard>
-					<header>
-						<h1 className="importer__section-title">{ this.translate( 'Import Another Site' ) }</h1>
-						<p className="importer__section-description">{ description }</p>
-					</header>
-				</CompactCard>
+				<EmailVerificationGate>
+					<Interval onTick={ this.updateFromAPI } period={ EVERY_FIVE_SECONDS } />
+					<CompactCard>
+						<header>
+							<h1 className="importer__section-title">{ this.translate( 'Import Another Site' ) }</h1>
+							<p className="importer__section-description">{ description }</p>
+						</header>
+					</CompactCard>
 
-				{ this.getImports( WORDPRESS ).map( ( importerStatus, key ) =>
-					<WordPressImporter { ...{ key, site, importerStatus } } /> ) }
+					{ this.getImports( WORDPRESS ).map( ( importerStatus, key ) =>
+						<WordPressImporter { ...{ key, site, importerStatus } } /> ) }
 
-				<CompactCard href={ adminUrl + 'import.php' } target="_blank">
-					{ this.translate( 'Other importers') }
-				</CompactCard>
+					{ config.isEnabled( 'manage/import/medium' ) &&
+						this.getImports( MEDIUM ).map( ( importerStatus, key ) =>
+							<MediumImporter { ...{ key, site, importerStatus } } /> ) }
+
+					<CompactCard href={ adminUrl + 'import.php' } target="_blank" rel="noopener noreferrer">
+						{ this.translate( 'Other importers' ) }
+					</CompactCard>
+				</EmailVerificationGate>
 			</div>
 		);
 	}

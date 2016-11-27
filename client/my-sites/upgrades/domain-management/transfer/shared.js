@@ -2,12 +2,12 @@
  * External dependencies
  */
 import React from 'react';
+import { translate } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import notices from 'notices';
-import { translate } from 'lib/mixins/i18n';
 import support from 'lib/url/support';
 
 export const displayResponseError = ( responseError ) => {
@@ -36,7 +36,7 @@ export const displayResponseError = ( responseError ) => {
 					args: errorMessages[ responseError.error ],
 					components: {
 						strong: <strong />,
-						a: <a href={ support.CONTACT } target="_blank"/>
+						a: <a href={ support.CALYPSO_CONTACT } target="_blank" rel="noopener noreferrer"/>
 					}
 				}
 			)
@@ -49,7 +49,7 @@ export const displayResponseError = ( responseError ) => {
 				'to have trouble.',
 				{
 					components: {
-						a: <a href={ support.CONTACT } target="_blank"/>
+						a: <a href={ support.CALYPSO_CONTACT } target="_blank" rel="noopener noreferrer"/>
 					}
 				}
 			)

@@ -15,7 +15,7 @@ var Follow = require( './action-follow' ),
 	Spam = require( './action-spam' ),
 	Emojify = require( 'components/emojify' ),
 	titlecase = require( 'to-title-case' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	Gridicon = require( 'components/gridicon' );
 
 module.exports = React.createClass( {
@@ -82,18 +82,15 @@ module.exports = React.createClass( {
 			if ( 'function' === typeof this.props.itemClickHandler ) {
 				event.stopPropagation();
 				this.props.itemClickHandler( event, this.props.data );
-			} else {
-				// Default click handler actions
-				if ( this.props.data.page && ! this.props.children ) {
-					gaEvent = [ 'Clicked', moduleName, 'Summary Link' ].join( ' ' );
-					page( this.props.data.page );
-				} else if ( this.props.data.link && ! this.props.children ) {
-					gaEvent = [ 'Clicked', moduleName, 'External Link' ].join( ' ' );
+			} else if ( this.props.data.page && ! this.props.children ) {
+				gaEvent = [ 'Clicked', moduleName, 'Summary Link' ].join( ' ' );
+				page( this.props.data.page );
+			} else if ( this.props.data.link && ! this.props.children ) {
+				gaEvent = [ 'Clicked', moduleName, 'External Link' ].join( ' ' );
 
-					window.open( this.props.data.link );
-				} else if ( ! this.props.children ) {
-					gaEvent = 'Clicked on ' + moduleName;
-				}
+				window.open( this.props.data.link );
+			} else if ( ! this.props.children ) {
+				gaEvent = 'Clicked on ' + moduleName;
 			}
 
 			if ( gaEvent ) {

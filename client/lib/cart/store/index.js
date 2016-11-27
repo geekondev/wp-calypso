@@ -22,8 +22,6 @@ var UpgradesActionTypes = require( 'lib/upgrades/constants' ).action,
 	applyCoupon = cartValues.applyCoupon,
 	cartItems = cartValues.cartItems;
 
-var POLLING_INTERVAL = 5000;
-
 var _selectedSiteID = null,
 	_synchronizer = null,
 	_poller = null;
@@ -61,10 +59,6 @@ function setSelectedSite() {
 		return;
 	}
 
-	if ( ! selectedSite.isUpgradeable() ) {
-		return;
-	}
-
 	if ( _synchronizer && _poller ) {
 		PollerPool.remove( _poller );
 		_synchronizer.off( 'change', emitChange );
@@ -75,7 +69,7 @@ function setSelectedSite() {
 	_synchronizer = cartSynchronizer( selectedSite.ID, wpcom );
 	_synchronizer.on( 'change', emitChange );
 
-	_poller = PollerPool.add( CartStore, _synchronizer._poll.bind( _synchronizer ), { interval: POLLING_INTERVAL } );
+	_poller = PollerPool.add( CartStore, _synchronizer._poll.bind( _synchronizer ) );
 }
 
 function emitChange() {
@@ -120,7 +114,7 @@ CartStore.dispatchToken = Dispatcher.register( ( payload ) => {
 			break;
 
 		case UpgradesActionTypes.CART_ITEM_REMOVE:
-			update( cartItems.removeItemAndDependencies( action.cartItem, CartStore.get() ) );
+			update( cartItems.removeItemAndDependencies( action.cartItem, CartStore.get(), action.domainsWithPlansOnly ) );
 			break;
 	}
 } );

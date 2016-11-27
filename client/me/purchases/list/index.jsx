@@ -1,6 +1,7 @@
 /**
  * External Dependencies
  */
+import { connect } from 'react-redux';
 import React from 'react';
 
 /**
@@ -8,63 +9,32 @@ import React from 'react';
  */
 import CompactCard from 'components/card';
 import EmptyContent from 'components/empty-content';
+import { getUserPurchases, hasLoadedUserPurchasesFromServer, isFetchingUserPurchases } from 'state/purchases/selectors';
 import { getPurchasesBySite } from 'lib/purchases';
 import Main from 'components/main';
 import MeSidebarNavigation from 'me/sidebar-navigation';
-import Notice from 'components/notice';
 import PurchasesHeader from './header';
 import PurchasesSite from './site';
+import QueryUserPurchases from 'components/data/query-user-purchases';
+import userFactory from 'lib/user';
+const user = userFactory();
 
 const PurchasesList = React.createClass( {
-	renderNotice() {
-		const { noticeType } = this.props;
-
-		if ( ! noticeType ) {
-			return null;
-		}
-
-		let message, status;
-
-		if ( 'cancel-success' === noticeType ) {
-			message = this.translate(
-				'Your purchase was canceled and refunded. The refund may take up to ' +
-				'7 days to appear in your PayPal/bank/credit card account.'
-			);
-
-			status = 'is-success';
-		}
-
-		if ( 'cancel-problem' === noticeType ) {
-			message = this.translate(
-				'There was a problem canceling your purchase. ' +
-				'Please {{a}}contact support{{/a}} for more information.',
-				{
-					components: {
-						a: <a href="https://support.wordpress.com/" />
-					}
-				}
-			);
-
-			status = 'is-error';
-		}
-
-		return (
-			<Notice showDismiss={ false } status={ status }>
-				{ message }
-			</Notice>
-		);
+	propTypes: {
+		noticeType: React.PropTypes.string,
+		purchases: React.PropTypes.oneOfType( [
+			React.PropTypes.array,
+			React.PropTypes.bool
+		] ),
+		sites: React.PropTypes.object.isRequired
 	},
 
 	isDataLoading() {
-		if ( this.props.purchases.isFetching && ! this.props.purchases.hasLoadedFromServer ) {
+		if ( this.props.isFetchingUserPurchases && ! this.props.hasLoadedUserPurchasesFromServer ) {
 			return true;
 		}
 
-		if ( ! this.props.sites.initialized ) {
-			return true;
-		}
-
-		return false;
+		return ! this.props.sites.initialized;
 	},
 
 	render() {
@@ -74,19 +44,20 @@ const PurchasesList = React.createClass( {
 			content = <PurchasesSite isPlaceholder />;
 		}
 
-		if ( this.props.purchases.hasLoadedFromServer && this.props.purchases.data.length ) {
-			content = getPurchasesBySite( this.props.purchases.data, this.props.sites.get() ).map(
+		if ( this.props.hasLoadedUserPurchasesFromServer && this.props.purchases.length ) {
+			content = getPurchasesBySite( this.props.purchases, this.props.sites.get() ).map(
 				site => (
 					<PurchasesSite
 						key={ site.id }
 						name={ site.title }
+						domain={ site.domain }
 						slug={ site.slug }
 						purchases={ site.purchases } />
 				)
 			);
 		}
 
-		if ( this.props.purchases.hasLoadedFromServer && ! this.props.purchases.data.length ) {
+		if ( this.props.hasLoadedUserPurchasesFromServer && ! this.props.purchases.length ) {
 			content = (
 				<CompactCard className="purchases-list__no-content">
 					<EmptyContent
@@ -103,10 +74,10 @@ const PurchasesList = React.createClass( {
 
 		return (
 			<span>
-				{ this.renderNotice() }
 				<Main className="purchases-list">
 					<MeSidebarNavigation />
 					<PurchasesHeader section={ 'purchases' } />
+					<QueryUserPurchases userId={ user.get().ID } />
 					{ content }
 				</Main>
 			</span>
@@ -114,4 +85,11 @@ const PurchasesList = React.createClass( {
 	}
 } );
 
-export default PurchasesList;
+export default connect(
+	state => ( {
+		purchases: getUserPurchases( state, user.get().ID ),
+		hasLoadedUserPurchasesFromServer: hasLoadedUserPurchasesFromServer( state ),
+		isFetchingUserPurchases: isFetchingUserPurchases( state )
+	} ),
+	undefined
+)( PurchasesList );

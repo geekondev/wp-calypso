@@ -10,13 +10,15 @@ var TagEmptyContent = React.createClass( {
 	},
 
 	recordAction: function() {
-		stats.recordAction( 'clicked_following_on_empty' );
-		stats.recordGaEvent( 'Clicked Following on EmptyContent' );
+		stats.recordAction( 'clicked_following_on_empty_likes' );
+		stats.recordGaEvent( 'Clicked Following on Empty Like Stream' );
+		stats.recordTrack( 'calypso_reader_following_on_empty_like_stream_clicked' );
 	},
 
 	recordSecondaryAction: function() {
-		stats.recordAction( 'clicked_discover_on_empty' );
-		stats.recordGaEvent( 'Clicked Discover on EmptyContent' );
+		stats.recordAction( 'clicked_discover_on_empty_likes' );
+		stats.recordGaEvent( 'Clicked Discover on Empty Like Stream' );
+		stats.recordTrack( 'calypso_reader_discover_on_empty_like_stream_clicked' );
 	},
 
 	render: function() {
@@ -24,7 +26,7 @@ var TagEmptyContent = React.createClass( {
 			className="empty-content__action button is-primary"
 			onClick={ this.recordAction }
 			href="/">{ this.translate( 'Back to Following' ) }</a> ),
-			secondaryAction = discoverHelper.isEnabled()
+			secondaryAction = discoverHelper.isDiscoverEnabled()
 			? ( <a
 				className="empty-content__action button"
 				onClick={ this.recordSecondaryAction }

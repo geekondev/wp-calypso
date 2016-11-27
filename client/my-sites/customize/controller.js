@@ -1,7 +1,8 @@
 /**
  * External Dependencies
  */
-var ReactDom = require( 'react-dom' ),
+var i18n = require( 'i18n-calypso' ),
+	ReactDom = require( 'react-dom' ),
 	React = require( 'react' ),
 	ReduxProvider = require( 'react-redux' ).Provider;
 
@@ -10,20 +11,18 @@ var ReactDom = require( 'react-dom' ),
  */
 var sites = require( 'lib/sites-list' )(),
 	route = require( 'lib/route' ),
-	i18n = require( 'lib/mixins/i18n' ),
-	analytics = require( 'analytics' ),
-	titleActions = require( 'lib/screen-title/actions' );
+	analytics = require( 'lib/analytics' ),
+	setTitle = require( 'state/document-head/actions' ).setDocumentHeadTitle;
 
 module.exports = {
 
 	customize: function( context ) {
 		var CustomizeComponent = require( 'my-sites/customize/main' ),
-			basePath = route.sectionify( context.path ),
-			siteID = route.getSiteFragment( context.path );
+			basePath = route.sectionify( context.path );
 
 		analytics.pageView.record( basePath, 'Customizer' );
 
-		titleActions.setTitle( i18n.translate( 'Customizer', { textOnly: true } ), { siteID: siteID } );
+		context.store.dispatch( setTitle( i18n.translate( 'Customizer', { textOnly: true } ) ) ); // FIXME: Auto-converted from the Flux setTitle action. Please use <DocumentHead> instead.
 
 		ReactDom.render(
 			React.createElement( ReduxProvider, { store: context.store },
@@ -31,7 +30,8 @@ module.exports = {
 					domain: context.params.domain || '',
 					sites: sites,
 					prevPath: context.prevPath || '',
-					query: context.query
+					query: context.query,
+					panel: context.params.panel
 				} )
 			),
 			document.getElementById( 'primary' )

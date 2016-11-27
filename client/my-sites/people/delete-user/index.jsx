@@ -16,11 +16,11 @@ const Card = require( 'components/card' ),
 	FormRadio = require( 'components/forms/form-radio' ),
 	FormButton = require( 'components/forms/form-button' ),
 	FormButtonsBar = require( 'components/forms/form-buttons-bar' ),
-	AuthorSelector = require( 'components/author-selector' ),
+	AuthorSelector = require( 'blocks/author-selector' ),
 	UsersActions = require( 'lib/users/actions' ),
-	Gravatar = require( 'components/gravatar' ),
 	accept = require( 'lib/accept' ),
-	analytics = require( 'analytics' );
+	analytics = require( 'lib/analytics' );
+import Gravatar from 'components/gravatar';
 
 module.exports = React.createClass( {
 	displayName: 'DeleteUser',

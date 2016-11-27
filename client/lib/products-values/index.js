@@ -1,5 +1,3 @@
-/** @ssr-ready **/
-
 /**
  * External dependencies
  */
@@ -11,6 +9,24 @@ var assign = require( 'lodash/assign' ),
 /**
  * Internal dependencies
  */
+import {
+	PLAN_BUSINESS,
+	PLAN_PREMIUM,
+	PLAN_PERSONAL,
+	PLAN_FREE,
+	PLAN_JETPACK_FREE,
+	PLAN_JETPACK_PREMIUM,
+	PLAN_JETPACK_PREMIUM_MONTHLY,
+	PLAN_JETPACK_PERSONAL,
+	PLAN_JETPACK_PERSONAL_MONTHLY,
+	PLAN_JETPACK_BUSINESS,
+	PLAN_JETPACK_BUSINESS_MONTHLY,
+	PLAN_HOST_BUNDLE,
+	PLAN_WPCOM_ENTERPRISE,
+	PLAN_CHARGEBACK,
+	PLAN_MONTHLY_PERIOD,
+} from 'lib/plans/constants';
+
 var schema = require( './schema.json' );
 
 var productDependencies = {
@@ -50,21 +66,21 @@ function isChargeback( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return product.product_slug === 'chargeback';
+	return product.product_slug === PLAN_CHARGEBACK;
 }
 
 function isFreePlan( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return product.product_slug === 'free_plan';
+	return product.product_slug === PLAN_FREE;
 }
 
 function isFreeJetpackPlan( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return product.product_slug === 'jetpack_free';
+	return product.product_slug === PLAN_JETPACK_FREE;
 }
 
 function isFreeTrial( product ) {
@@ -74,8 +90,17 @@ function isFreeTrial( product ) {
 	return Boolean( product.free_trial );
 }
 
+function isPersonal( product ) {
+	var personalProducts = [ PLAN_PERSONAL, PLAN_JETPACK_PERSONAL, PLAN_JETPACK_PERSONAL_MONTHLY ];
+
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return ( personalProducts.indexOf( product.product_slug ) >= 0 );
+}
+
 function isPremium( product ) {
-	var premiumProducts = [ 'value_bundle', 'jetpack_premium' ];
+	var premiumProducts = [ PLAN_PREMIUM, PLAN_JETPACK_PREMIUM, PLAN_JETPACK_PREMIUM_MONTHLY ];
 
 	product = formatProduct( product );
 	assertValidProduct( product );
@@ -84,7 +109,7 @@ function isPremium( product ) {
 }
 
 function isBusiness( product ) {
-	var businessProducts = [ 'business-bundle', 'jetpack_business' ];
+	var businessProducts = [ PLAN_BUSINESS, PLAN_JETPACK_BUSINESS, PLAN_JETPACK_BUSINESS_MONTHLY ];
 
 	product = formatProduct( product );
 	assertValidProduct( product );
@@ -96,14 +121,16 @@ function isEnterprise( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return product.product_slug === 'wpcom-enterprise';
+	return product.product_slug === PLAN_WPCOM_ENTERPRISE;
 }
 
 function isJetpackPlan( product ) {
+	var jetpackProducts = [ PLAN_JETPACK_FREE, PLAN_JETPACK_PREMIUM, PLAN_JETPACK_PREMIUM_MONTHLY, PLAN_JETPACK_BUSINESS, PLAN_JETPACK_BUSINESS_MONTHLY, PLAN_JETPACK_PERSONAL, PLAN_JETPACK_PERSONAL_MONTHLY ];
+
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return 'jetpack' === product.product_type;
+	return ( jetpackProducts.indexOf( product.product_slug ) >= 0 );
 }
 
 function isJetpackBusiness( product ) {
@@ -120,11 +147,22 @@ function isJetpackPremium( product ) {
 	return isPremium( product ) && isJetpackPlan( product );
 }
 
+function isJetpackMonthlyPlan( product ) {
+	return isMonthly( product ) && isJetpackPlan( product );
+}
+
+function isMonthly( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return product.bill_period === PLAN_MONTHLY_PERIOD;
+}
+
 function isJpphpBundle( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	return product.product_slug === 'host-bundle';
+	return product.product_slug === PLAN_HOST_BUNDLE;
 }
 
 function isPlan( product ) {
@@ -132,6 +170,7 @@ function isPlan( product ) {
 	assertValidProduct( product );
 
 	return (
+		isPersonal( product ) ||
 		isPremium( product ) ||
 		isBusiness( product ) ||
 		isEnterprise( product ) ||
@@ -168,12 +207,7 @@ function isDomainRegistration( product ) {
 	product = formatProduct( product );
 	assertValidProduct( product );
 
-	if ( typeof product.is_domain_registration === 'undefined' ) {
-		throw new Error( 'The `is_domain_registration` product attribute is ' +
-		'required to use this function.' );
-	}
-
-	return product.is_domain_registration;
+	return !! product.is_domain_registration;
 }
 
 function isDomainMapping( product ) {
@@ -210,8 +244,8 @@ function getDomainProductRanking( product ) {
 	}
 }
 
-function isDependentProduct( product, dependentProduct ) {
-	var slug, dependentSlug;
+function isDependentProduct( product, dependentProduct, domainsWithPlansOnly ) {
+	var slug, dependentSlug, isPlansOnlyDependent = false;
 
 	product = formatProduct( product );
 	assertValidProduct( product );
@@ -219,11 +253,20 @@ function isDependentProduct( product, dependentProduct ) {
 	slug = isDomainRegistration( product ) ? 'domain' : product.product_slug;
 	dependentSlug = isDomainRegistration( dependentProduct ) ? 'domain' : dependentProduct.product_slug;
 
-	return (
+	if ( domainsWithPlansOnly ) {
+		isPlansOnlyDependent = isPlan( product ) && ( isDomainRegistration( dependentProduct ) || isDomainMapping( dependentProduct ) );
+	}
+
+	return isPlansOnlyDependent || (
 		productDependencies[ slug ] &&
 		productDependencies[ slug ][ dependentSlug ] &&
 		product.meta === dependentProduct.meta
 	);
+}
+function isFreeWordPressComDomain( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+	return product.is_free === true;
 }
 
 function isGoogleApps( product ) {
@@ -231,6 +274,13 @@ function isGoogleApps( product ) {
 	assertValidProduct( product );
 
 	return 'gapps' === product.product_slug || 'gapps_unlimited' === product.product_slug || 'gapps_extra_license' === product.product_slug;
+}
+
+function isGuidedTransfer( product ) {
+	product = formatProduct( product );
+	assertValidProduct( product );
+
+	return 'guided_transfer' === product.product_slug;
 }
 
 function isTheme( product ) {
@@ -305,11 +355,16 @@ module.exports = {
 	isEnterprise,
 	isFreeJetpackPlan,
 	isFreePlan,
+	isPersonal,
 	isFreeTrial,
+	isFreeWordPressComDomain,
 	isGoogleApps,
+	isGuidedTransfer,
 	isJetpackBusiness,
 	isJetpackPlan,
 	isJetpackPremium,
+	isJetpackMonthlyPlan,
+	isMonthly,
 	isJpphpBundle,
 	isNoAds,
 	isPlan,

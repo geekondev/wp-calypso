@@ -12,7 +12,6 @@ import Main from 'components/main';
 import observe from 'lib/mixins/data-observe';
 import SiteSelector from 'components/site-selector';
 import { addSiteFragment } from 'lib/route';
-import { preventWidows } from 'lib/formatting';
 
 export default React.createClass( {
 	displayName: 'Sites',
@@ -64,7 +63,7 @@ export default React.createClass( {
 			return this.props.getSiteSelectionHeaderText();
 		}
 
-		const path = this.props.path.replace( /\//g, ' ' );
+		const path = this.props.path.split( '?' )[ 0 ].replace( /\//g, ' ' );
 
 		return this.translate( 'Please select a site to open {{strong}}%(path)s{{/strong}}', {
 			args: {
@@ -84,6 +83,7 @@ export default React.createClass( {
 				</h2>
 				<Card className="sites__selector-wrapper">
 					<SiteSelector
+						autoFocus={ true }
 						filter={ ( site ) => this.filterSites( site ) }
 						onSiteSelect={ this.onSiteSelect }
 						sites={ this.props.sites }

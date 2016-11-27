@@ -2,45 +2,45 @@
  * External Dependencies
  */
 var page = require( 'page' ),
-	ReactDom = require( 'react-dom' ),
-	React = require( 'react' );
+	React = require( 'react' ),
+	i18n = require( 'i18n-calypso' );
 
 /**
  * Internal Dependencies
  */
 var sites = require( 'lib/sites-list' )(),
-	user = require( 'lib/user' )(),
-	i18n = require( 'lib/mixins/i18n' ),
+	utils = require( 'lib/site/utils' ),
 	notices = require( 'notices' ),
 	route = require( 'lib/route' ),
-	analytics = require( 'analytics' ),
-	titleActions = require( 'lib/screen-title/actions' ),
+	analytics = require( 'lib/analytics' ),
+	setTitle = require( 'state/document-head/actions' ).setDocumentHeadTitle,
 	analyticsPageTitle = 'Sharing';
+
+import { renderWithReduxStore } from 'lib/react-helpers';
 
 module.exports = {
 	layout: function( context ) {
 		var Sharing = require( 'my-sites/sharing/main' ),
-			site = sites.getSelectedSite(),
-			siteUrl = route.getSiteFragment( context.path );
+			site = sites.getSelectedSite();
 
-		titleActions.setTitle( i18n.translate( 'Sharing', { textOnly: true } ), { siteID: siteUrl } );
+		context.store.dispatch( setTitle( i18n.translate( 'Sharing', { textOnly: true } ) ) ); // FIXME: Auto-converted from the Flux setTitle action. Please use <DocumentHead> instead.
 
-		if ( site && ! site.settings && site.user_can_manage ) {
+		if ( site && ! site.settings && utils.userCan( 'manage_options', site ) ) {
 			site.fetchSettings();
 		}
 
-		ReactDom.render(
+		renderWithReduxStore(
 			React.createElement( Sharing, {
 				path: context.path,
 				contentComponent: context.contentComponent
 			} ),
-			document.getElementById( 'primary' )
+			document.getElementById( 'primary' ),
+			context.store
 		);
 	},
 
 	connections: function( context, next ) {
 		var SharingConnections = require( 'my-sites/sharing/connections/connections' ),
-			servicesList = require( 'lib/services-list' )(),
 			connectionsList = require( 'lib/connections-list' )(),
 			site = sites.getSelectedSite(),
 			basePath = route.sectionify( context.path ),
@@ -52,7 +52,7 @@ module.exports = {
 			baseAnalyticsPath = basePath;
 		}
 
-		if ( site && site.capabilities && ! site.capabilities.publish_posts ) {
+		if ( site && ! utils.userCan( 'publish_posts', site ) ) {
 			notices.error( i18n.translate( 'You are not authorized to manage sharing settings for this site.' ) );
 		}
 
@@ -64,10 +64,7 @@ module.exports = {
 			analytics.pageView.record( baseAnalyticsPath, analyticsPageTitle + ' > Connections' );
 
 			context.contentComponent = React.createElement( SharingConnections, {
-				user: user,
-				services: servicesList,
 				connections: connectionsList,
-				sites: sites
 			} );
 		}
 
@@ -90,7 +87,7 @@ module.exports = {
 
 		analytics.pageView.record( baseAnalyticsPath, analyticsPageTitle + ' > Sharing Buttons' );
 
-		if ( site && ! site.user_can_manage ) {
+		if ( site && ! utils.userCan( 'manage_options', site ) ) {
 			notices.error( i18n.translate( 'You are not authorized to manage sharing settings for this site.' ) );
 		}
 

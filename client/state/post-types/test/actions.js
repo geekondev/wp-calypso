@@ -1,10 +1,8 @@
 /**
  * External dependencies
  */
-import nock from 'nock';
 import sinon from 'sinon';
-import sinonChai from 'sinon-chai';
-import Chai, { expect } from 'chai';
+import { expect } from 'chai';
 
 /**
  * Internal dependencies
@@ -19,20 +17,13 @@ import {
 	receivePostTypes,
 	requestPostTypes
 } from '../actions';
+import useNock from 'test/helpers/use-nock';
 
 describe( 'actions', () => {
 	const spy = sinon.spy();
 
-	before( () => {
-		Chai.use( sinonChai );
-	} );
-
 	beforeEach( () => {
 		spy.reset();
-	} );
-
-	after( () => {
-		nock.restore();
 	} );
 
 	describe( '#receivePostTypes()', () => {
@@ -50,7 +41,7 @@ describe( 'actions', () => {
 	} );
 
 	describe( '#requestPostTypes()', () => {
-		before( () => {
+		useNock( ( nock ) => {
 			nock( 'https://public-api.wordpress.com:443' )
 				.persist()
 				.get( '/rest/v1.1/sites/2916284/post-types' )
@@ -66,10 +57,6 @@ describe( 'actions', () => {
 					error: 'authorization_required',
 					message: 'User cannot access this private blog.'
 				} );
-		} );
-
-		after( () => {
-			nock.cleanAll();
 		} );
 
 		it( 'should dispatch fetch action when thunk triggered', () => {

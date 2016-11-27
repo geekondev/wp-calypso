@@ -44,7 +44,7 @@ module.exports = React.createClass( {
 			return (
 				<label key={ index }>
 					<input type="checkbox" onClick={ onClick } checked={ element.selected } readOnly />
-					{ element.title }
+					<span>{ element.title }</span>
 				</label>
 			);
 		} );
@@ -52,17 +52,12 @@ module.exports = React.createClass( {
 
 	render() {
 		return (
-			<div className="design-assets__group">
-				<h2>
-					<a href="/devdocs/design/bulk-selects">BulkSelects</a>
-				</h2>
-				<Card>
-					<div>
-						<BulkSelect totalElements={ this.state.elements.length } selectedElements={ this.getSelectedElementsNumber() } onToggle={ this.handleToggleAll } />
-					</div>
-					{ this.renderElements() }
-				</Card>
-			</div>
+			<Card>
+				<div>
+					<BulkSelect totalElements={ this.state.elements.length } selectedElements={ this.getSelectedElementsNumber() } onToggle={ this.handleToggleAll } />
+				</div>
+				{ this.renderElements() }
+			</Card>
 		);
 	}
 } );

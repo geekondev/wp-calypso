@@ -10,8 +10,8 @@ import includes from 'lodash/includes';
 /**
  * Internal dependencies
  */
-import analytics from 'analytics';
-import SiteInfo from 'my-sites/site';
+import analytics from 'lib/analytics';
+import SiteInfo from 'blocks/site';
 
 export default React.createClass( {
 	displayName: 'BlogSettingsHeader',

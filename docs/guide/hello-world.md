@@ -16,7 +16,7 @@ Creating a new section is composed of five steps:
 2. Setup your section folder.
 3. Create a controller `client/my-sites/my-section/controller.js`.
 4. Setup the entry routes in `client/my-sites/my-section/index.js`.
-5. Register section in `client/sections.js.`
+5. Register section in `client/sections.js`.
 
 ### 1. Add a feature
 
@@ -26,7 +26,7 @@ First thing is to enable your new feature in Calypso. We'll do that by opening `
 "hello-world": true
 ```
 
-Features flags are a great way to enable/disable certain features in specific environments. For example, we can merge our "Hello, World!" code in `master,` but hide it behind a feature flag. We have [more documentation on feature flags](../client/config).
+Features flags are a great way to enable/disable certain features in specific environments. For example, we can merge our "Hello, World!" code in `master,` but hide it behind a feature flag. We have [more documentation on feature flags](../../client/config).
 
 ### 2. Set up folder structure
 

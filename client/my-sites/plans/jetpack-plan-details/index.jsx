@@ -1,21 +1,29 @@
 /**
  * External dependencies
  */
-var React = require( 'react' );
+import React from 'react';
 
-module.exports = React.createClass( {
-	displayName: 'JetpackPlanDetails',
+/**
+ * Internal dependencies
+ */
+import Gridicon from 'components/gridicon';
 
-	render: function() {
-		return (
-			<div>
-				<p>{ this.props.plan.description }</p>
-				<ul>
-					<li>{ this.props.plan.feature_1 }</li>
-					<li>{ this.props.plan.feature_2 }</li>
-					<li>{ this.props.plan.feature_3 }</li>
-				</ul>
-			</div>
-		);
-	}
-} );
+const JetpackPlanDetails = ( { plan } ) => {
+	return (
+		<div>
+			<p>{ plan.description }</p>
+
+			<ul className="plan__plan-details-list">
+				<li className="plan__plan-details-item"><Gridicon icon="checkmark" size={ 18 } />{ plan.feature_1 }</li>
+				<li className="plan__plan-details-item"><Gridicon icon="checkmark" size={ 18 } />{ plan.feature_2 }</li>
+				<li className="plan__plan-details-item"><Gridicon icon="checkmark" size={ 18 } />{ plan.feature_3 }</li>
+			</ul>
+		</div>
+	);
+};
+
+JetpackPlanDetails.propTypes = {
+	plan: React.PropTypes.object.isRequired
+};
+
+export default JetpackPlanDetails;

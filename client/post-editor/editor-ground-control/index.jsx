@@ -3,9 +3,8 @@
  */
 const noop = require( 'lodash/noop' ),
 	React = require( 'react' ),
-	PureRenderMixin = require( 'react-pure-render/mixin' );
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+	PureRenderMixin = require( 'react-pure-render/mixin' ),
+	i18n = require( 'i18n-calypso' );
 
 /**
  * Internal dependencies
@@ -14,23 +13,20 @@ const Card = require( 'components/card' ),
 	EditPostStatus = require( 'post-editor/edit-post-status' ),
 	Gridicon = require( 'components/gridicon' ),
 	Popover = require( 'components/popover' ),
-	Site = require( 'my-sites/site' ),
-	StatusLabel = require( 'post-editor/status-label' ),
+	Site = require( 'blocks/site' ),
+	StatusLabel = require( 'post-editor/editor-status-label' ),
 	postUtils = require( 'lib/posts/utils' ),
 	siteUtils = require( 'lib/site/utils' ),
-	PostSchedule = require( 'components/post-schedule' ),
 	postActions = require( 'lib/posts/actions' ),
 	Tooltip = require( 'components/tooltip' ),
 	PostListFetcher = require( 'components/post-list-fetcher' ),
 	stats = require( 'lib/posts/stats' );
-import { setDate } from 'state/ui/editor/post/actions';
 
-function isPostEmpty( props ) {
-	return ( props.isNew && ! props.isDirty ) || ! props.hasContent;
-}
+import AsyncLoad from 'components/async-load';
 
-const EditorGroundControl = React.createClass( {
+export default React.createClass( {
 	displayName: 'EditorGroundControl',
+
 	propTypes: {
 		hasContent: React.PropTypes.bool,
 		isDirty: React.PropTypes.bool,
@@ -41,10 +37,12 @@ const EditorGroundControl = React.createClass( {
 		onPreview: React.PropTypes.func,
 		onPublish: React.PropTypes.func,
 		onSaveDraft: React.PropTypes.func,
+		onMoreInfoAboutEmailVerify: React.PropTypes.func,
 		post: React.PropTypes.object,
-		setDate: React.PropTypes.func,
 		savedPost: React.PropTypes.object,
 		site: React.PropTypes.object,
+		user: React.PropTypes.object,
+		userUtils: React.PropTypes.object,
 		type: React.PropTypes.string
 	},
 
@@ -62,9 +60,36 @@ const EditorGroundControl = React.createClass( {
 			onSaveDraft: noop,
 			post: null,
 			savedPost: null,
-			setDate: () => {},
-			site: {}
+			site: {},
+			user: null,
+			userUtils: null,
 		};
+	},
+
+	componentDidMount: function() {
+		if ( ! this.props.user ) {
+			return;
+		}
+
+		this.props.user
+			.on( 'change', this.updateNeedsVerification )
+			.on( 'verify', this.updateNeedsVerification );
+	},
+
+	componentWillUnmount: function() {
+		if ( ! this.props.user ) {
+			return;
+		}
+
+		this.props.user
+			.off( 'change', this.updateNeedsVerification )
+			.off( 'verify', this.updateNeedsVerification );
+	},
+
+	updateNeedsVerification: function() {
+		this.setState( {
+			needsVerification: this.props.userUtils && this.props.userUtils.needsVerificationForSite( this.props.site ),
+		} );
 	},
 
 	getInitialState: function() {
@@ -73,14 +98,32 @@ const EditorGroundControl = React.createClass( {
 			showAdvanceStatus: false,
 			showDateTooltip: false,
 			firstDayOfTheMonth: this.getFirstDayOfTheMonth(),
-			lastDayOfTheMonth: this.getLastDayOfTheMonth()
+			lastDayOfTheMonth: this.getLastDayOfTheMonth(),
+			needsVerification: this.props.userUtils && this.props.userUtils.needsVerificationForSite( this.props.site ),
 		};
+	},
+
+	componentWillReceiveProps: function( nextProps ) {
+		this.setState( {
+			needsVerification: nextProps.userUtils && nextProps.userUtils.needsVerificationForSite( nextProps.site ),
+		} );
+
+		if ( this.props.user ) {
+			this.props.user
+				.off( 'change', this.updateNeedsVerification )
+				.off( 'verify', this.updateNeedsVerification );
+		}
+
+		if ( nextProps.user ) {
+			nextProps.user
+				.on( 'change', this.updateNeedsVerification )
+				.on( 'verify', this.updateNeedsVerification );
+		}
 	},
 
 	setPostDate: function( date ) {
 		// TODO: REDUX - remove flux actions when whole post-editor is reduxified
 		postActions.edit( { date: date ? date.format() : null } );
-		this.props.setDate( date );
 	},
 
 	setCurrentMonth: function( date ) {
@@ -114,12 +157,13 @@ const EditorGroundControl = React.createClass( {
 		const buttonState = this.getPrimaryButtonState();
 		const eventString = postUtils.isPage( this.props.post ) ? pageEvents[ buttonState ] : postEvents[ buttonState ];
 		stats.recordEvent( eventString );
-		stats.recordEvent( 'Clicked Primary Button' )
+		stats.recordEvent( 'Clicked Primary Button' );
 	},
 
 	getPrimaryButtonState: function() {
 		if (
 			postUtils.isPublished( this.props.savedPost ) &&
+			! postUtils.isBackDatedPublished( this.props.savedPost ) &&
 			! postUtils.isFutureDated( this.props.post ) ||
 			(
 				this.props.savedPost &&
@@ -156,14 +200,36 @@ const EditorGroundControl = React.createClass( {
 		return buttonLabels[ primaryButtonState ];
 	},
 
+	getVerificationNoticeLabel: function() {
+		const primaryButtonState = this.getPrimaryButtonState();
+		let buttonLabels;
+
+		// TODO: switch entirely to new wording once translations catch up
+		if ( i18n.getLocaleSlug() === 'en' ) {
+			buttonLabels = {
+				update: this.translate( 'To update, check your email and confirm your address.' ),
+				schedule: this.translate( 'To schedule, check your email and confirm your address.' ),
+				publish: this.translate( 'To publish, check your email and confirm your address.' ),
+				requestReview: this.translate( 'To submit for review, check your email and confirm your address.' ),
+			};
+		} else {
+			buttonLabels = {
+				update: this.translate( 'To update, please confirm your email address.' ),
+				schedule: this.translate( 'To schedule, please confirm your email address.' ),
+				publish: this.translate( 'To publish, please confirm your email address.' ),
+				requestReview: this.translate( 'To submit for review, please confirm your email address.' ),
+			};
+		}
+		return buttonLabels[ primaryButtonState ];
+	},
+
 	toggleSchedulePopover: function() {
 		this.setState( { showSchedulePopover: ! this.state.showSchedulePopover } );
 	},
 
-	closeSchedulePopover: function( event ) {
-		// if `event` is defined means that popover has been canceled (ESC key)
-		if ( ! event ) {
-			let date = this.props.savedPost && this.props.savedPost.date
+	closeSchedulePopover: function( wasCanceled ) {
+		if ( wasCanceled ) {
+			const date = this.props.savedPost && this.props.savedPost.date
 				? this.moment( this.props.savedPost.date )
 				: null;
 
@@ -174,32 +240,35 @@ const EditorGroundControl = React.createClass( {
 	},
 
 	renderPostScheduler: function() {
-		var tz = siteUtils.timezone( this.props.site ),
+		const tz = siteUtils.timezone( this.props.site ),
 			gmtOffset = siteUtils.gmtOffset( this.props.site ),
 			postDate = this.props.post && this.props.post.date
 				? this.props.post.date
 				: null;
 
 		return (
-			<PostSchedule
+			<AsyncLoad
+				require="components/post-schedule"
 				selectedDay={ postDate }
 				timezone={ tz }
 				gmtOffset={ gmtOffset }
 				onDateChange={ this.setPostDate }
-				onMonthChange={ this.setCurrentMonth }>
-			</PostSchedule>
-		)
+				onMonthChange={ this.setCurrentMonth }
+			/>
+		);
 	},
 
 	schedulePostPopover: function() {
-		var postScheduler = this.renderPostScheduler();
+		const postScheduler = this.renderPostScheduler();
 
 		return (
 			<Popover
 				isVisible={ this.state.showSchedulePopover }
 				onClose={ this.closeSchedulePopover }
 				position={ 'bottom left' }
-				context={ this.refs && this.refs.schedulePost }>
+				context={ this.refs && this.refs.schedulePost }
+				id="editor-post-schedule"
+			>
 				<span className="editor-ground-control__schedule-post">
 					{ postUtils.isPage( this.props.post )
 						? postScheduler
@@ -219,7 +288,7 @@ const EditorGroundControl = React.createClass( {
 	},
 
 	getFirstDayOfTheMonth: function( date ) {
-		var tz = siteUtils.timezone( this.props.site );
+		const tz = siteUtils.timezone( this.props.site );
 		date = date || this.moment();
 
 		return postUtils.getOffsetDate( date, tz ).set( {
@@ -249,13 +318,16 @@ const EditorGroundControl = React.createClass( {
 	},
 
 	isPreviewEnabled: function() {
-		return ! isPostEmpty( this.props ) && ! this.props.isSaveBlocked;
+		return this.props.hasContent &&
+			! ( this.props.isNew && ! this.props.isDirty ) &&
+			! this.props.isSaveBlocked;
 	},
 
 	isPrimaryButtonEnabled: function() {
 		return ! this.props.isPublishing &&
-			! isPostEmpty( this.props ) &&
-			! this.props.isSaveBlocked;
+			! this.props.isSaveBlocked &&
+			this.props.hasContent &&
+			! this.state.needsVerification;
 	},
 
 	toggleAdvancedStatus: function() {
@@ -265,11 +337,9 @@ const EditorGroundControl = React.createClass( {
 	onPrimaryButtonClick: function() {
 		this.trackPrimaryButton();
 
-		if ( postUtils.isFutureDated( this.props.post ) ) {
-			return this.props.onSave( 'future' );
-		}
-
-		if ( postUtils.isPublished( this.props.savedPost ) ) {
+		if ( postUtils.isPublished( this.props.savedPost ) &&
+			! postUtils.isBackDatedPublished( this.props.savedPost )
+		) {
 			return this.props.onSave();
 		}
 
@@ -353,7 +423,6 @@ const EditorGroundControl = React.createClass( {
 				{
 					this.state.showAdvanceStatus &&
 						<EditPostStatus
-							post={ this.props.post }
 							savedPost={ this.props.savedPost }
 							type={ this.props.type }
 							onSave={ this.props.onSave }
@@ -403,12 +472,20 @@ const EditorGroundControl = React.createClass( {
 						this.schedulePostPopover()
 					}
 				</div>
+				{
+					this.state.needsVerification &&
+					<div className="editor-ground-control__email-verification-notice"
+						tabIndex={ 7 }
+						onClick={ this.props.onMoreInfoAboutEmailVerify }>
+						<Gridicon
+							icon="info"
+							className="editor-ground-control__email-verification-notice-icon" />
+						{ this.getVerificationNoticeLabel() }
+						{ ' ' }
+						<span className="editor-ground-control__email-verification-notice-more">{ this.translate( 'Learn More' ) }</span>
+					</div>
+				}
 			</Card>
 		);
 	}
 } );
-
-export default connect(
-	null,
-	dispatch => bindActionCreators( { setDate }, dispatch )
-)( EditorGroundControl );

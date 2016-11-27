@@ -22,10 +22,7 @@ var ThemeExample = React.createClass( {
 		};
 
 		return (
-			<div className="design-assets__group">
-				<h2>
-					<a href="/devdocs/app-components/theme">Theme</a>
-				</h2>
+			<div>
 				<Theme
 				theme={ theme }
 				buttonContents={ {

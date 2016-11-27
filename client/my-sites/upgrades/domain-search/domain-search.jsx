@@ -14,20 +14,26 @@ var observe = require( 'lib/mixins/data-observe' ),
 	fetchSitePlans = require( 'state/sites/plans/actions' ).fetchSitePlans,
 	FreeTrialNotice = require( './free-trial-notice' ),
 	getPlansBySite = require( 'state/sites/plans/selectors' ).getPlansBySite,
+	{ currentUserHasFlag } = require( 'state/current-user/selectors' ),
+	{ DOMAINS_WITH_PLANS_ONLY } = require( 'state/current-user/constants' ),
 	SidebarNavigation = require( 'my-sites/sidebar-navigation' ),
 	RegisterDomainStep = require( 'components/domains/register-domain-step' ),
 	UpgradesNavigation = require( 'my-sites/upgrades/navigation' ),
 	Main = require( 'components/main' ),
+	upgradesActions = require( 'lib/upgrades/actions' ),
+	cartItems = require( 'lib/cart-values/cart-items' ),
+	analyticsMixin = require( 'lib/mixins/analytics' ),
 	shouldFetchSitePlans = require( 'lib/plans' ).shouldFetchSitePlans;
 
 var DomainSearch = React.createClass( {
-	mixins: [ observe( 'productsList', 'sites' ) ],
+	mixins: [ observe( 'productsList', 'sites' ), analyticsMixin( 'registerDomain' ) ],
 
 	propTypes: {
 		sites: React.PropTypes.object.isRequired,
 		productsList: React.PropTypes.object.isRequired,
 		basePath: React.PropTypes.string.isRequired,
 		context: React.PropTypes.object.isRequired,
+		domainsWithPlansOnly: React.PropTypes.bool.isRequired
 	},
 
 	getInitialState: function() {
@@ -41,10 +47,16 @@ var DomainSearch = React.createClass( {
 	componentDidMount: function() {
 		this.props.sites.on( 'change', this.checkSiteIsUpgradeable );
 		this.props.fetchSitePlans( this.props.sitePlans, this.props.sites.getSelectedSite() );
+
+		this.previousSelectedSite = this.props.sites.getSelectedSite();
 	},
 
 	componentWillReceiveProps: function() {
-		this.props.fetchSitePlans( this.props.sitePlans, this.props.sites.getSelectedSite() );
+		var selectedSite = this.props.sites.getSelectedSite();
+		if ( this.previousSelectedSite !== selectedSite ) {
+			this.props.fetchSitePlans( this.props.sitePlans, selectedSite );
+			this.previousSelectedSite = selectedSite;
+		}
 	},
 
 	componentWillUnmount: function() {
@@ -63,6 +75,35 @@ var DomainSearch = React.createClass( {
 		this.setState( { domainRegistrationAvailable: isAvailable } );
 	},
 
+	handleAddRemoveDomain: function( suggestion ) {
+		if ( ! cartItems.hasDomainInCart( this.props.cart, suggestion.domain_name ) ) {
+			this.addDomain( suggestion );
+		} else {
+			this.removeDomain( suggestion );
+		}
+	},
+
+	addDomain( suggestion ) {
+		this.recordEvent( 'addDomainButtonClick', suggestion.domain_name, 'domains' );
+		const items = [
+			cartItems.domainRegistration( { domain: suggestion.domain_name, productSlug: suggestion.product_slug } )
+		];
+
+		if ( cartItems.isNextDomainFree( this.props.cart ) ) {
+			items.push( cartItems.domainPrivacyProtection( {
+				domain: suggestion.domain_name
+			} ) );
+		}
+
+		upgradesActions.addItems( items );
+		upgradesActions.goToDomainCheckout( suggestion );
+	},
+
+	removeDomain( suggestion ) {
+		this.recordEvent( 'removeDomainButtonClick', suggestion.domain_name );
+		upgradesActions.removeDomainFromCart( suggestion );
+	},
+
 	render: function() {
 		var selectedSite = this.props.sites.getSelectedSite(),
 			classes = classnames( 'main-column', {
@@ -73,7 +114,7 @@ var DomainSearch = React.createClass( {
 		if ( ! this.state.domainRegistrationAvailable ) {
 			content = (
 				<EmptyContent
-					illustration='/calypso/images/drake/drake-500.svg'
+					illustration="/calypso/images/drake/drake-500.svg"
 					title={ this.translate( 'Domain registration is unavailable' ) }
 					line={ this.translate( "We're hard at work on the issue. Please check back shortly." ) }
 					action={ this.translate( 'Back to Plans' ) }
@@ -82,21 +123,21 @@ var DomainSearch = React.createClass( {
 		} else {
 			content = (
 				<span>
-					<FreeTrialNotice
-						cart={ this.props.cart }
-						sitePlans={ this.props.sitePlans }
-						selectedSite={ selectedSite } />
+					<FreeTrialNotice cart={ this.props.cart } />
 
 					<div className="domain-search__content">
 						<UpgradesNavigation
 							path={ this.props.context.path }
 							cart={ this.props.cart }
-							selectedSite={ selectedSite } />
+							selectedSite={ selectedSite }
+							sitePlans={ this.props.sitePlans } />
 
 						<RegisterDomainStep
 							path={ this.props.context.path }
 							suggestion={ this.props.context.params.suggestion }
+							domainsWithPlansOnly={ this.props.domainsWithPlansOnly }
 							onDomainsAvailabilityChange={ this.handleDomainsAvailabilityChange }
+							onAddDomain={ this.handleAddRemoveDomain }
 							cart={ this.props.cart }
 							selectedSite={ selectedSite }
 							offerMappingOption
@@ -118,7 +159,10 @@ var DomainSearch = React.createClass( {
 
 module.exports = connect(
 	function( state, props ) {
-		return { sitePlans: getPlansBySite( state, props.sites.getSelectedSite() ) };
+		return {
+			sitePlans: getPlansBySite( state, props.sites.getSelectedSite() ),
+			domainsWithPlansOnly: currentUserHasFlag( state, DOMAINS_WITH_PLANS_ONLY )
+		};
 	},
 	function( dispatch ) {
 		return {

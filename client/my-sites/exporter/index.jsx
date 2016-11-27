@@ -1,48 +1,48 @@
 /**
  * External dependencies
  */
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
-import flowRight from 'lodash/flowRight';
 
 /**
  * Internal dependencies
  */
-import Exporter from './exporter';
-import {
-	shouldShowProgress,
-	getSelectedPostType,
-	isExporting,
-	getExportingState,
-} from 'state/site-settings/exporter/selectors';
-import {
-	advancedSettingsFetch,
-	exportStatusFetch,
-	setPostType,
-	startExport,
-} from 'state/site-settings/exporter/actions';
-import { States } from 'state/site-settings/exporter/constants';
+import config from 'config';
+import QuerySiteGuidedTransfer from 'components/data/query-site-guided-transfer';
+import { getSelectedSiteId } from 'state/ui/selectors';
+import { isGuidedTransferInProgress } from 'state/sites/guided-transfer/selectors';
 
-function mapStateToProps( state ) {
-	const siteId = state.ui.selectedSiteId;
+import Notices from './notices';
+import ExportCard from './export-card';
+import GuidedTransferCard from './guided-transfer-card';
+import InProgressCard from './guided-transfer-card/in-progress';
 
-	return {
-		siteId,
-		postType: getSelectedPostType( state ),
-		shouldShowProgress: shouldShowProgress( state, siteId ),
-		isExporting: isExporting( state, siteId ),
-		downloadURL: state.siteSettings.exporter.downloadURL,
-		didComplete: getExportingState( state, siteId ) === States.COMPLETE,
-		didFail: getExportingState( state, siteId ) === States.FAILED,
-	};
+class Exporter extends Component {
+	render() {
+		const {
+			siteId,
+			isTransferInProgress,
+		} = this.props;
+		const showGuidedTransferOptions = config.isEnabled( 'manage/export/guided-transfer' );
+
+		return (
+			<div className="exporter">
+				{ showGuidedTransferOptions && <QuerySiteGuidedTransfer siteId={ siteId } /> }
+
+				<Notices />
+				{ showGuidedTransferOptions && isTransferInProgress &&
+					<InProgressCard /> }
+				<ExportCard siteId={ siteId } />
+				{ showGuidedTransferOptions && ! isTransferInProgress &&
+					<GuidedTransferCard /> }
+			</div>
+		);
+	}
 }
 
-function mapDispatchToProps( dispatch ) {
-	return {
-		advancedSettingsFetch: flowRight( dispatch, advancedSettingsFetch ),
-		exportStatusFetch: flowRight( dispatch, exportStatusFetch ),
-		setPostType: flowRight( dispatch, setPostType ),
-		startExport: flowRight( dispatch, startExport ),
-	};
-}
+const mapStateToProps = state => ( {
+	siteId: getSelectedSiteId( state ),
+	isTransferInProgress: isGuidedTransferInProgress( state, getSelectedSiteId( state ) ),
+} );
 
-export default connect( mapStateToProps, mapDispatchToProps )( Exporter );
+export default connect( mapStateToProps )( Exporter );

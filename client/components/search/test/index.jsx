@@ -1,35 +1,27 @@
-require( 'lib/react-test-env-setup' )();
-
 /**
  * External dependencies
  */
 import { expect } from 'chai';
-import React from 'react';
-import TestUtils from 'react-addons-test-utils';
 import sinon from 'sinon';
-import mockery from 'mockery';
-import noop from 'lodash/noop';
-
-const EMPTY_COMPONENT = React.createClass( {
-	render: function() {
-		return <div />;
-	}
-} );
+import useMockery from 'test/helpers/use-mockery';
+import useFakeDom from 'test/helpers/use-fake-dom';
 
 describe( 'Search', function() {
-	beforeEach( function() {
-		mockery.registerMock( 'analytics', {} );
-		mockery.registerMock( 'lib/mixins/i18n', { translate: noop } );
-		mockery.registerMock( 'components/gridicon', EMPTY_COMPONENT );
-		mockery.enable();
-		mockery.warnOnUnregistered( false );
+	var React, TestUtils, EMPTY_COMPONENT;
 
-		this.searchClass = require( '../' );
+	useFakeDom();
+	useMockery( mockery => {
+		React = require( 'react' );
+		TestUtils = require( 'react-addons-test-utils' );
+
+		EMPTY_COMPONENT = require( 'test/helpers/react/empty-component' );
+
+		mockery.registerMock( 'lib/analytics', {} );
+		mockery.registerMock( 'components/gridicon', EMPTY_COMPONENT );
 	} );
 
-	afterEach( function() {
-		mockery.deregisterAll();
-		mockery.disable();
+	before( function() {
+		this.searchClass = require( '../' );
 	} );
 
 	describe( 'initialValue', function() {

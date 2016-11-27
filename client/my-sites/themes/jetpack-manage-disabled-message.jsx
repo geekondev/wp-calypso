@@ -3,17 +3,18 @@
  */
 import React, { PropTypes } from 'react';
 import noop from 'lodash/noop';
+import { localize } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import Main from 'components/main';
 import SidebarNavigation from 'my-sites/sidebar-navigation';
 import JetpackManageErrorPage from 'my-sites/jetpack-manage-error-page';
 import ThemesList from 'components/themes-list';
 
-export default React.createClass( {
+const JetpackManageDisabledMessage = React.createClass( {
 	displayName: 'JetpackManageDisabledMessage',
 
 	propTypes: {
@@ -29,14 +30,15 @@ export default React.createClass( {
 
 	renderMockThemes() {
 		const exampleThemesData = [
-			{ name: 'Boardwalk', slug: 'boardwalk' },
-			{ name: 'Cubic', slug: 'cubic' },
-			{ name: 'Edin', slug: 'edin' },
-			{ name: 'Minnow', slug: 'minnow' },
-			{ name: 'Sequential', slug: 'sequential' },
+			{ name: 'Dyad', slug: 'dyad' },
+			{ name: 'Independent Publisher', slug: 'independent-publisher' },
+			{ name: 'Sela', slug: 'sela' },
+			{ name: 'Hemingway Rewritten', slug: 'hemingway-rewritten' },
+			{ name: 'Twenty Sixteen', slug: 'twentysixteen' },
 			{ name: 'Penscratch', slug: 'penscratch' },
-			{ name: 'Intergalactic', slug: 'intergalactic' },
-			{ name: 'Eighties', slug: 'eighties' }
+			{ name: 'Edin', slug: 'edin' },
+			{ name: 'Publication', slug: 'publication' },
+			{ name: 'Harmonic', slug: 'harmonic' },
 		];
 		const themes = exampleThemesData.map( function( theme ) {
 			return {
@@ -59,10 +61,10 @@ export default React.createClass( {
 				<SidebarNavigation />
 				<JetpackManageErrorPage
 					template="optInManage"
-					title={ this.translate( 'Looking to manage this site\'s themes?' ) }
+					title={ this.props.translate( 'Looking to manage this site\'s themes?' ) }
 					site={ this.props.site }
 					section="themes"
-					secondaryAction={ this.translate( 'Open Site Theme Browser' ) }
+					secondaryAction={ this.props.translate( 'Open Site Theme Browser' ) }
 					secondaryActionURL={ this.props.site.options.admin_url + 'themes.php' }
 					secondaryActionTarget="_blank"
 					actionCallback={ this.clickOnActivate }
@@ -71,3 +73,5 @@ export default React.createClass( {
 		);
 	}
 } );
+
+export default localize( JetpackManageDisabledMessage );

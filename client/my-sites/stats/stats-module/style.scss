@@ -1,9 +1,11 @@
 // child components
 @import 'placeholder';
+@import 'expand';
 
 // Select Dropdown
 .stats-module__select-dropdown-wrapper {
-	margin: 1em 20px;
+	padding: 16px;
+	text-align: center;
 
 	.select-dropdown__container {
 		position: relative;
@@ -17,13 +19,14 @@
 
 .card.stats-module {
 	padding: 0;
+	margin-bottom: 16px;
 }
 // Site sections
-.module-list {
+.stats__module-list {
 	@include clear-fix;
 }
 
-.stats-nonperiodic {
+.stats-insights__nonperiodic {
 	&.has-no-recent {
 		color: $gray-dark;
 		font-weight: 300;
@@ -44,7 +47,7 @@
 // Section title
 
 .stats-section-title {
-	@extend %heading;
+	@include heading;
 
 	@include breakpoint( "<660px" ) {
 		margin-left: 24px;
@@ -61,16 +64,12 @@
 
 .module-expand {
 	line-height: 40px;
+	display: block;
 
 	@include breakpoint( "<480px" ) {
 		line-height: 48px;
 	}
 
-	.stats-module.is-expanded & {
-		display: block;
-	}
-
-	&,
 	.stats-module.is-loading &,
 	.stats-module.has-no-data & {
 		display: none;
@@ -99,7 +98,7 @@
 		}
 
 		@include breakpoint( ">960px" ) {
-			.module-list & {
+			.stats__module-list & {
 				font-size: 12px;
 			}
 		}
@@ -180,8 +179,19 @@ ul.module-header-actions {
 	}
 
 	.gridicon {
-		@extend %placeholder-icon;
 		vertical-align: middle;
+
+		.stats-module.is-loading & {
+			animation: loading-fade 1.6s ease-in-out infinite;
+		}
+
+		.stats-module.is-loading &:hover::before,
+		.stats-module.is-loading &::before,
+		.stats-module.is-loading &:hover,
+		.stats-module.is-loading & {
+			color: $gray-light;
+			fill: $gray-light;
+		}
 	}
 
 	.module-header-action-link {
@@ -240,15 +250,20 @@ ul.module-header-actions {
 	}
 }
 
+.module-content .upgrade-nudge.card {
+	 margin: 16px;
+}
+
 // Module Content Text
 
 .module-content-text {
 	box-sizing: border-box;
 	color: $gray-dark;
 	font-size: 13px;
-	padding: 10px 24px;
+	padding: 16px 16px 0 16px;
 	min-height: 1em;
 	width: 100%;
+	text-align: center;
 
 	a {
 		display: block;
@@ -259,7 +274,7 @@ ul.module-header-actions {
 	}
 
 	@include breakpoint( ">960px" ) {
-		.module-list & {
+		.stats__module-list & {
 			font-size: 12px;
 		}
 	}
@@ -321,7 +336,7 @@ ul.module-header-actions {
 			line-height: 2em;
 
 			@include breakpoint( ">960px" ) {
-				.module-list & {
+				.stats__module-list & {
 					font-size: 12px;
 				}
 			}
@@ -350,25 +365,11 @@ ul.module-header-actions {
 	}
 }
 
-.stats-module.is-hidden {
-	display: none;
-}
-
 .tab-email-followers .tab-content.email-followers,
 .tab-wpcom-followers .tab-content.wpcom-followers,
 .tab-top-authors .tab-content.top-authors,
 .tab-top-content .tab-content.top-content {
 	display: block;
-}
-
-// Module Content
-.module-content {
-	display: none;
-	position: relative;
-
-	.stats-module.is-expanded & {
-		display: block;
-	}
 }
 
 // Module Content Table

@@ -2,11 +2,7 @@
  * External dependencies
  */
 import React from 'react';
-
-/**
- * Internal dependencies
- */
-import SocialLogo from 'components/social-logo';
+import SocialLogo from 'social-logos';
 
 export default React.createClass( {
 	displayName: 'SocialLogos',
@@ -18,13 +14,12 @@ export default React.createClass( {
 
 	render() {
 		return (
-			<div className="design-assets__group">
-				<h2><a href="/devdocs/design/social-logos">Social Logo</a></h2>
+			<div>
 				<SocialLogo icon="amazon" size={ 48 } onClick={ this.handleClick.bind( this, 'amazon' ) } />
+				<SocialLogo icon="behance" size={ 48 } onClick={ this.handleClick.bind( this, 'behance' ) } />
 				<SocialLogo icon="blogger-alt" size={ 48 } onClick={ this.handleClick.bind( this, 'blogger-alt' ) } />
 				<SocialLogo icon="blogger" size={ 48 } onClick={ this.handleClick.bind( this, 'blogger' ) } />
 				<SocialLogo icon="codepen" size={ 48 } onClick={ this.handleClick.bind( this, 'codepen' ) } />
-				<SocialLogo icon="digg" size={ 48 } onClick={ this.handleClick.bind( this, 'digg' ) } />
 				<SocialLogo icon="dribbble" size={ 48 } onClick={ this.handleClick.bind( this, 'dribbble' ) } />
 				<SocialLogo icon="dropbox" size={ 48 } onClick={ this.handleClick.bind( this, 'dropbox' ) } />
 				<SocialLogo icon="eventbrite" size={ 48 } onClick={ this.handleClick.bind( this, 'eventbrite' ) } />
@@ -32,12 +27,14 @@ export default React.createClass( {
 				<SocialLogo icon="feed" size={ 48 } onClick={ this.handleClick.bind( this, 'feed' ) } />
 				<SocialLogo icon="flickr" size={ 48 } onClick={ this.handleClick.bind( this, 'flickr' ) } />
 				<SocialLogo icon="foursquare" size={ 48 } onClick={ this.handleClick.bind( this, 'foursquare' ) } />
+				<SocialLogo icon="ghost" size={ 48 } onClick={ this.handleClick.bind( this, 'ghost' ) } />
 				<SocialLogo icon="github" size={ 48 } onClick={ this.handleClick.bind( this, 'github' ) } />
 				<SocialLogo icon="google-plus-alt" size={ 48 } onClick={ this.handleClick.bind( this, 'google-plus-alt' ) } />
 				<SocialLogo icon="google-plus" size={ 48 } onClick={ this.handleClick.bind( this, 'google-plus' ) } />
 				<SocialLogo icon="instagram" size={ 48 } onClick={ this.handleClick.bind( this, 'instagram' ) } />
 				<SocialLogo icon="linkedin" size={ 48 } onClick={ this.handleClick.bind( this, 'linkedin' ) } />
 				<SocialLogo icon="mail" size={ 48 } onClick={ this.handleClick.bind( this, 'mail' ) } />
+				<SocialLogo icon="medium" size={ 48 } onClick={ this.handleClick.bind( this, 'medium' ) } />
 				<SocialLogo icon="path-alt" size={ 48 } onClick={ this.handleClick.bind( this, 'path-alt' ) } />
 				<SocialLogo icon="path" size={ 48 } onClick={ this.handleClick.bind( this, 'path' ) } />
 				<SocialLogo icon="pinterest-alt" size={ 48 } onClick={ this.handleClick.bind( this, 'pinterest-alt' ) } />

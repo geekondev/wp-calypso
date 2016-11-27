@@ -1,19 +1,20 @@
 /**
  * External Dependencies
  */
-var ReactDom = require( 'react-dom' ),
-	React = require( 'react' );
+var React = require( 'react' ),
+	i18n = require( 'i18n-calypso' );
 
 /**
  * Internal Dependencies
  */
 var sites = require( 'lib/sites-list' )(),
 	route = require( 'lib/route' ),
-	i18n = require( 'lib/mixins/i18n' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	titlecase = require( 'to-title-case' ),
 	trackScrollPage = require( 'lib/track-scroll-page' ),
-	titleActions = require( 'lib/screen-title/actions' );
+	setTitle = require( 'state/document-head/actions' ).setDocumentHeadTitle;
+
+import { renderWithReduxStore } from 'lib/react-helpers';
 
 var controller = {
 
@@ -27,7 +28,7 @@ var controller = {
 			baseAnalyticsPath;
 
 		status = ( ! status || status === siteID ) ? '' : status;
-		titleActions.setTitle( i18n.translate( 'Pages', { textOnly: true } ), { siteID: siteID } );
+		context.store.dispatch( setTitle( i18n.translate( 'Pages', { textOnly: true } ) ) ); // FIXME: Auto-converted from the Flux setTitle action. Please use <DocumentHead> instead.
 
 		if ( siteID ) {
 			baseAnalyticsPath = basePath + '/:site';
@@ -43,7 +44,7 @@ var controller = {
 
 		analytics.pageView.record( baseAnalyticsPath, analyticsPageTitle );
 
-		ReactDom.render(
+		renderWithReduxStore(
 			React.createElement( Pages, {
 				context: context,
 				siteID: siteID,
@@ -57,7 +58,8 @@ var controller = {
 					'Pages'
 				)
 			} ),
-			document.getElementById( 'primary' )
+			document.getElementById( 'primary' ),
+			context.store
 		);
 	}
 };

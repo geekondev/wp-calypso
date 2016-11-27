@@ -1,9 +1,9 @@
 /**
  * Internal dependencies
  */
-import analytics from 'analytics';
+import analytics from 'lib/analytics';
 import { type as domainTypes } from 'lib/domains/constants';
-import snakeCase from 'lodash/snakeCase';
+import { snakeCase, endsWith } from 'lodash';
 
 const getDomainTypeText = function( domain ) {
 	switch ( domain.type ) {
@@ -19,6 +19,16 @@ const getDomainTypeText = function( domain ) {
 		case domainTypes.WPCOM:
 			return 'Wpcom Domain';
 	}
+};
+
+const getDomainTypeTextFromSearch = function( suggestion ) {
+	if ( suggestion.is_free ) {
+		if ( endsWith( suggestion.domain_name, '.blog' ) ) {
+			return 'dotblog_subdomain';
+		}
+		return 'wpcom_subdomain';
+	}
+	return 'domain_reg';
 };
 
 const EVENTS = {
@@ -69,7 +79,7 @@ const EVENTS = {
 			analytics.tracks.recordEvent( 'calypso_domain_search_results_mapping_button_click', { section } );
 		},
 
-		searchFormSubmit( searchBoxValue, section ) {
+		searchFormSubmit( searchBoxValue, section, timeDiffFromLastSearch, searchCount, searchVendor ) {
 			analytics.ga.recordEvent(
 				'Domain Search',
 				'Submitted Search Form',
@@ -81,9 +91,76 @@ const EVENTS = {
 				'calypso_domain_search',
 				{
 					search_box_value: searchBoxValue,
+					seconds_from_last_search: timeDiffFromLastSearch,
+					search_count: searchCount,
+					search_vendor: searchVendor,
 					section
 				}
 			);
+		},
+
+		searchFormView( section ) {
+			analytics.ga.recordEvent(
+				'Domain Search',
+				'Landed on Search'
+			);
+
+			analytics.tracks.recordEvent( 'calypso_domain_search_pageview', { section } );
+		},
+
+		searchResultsReceive( searchQuery, searchResults, responseTimeInMs, resultCount, section ) {
+			analytics.ga.recordEvent(
+				'Domain Search',
+				'Receive Results',
+				'Response Time',
+				responseTimeInMs
+			);
+
+			analytics.tracks.recordEvent(
+				'calypso_domain_search_results_suggestions_receive',
+				{
+					search_query: searchQuery,
+					results: searchResults.join( ';' ),
+					response_time_ms: responseTimeInMs,
+					result_count: resultCount,
+					section
+				}
+			);
+		},
+
+		domainAvailabilityReceive( searchQuery, availableStatus, responseTimeInMs, section ) {
+			analytics.ga.recordEvent(
+				'Domain Search',
+				'Domain Availability Result',
+				'Domain Available Status',
+				availableStatus
+			);
+
+			analytics.tracks.recordEvent(
+				'calypso_domain_search_results_availability_receive',
+				{
+					search_query: searchQuery,
+					available_status: availableStatus,
+					response_time: responseTimeInMs,
+					section
+				}
+			);
+		},
+
+		submitDomainStepSelection( suggestion, section ) {
+			const domainType = getDomainTypeTextFromSearch( suggestion );
+			analytics.ga.recordEvent(
+				'Domain Search',
+				`Submitted Domain Selection for a ${ domainType } on a Domain Registration`,
+				'Domain Name',
+				suggestion.domain_name
+			);
+
+			analytics.tracks.recordEvent( 'calypso_domain_search_submit_step', {
+				domain_name: suggestion.domain_name,
+				section,
+				type: domainType
+			} );
 		}
 	},
 
@@ -447,6 +524,25 @@ const EVENTS = {
 				);
 			},
 
+			resendVerificationClick( domainName, mailbox, destination, success ) {
+				analytics.ga.recordEvent(
+					'Domain Management',
+					'Clicked resend verification email Button in Email Forwarding',
+					'Domain Name',
+					domainName
+				);
+
+				analytics.tracks.recordEvent(
+					'calypso_domain_management_email_forwarding_resend_verification_email_click',
+					{
+						destination,
+						domain_name: domainName,
+						mailbox,
+						success
+					}
+				);
+			},
+
 			inputFocus( domainName, fieldName ) {
 				analytics.ga.recordEvent(
 					'Domain Management',
@@ -506,6 +602,46 @@ const EVENTS = {
 						email
 					}
 				);
+			},
+
+			pendingAccountLogInClick( { siteSlug, domainName, user, severity, isMultipleDomains, section } ) {
+				analytics.ga.recordEvent(
+					'Domain Management',
+					`Clicked "Log in" link in Google Apps pending ToS notice in ${ section }`,
+					'Domain Name',
+					domainName
+				);
+
+				analytics.tracks.recordEvent(
+					'calypso_domain_management_google_apps_pending_account_log_in_click',
+					{
+						site_slug: siteSlug,
+						domain_name: domainName,
+						user,
+						severity,
+						is_multiple_domains: isMultipleDomains,
+						section
+					}
+				);
+			},
+
+			showPendingAccountNotice( { siteSlug, severity, isMultipleDomains, section } ) {
+				analytics.ga.recordEvent(
+					'Domain Management',
+					'Showed pending account notice',
+					'Site',
+					siteSlug
+				);
+
+				analytics.tracks.recordEvent(
+					'calypso_domain_management_google_apps_pending_account_notice_show',
+					{
+						site_slug: siteSlug,
+						severity,
+						is_multiple_domains: isMultipleDomains,
+						section
+					}
+				);
 			}
 		},
 
@@ -517,6 +653,45 @@ const EVENTS = {
 				);
 
 				analytics.tracks.recordEvent( 'calypso_domain_management_list_add_domain_click' );
+			},
+			enablePrimaryDomainMode() {
+				analytics.ga.recordEvent(
+					'Domain Management',
+					'Clicked "Change Primary" button in List'
+				);
+
+				analytics.tracks.recordEvent( 'calypso_domain_management_list_enable_primary_domain_mode_click' );
+			},
+			disablePrimaryDomainMode() {
+				analytics.ga.recordEvent(
+					'Domain Management',
+					'Clicked "X" button to disable change primary mode in List'
+				);
+
+				analytics.tracks.recordEvent( 'calypso_domain_management_list_disable_primary_mode_click' );
+			},
+			changePrimary( domain ) {
+				const section = snakeCase( getDomainTypeText( domain ) );
+				analytics.ga.recordEvent(
+					'Domain Management',
+					'Changed Primary Domain to in List',
+					'Domain Name',
+					domain.name
+				);
+
+				analytics.tracks.recordEvent( 'calypso_domain_management_list_change_primary_domain_click', { section } );
+			},
+			undoChangePrimary( domain ) {
+				const section = snakeCase( getDomainTypeText( domain ) );
+
+				analytics.ga.recordEvent(
+					'Domain Management',
+					'Undo change Primary Domain in List',
+					'Domain Name (Reverted to)',
+					domain.name
+				);
+
+				analytics.tracks.recordEvent( 'calypso_domain_management_list_undo_change_primary_domain_click', { section } );
 			}
 		},
 

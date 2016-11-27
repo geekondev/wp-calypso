@@ -11,17 +11,14 @@ import isEmpty from 'lodash/isEmpty';
 /**
  * Internal Dependencies
  */
-import i18n from 'lib/mixins/i18n';
 import config from 'config';
 import route from 'lib/route';
-import analytics from 'analytics';
-import layoutFocus from 'lib/layout-focus';
+import analytics from 'lib/analytics';
 import SignupComponent from './main';
-import JetpackConnect from './jetpack-connect';
 import utils from './utils';
 import userModule from 'lib/user';
-import titleActions from 'lib/screen-title/actions';
-import { setSection } from 'state/ui/actions';
+import { setLayoutFocus } from 'state/ui/layout-focus/actions';
+
 const user = userModule();
 
 /**
@@ -86,13 +83,7 @@ export default {
 		analytics.pageView.record( basePath, basePageTitle + ' > Start > ' + flowName + ' > ' + stepName );
 
 		ReactDom.unmountComponentAtNode( document.getElementById( 'secondary' ) );
-		layoutFocus.set( 'content' );
-
-		titleActions.setTitle( i18n.translate( 'Create an account' ) );
-
-		context.store.dispatch( setSection( 'signup', {
-			hasSidebar: false
-		} ) );
+		context.store.dispatch( setLayoutFocus( 'content' ) );
 
 		ReactDom.render(
 			React.createElement( ReduxProvider, { store: context.store },
@@ -106,49 +97,6 @@ export default {
 					stepSectionName: stepSectionName
 				} )
 			),
-			document.getElementById( 'primary' )
-		);
-	},
-
-	phoneSignup( context ) {
-		var PhoneSignupComponent = require( 'signup/phone-signup-form' ),
-			countriesList = require( 'lib/countries-list' ).forSms(),
-			basePath = route.sectionify( context.path );
-
-		analytics.pageView.record( basePath, basePageTitle + ' > Phone' );
-
-		titleActions.setTitle( i18n.translate( 'Create an account' ) );
-
-		ReactDom.render(
-			React.createElement( PhoneSignupComponent, {
-				path: context.path,
-				countriesList: countriesList,
-				locale: context.params.lang
-			} ),
-			document.getElementById( 'primary' )
-		);
-	},
-
-	login( context ) {
-		var LogInComponent = require( 'signup/log-in-form' ),
-			basePath = route.sectionify( context.path );
-
-		analytics.pageView.record( basePath, basePageTitle + ' > Log-in' );
-
-		titleActions.setTitle( i18n.translate( 'Log in to your WordPress.com account' ) );
-
-		ReactDom.render(
-			React.createElement( LogInComponent, {
-				path: context.path,
-				locale: context.params.lang
-			} ),
-			document.getElementById( 'primary' )
-		);
-	},
-
-	jetpackConnect( context ) {
-		ReactDom.render(
-			React.createElement( JetpackConnect, {} ),
 			document.getElementById( 'primary' )
 		);
 	}

@@ -1,21 +1,31 @@
 /**
  * External dependencies
  */
-var React = require( 'react' );
+import React, { PropTypes } from 'react';
+import classNames from 'classnames';
 
 /**
  * Internal dependencies
  */
-var preventWidows = require( 'lib/formatting' ).preventWidows;
+import { preventWidows } from 'lib/formatting';
 
 module.exports = React.createClass( {
 	displayName: 'StepHeader',
 
+	propTypes: {
+		headerText: PropTypes.string,
+		subHeaderText: React.PropTypes.node
+	},
+
 	render: function() {
+		const { headerText, subHeaderText } = this.props;
+		const classes = classNames( 'step-header', {
+			'is-without-subhead': ! subHeaderText
+		} );
 		return (
-			<header className="step-header">
-				<h1 className="step-header__title">{ preventWidows( this.props.headerText, 2 ) }</h1>
-				<p className="step-header__subtitle">{ preventWidows( this.props.subHeaderText, 2 ) }</p>
+			<header className={ classes }>
+				<h1 className="step-header__title">{ preventWidows( headerText, 2 ) }</h1>
+				{ subHeaderText && <p className="step-header__subtitle">{ preventWidows( subHeaderText, 2 ) }</p> }
 			</header>
 		);
 	}

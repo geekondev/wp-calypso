@@ -1,9 +1,11 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	debug = require( 'debug' )( 'calypso:components:emptyContent' ),
-	classNames = require( 'classnames' );
+import React from 'react';
+import debugFactory from 'debug';
+import classNames from 'classnames';
+
+const debug = debugFactory( 'calypso:components:emptyContent' );
 
 module.exports = React.createClass( {
 
@@ -26,21 +28,23 @@ module.exports = React.createClass( {
 		] ),
 		actionURL: React.PropTypes.string,
 		actionCallback: React.PropTypes.func,
+		actionTarget: React.PropTypes.string,
 		secondaryAction: React.PropTypes.oneOfType( [
 			React.PropTypes.string,
 			React.PropTypes.element
 		] ),
 		secondaryActionURL: React.PropTypes.string,
 		secondaryActionCallback: React.PropTypes.func,
+		secondaryActionTarget: React.PropTypes.string,
 		className: React.PropTypes.string,
 		isCompact: React.PropTypes.bool
 	},
 
-	componentDidMount: function() {
+	componentDidMount() {
 		debug( 'Empty Content React component mounted.' );
 	},
 
-	getDefaultProps: function() {
+	getDefaultProps() {
 		return {
 			title: "You haven't created any content yet.",
 			illustration: '/calypso/images/drake/drake-empty-results.svg',
@@ -48,7 +52,7 @@ module.exports = React.createClass( {
 		};
 	},
 
-	primaryAction: function() {
+	primaryAction() {
 		if ( 'string' !== typeof this.props.action ) {
 			return this.props.action;
 		}
@@ -58,7 +62,7 @@ module.exports = React.createClass( {
 		} else if ( this.props.actionURL ) {
 			let targetProp = {};
 			if ( this.props.actionTarget ) {
-				targetProp = { target: this.props.actionTarget };
+				targetProp = { target: this.props.actionTarget, rel: "noopener noreferrer" };
 			}
 
 			return <a className="empty-content__action button is-primary" href={ this.props.actionURL } { ...targetProp }>{ this.props.action }</a>;
@@ -67,7 +71,7 @@ module.exports = React.createClass( {
 		}
 	},
 
-	secondaryAction: function() {
+	secondaryAction() {
 		if ( 'string' !== typeof this.props.secondaryAction ) {
 			return this.props.secondaryAction;
 		}
@@ -76,8 +80,8 @@ module.exports = React.createClass( {
 			return <a className="empty-content__action button" onClick={ this.props.secondaryActionCallback } href={ this.props.secondaryActionURL }>{ this.props.secondaryAction }</a>;
 		} else if ( this.props.secondaryActionURL ) {
 			let targetProp = {};
-			if ( this.props.actionTarget ) {
-				targetProp = { target: this.props.secondaryActionTarget };
+			if ( this.props.secondaryActionTarget ) {
+				targetProp = { target: this.props.secondaryActionTarget, rel: "noopener noreferrer" };
 			}
 
 			return <a className="empty-content__action button" href={ this.props.secondaryActionURL } { ...targetProp }>{ this.props.secondaryAction }</a>;
@@ -86,23 +90,13 @@ module.exports = React.createClass( {
 		}
 	},
 
-	render: function() {
-		var action, secondaryAction, illustration;
-
-		if ( this.props.action ) {
-			action = this.primaryAction();
-		}
-
-		if ( this.props.secondaryAction ) {
-			secondaryAction = this.secondaryAction();
-		}
-
-		if ( this.props.illustration ) {
-			illustration = <img src={ this.props.illustration } width={ this.props.illustrationWidth } className="empty-content__illustration" />;
-		}
+	render() {
+		const action = this.props.action && this.primaryAction();
+		const secondaryAction = this.props.secondaryAction && this.secondaryAction();
+		const illustration = this.props.illustration && <img src={ this.props.illustration } width={ this.props.illustrationWidth } className="empty-content__illustration" />;
 
 		return (
-			<div className={ classNames( 'empty-content', this.props.className, { 'is-compact': this.props.isCompact } ) }>
+			<div className={ classNames( 'empty-content', this.props.className, { 'is-compact': this.props.isCompact, 'has-title-only': this.props.title && ! this.props.line } ) }>
 				{ illustration }
 
 				{

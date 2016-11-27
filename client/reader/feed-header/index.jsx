@@ -6,7 +6,7 @@ var Card = require( 'components/card' ),
 	ReaderFollowButton = require( 'reader/follow-button' ),
 	resizeImageUrl = require( 'lib/resize-image-url' ),
 	safeImageUrl = require( 'lib/safe-image-url' ),
-	Site = require( 'my-sites/site' ),
+	Site = require( 'blocks/site' ),
 	feedState = require( 'lib/feed-store/constants' ).state;
 
 var FeedHeader = React.createClass( {
@@ -14,7 +14,7 @@ var FeedHeader = React.createClass( {
 	getInitialState() {
 		return {
 			siteish: this.buildSiteish( this.props.site, this.props.feed )
-		}
+		};
 	},
 
 	componentWillReceiveProps( nextProps ) {
@@ -40,12 +40,12 @@ var FeedHeader = React.createClass( {
 	},
 
 	getFollowerCount: function( feed, site ) {
-		if ( feed && feed.subscribers_count > 0 ) {
-			return feed.subscribers_count;
-		}
-
 		if ( site && site.get( 'subscribers_count' ) ) {
 			return site.get( 'subscribers_count' );
+		}
+
+		if ( feed && feed.subscribers_count > 0 ) {
+			return feed.subscribers_count;
 		}
 
 		return null;

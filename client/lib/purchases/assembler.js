@@ -2,11 +2,11 @@
  * External dependencies
  */
 import camelCase from 'lodash/camelCase';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-import i18n from 'lib/mixins/i18n';
 import sortProducts from 'lib/products-values/sort';
 
 function createPurchaseObject( purchase ) {
@@ -30,17 +30,20 @@ function createPurchaseObject( purchase ) {
 		isRedeemable: Boolean( purchase.is_redeemable ),
 		isRefundable: Boolean( purchase.is_refundable ),
 		isRenewable: Boolean( purchase.is_renewable ),
+		isRenewal: Boolean( purchase.is_renewal ),
 		meta: purchase.meta,
-		priceText: `${ purchase.currency_symbol }${ purchase.amount } ${ purchase.currency_code }`,
+		priceText: `${ purchase.currency_symbol }${ purchase.amount }`,
 		payment: {
 			name: purchase.payment_name,
 			type: purchase.payment_type,
 			countryCode: purchase.payment_country_code,
 			countryName: purchase.payment_country_name
 		},
+		pendingTransfer: Boolean( purchase.pending_transfer ),
 		productId: Number( purchase.product_id ),
 		productName: purchase.product_name,
 		productSlug: purchase.product_slug,
+		refundText: `${ purchase.refund_currency_symbol }${ purchase.refund_amount }`,
 		refundPeriodInDays: purchase.refund_period_in_days,
 		renewDate: purchase.renew_date,
 		// only generate a moment if `renewDate` is present and positive

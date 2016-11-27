@@ -1,7 +1,9 @@
 /**
- * Internal dependencies
+ * External dependencies
  */
-import i18n from 'lib/mixins/i18n';
+import i18n from 'i18n-calypso';
+import get from 'lodash/get';
+import { withoutHttp } from 'lib/url';
 
 export default {
 	userCan( capability, site ) {
@@ -157,12 +159,36 @@ export default {
 		}
 
 		if ( site.is_multisite ) {
+			const unmappedUrl = get( site.options, 'unmapped_url', null );
+			const mainNetworkSite = get( site.options, 'main_network_site', null );
+			if ( ! unmappedUrl || ! mainNetworkSite ) {
+				return false;
+			}
 			// Compare unmapped_url with the main_network_site to see if is the main network site.
-			return ! ( site.options &&
-				site.options.unmapped_url.replace( /^https?:\/\//, '' ) !== site.options.main_network_site.replace( /^https?:\/\//, '' )
-			);
+			return ! ( withoutHttp( unmappedUrl ) !== withoutHttp( mainNetworkSite ) );
 		}
 
 		return false;
+	},
+
+	isJetpack( site ) {
+		return site && site.jetpack;
+	},
+
+	/**
+	 * Checks whether a site has a custom mapped URL.
+	 * @param  {Object}   site Site object
+	 * @return {?Boolean}      Whether site has custom domain
+	 */
+	hasCustomDomain( site ) {
+		if ( ! site || ! site.domain || ! site.wpcom_url ) {
+			return null;
+		}
+
+		return site.domain !== site.wpcom_url;
+	},
+
+	isModuleActive( site, moduleId ) {
+		return site.options.active_modules && site.options.active_modules.indexOf( moduleId ) > -1;
 	}
 };

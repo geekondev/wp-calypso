@@ -1,83 +1,83 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	LinkedStateMixin = require( 'react-addons-linked-state-mixin' ),
-	PureRenderMixin = require( 'react-pure-render/mixin' ),
-	debug = require( 'debug' )( 'calypso:my-sites:people:edit-team-member-form' ),
-	omit = require( 'lodash/omit' ),
-	assign = require( 'lodash/assign' ),
-	filter = require( 'lodash/filter' ),
-	pick = require( 'lodash/pick' ),
-	page = require( 'page' );
+import React from 'react';
+import PureRenderMixin from 'react-pure-render/mixin';
+import debugModule from 'debug';
+import omit from 'lodash/omit';
+import assign from 'lodash/assign';
+import filter from 'lodash/filter';
+import pick from 'lodash/pick';
+import page from 'page';
 
 /**
  * Internal dependencies
  */
-var Main = require( 'components/main' ),
-	HeaderCake = require( 'components/header-cake' ),
-	Card = require( 'components/card' ),
-	FormLabel = require( 'components/forms/form-label' ),
-	FormFieldset = require( 'components/forms/form-fieldset' ),
-	FormTextInput = require( 'components/forms/form-text-input' ),
-	FormButton = require( 'components/forms/form-button' ),
-	FormButtonsBar = require( 'components/forms/form-buttons-bar' ),
-	PeopleProfile = require( 'my-sites/people/people-profile' ),
-	UsersStore = require( 'lib/users/store' ),
-	UsersActions = require( 'lib/users/actions' ),
-	user = require( 'lib/user' )(),
-	protectForm = require( 'lib/mixins/protect-form' ),
-	DeleteUser = require( 'my-sites/people/delete-user' ),
-	PeopleNotices = require( 'my-sites/people/people-notices' ),
-	PeopleLog = require( 'lib/people/log-store' ),
-	analytics = require( 'analytics' ),
-	RoleSelect = require( 'my-sites/people/role-select' );
+import Main from 'components/main';
+import HeaderCake from 'components/header-cake';
+import Card from 'components/card';
+import FormLabel from 'components/forms/form-label';
+import FormFieldset from 'components/forms/form-fieldset';
+import FormTextInput from 'components/forms/form-text-input';
+import FormButton from 'components/forms/form-button';
+import FormButtonsBar from 'components/forms/form-buttons-bar';
+import PeopleProfile from 'my-sites/people/people-profile';
+import UsersStore from 'lib/users/store';
+import UsersActions from 'lib/users/actions';
+import userModule from 'lib/user';
+import { protectForm } from 'lib/protect-form';
+import DeleteUser from 'my-sites/people/delete-user';
+import PeopleNotices from 'my-sites/people/people-notices';
+import PeopleLog from 'lib/people/log-store';
+import analytics from 'lib/analytics';
+import RoleSelect from 'my-sites/people/role-select';
 
 /**
  * Module Variables
  */
-var EditUserForm = React.createClass( {
+const debug = debugModule( 'calypso:my-sites:people:edit-team-member-form' );
+const user = userModule();
+
+const EditUserForm = React.createClass( {
 	displayName: 'EditUserForm',
 
-	mixins: [ LinkedStateMixin, PureRenderMixin ],
+	mixins: [ PureRenderMixin ],
 
-	getInitialState: function() {
+	getInitialState() {
 		return this.getStateObject( this.props );
 	},
 
-	componentWillReceiveProps: function( nextProps ) {
+	componentWillReceiveProps( nextProps ) {
 		this.replaceState( this.getStateObject( nextProps ) );
 	},
 
-	getRole: function( roles ) {
-		return roles && roles[0] ? roles[0] : null;
+	getRole( roles ) {
+		return roles && roles[ 0 ] ? roles[ 0 ] : null;
 	},
 
-	getStateObject: function( props ) {
+	getStateObject( props ) {
 		props = 'undefined' !== typeof props ? props : this.props;
-		let role = this.getRole( props.roles );
+		const role = this.getRole( props.roles );
 		return assign(
 			omit( props, 'site' ),
 			{ roles: role }
 		);
 	},
 
-	getChangedSettings: function() {
-		var originalUser = this.getStateObject( this.props.user ),
-			changedKeys;
-
-		changedKeys = filter( this.getAllowedSettingsToChange(), function( setting ) {
+	getChangedSettings() {
+		const originalUser = this.getStateObject( this.props.user );
+		const changedKeys = filter( this.getAllowedSettingsToChange(), ( setting ) => {
 			return 'undefined' !== typeof originalUser[ setting ] &&
 				'undefined' !== typeof this.state[ setting ] &&
 				originalUser[ setting ] !== this.state[ setting ];
-		}.bind( this ) );
+		} );
 
 		return pick( this.state, changedKeys );
 	},
 
-	getAllowedSettingsToChange: function() {
-		var allowedSettings = [],
-			currentUser = user.get();
+	getAllowedSettingsToChange() {
+		const currentUser = user.get();
+		let allowedSettings = []; // eslint-disable-line
 
 		if ( ! this.state.ID ) {
 			return allowedSettings;
@@ -99,15 +99,14 @@ var EditUserForm = React.createClass( {
 		return allowedSettings;
 	},
 
-	hasUnsavedSettings: function() {
+	hasUnsavedSettings() {
 		return Object.keys( this.getChangedSettings() ).length;
 	},
 
-	updateUser: function( event ) {
-		var changedSettings;
+	updateUser( event ) {
 		event.preventDefault();
 
-		changedSettings = this.getChangedSettings();
+		const changedSettings = this.getChangedSettings();
 		debug( 'Changed settings: ' + JSON.stringify( changedSettings ) );
 
 		this.props.markSaved();
@@ -123,12 +122,18 @@ var EditUserForm = React.createClass( {
 		analytics.ga.recordEvent( 'People', 'Clicked Save Changes Button on User Edit' );
 	},
 
-	recordFieldFocus: ( fieldId ) => () => {
+	recordFieldFocus( fieldId ) {
 		analytics.ga.recordEvent( 'People', 'Focused on field on User Edit', 'Field', fieldId );
 	},
 
-	renderField: function( fieldId ) {
-		var returnField = null;
+	handleChange( event ) {
+		this.setState( {
+			[ event.target.name ]: event.target.value
+		} );
+	},
+
+	renderField( fieldId ) {
+		let returnField = null;
 		switch ( fieldId ) {
 			case 'roles':
 				returnField = (
@@ -137,7 +142,8 @@ var EditUserForm = React.createClass( {
 						name="roles"
 						key="roles"
 						siteId={ this.props.siteId }
-						valueLink={ this.linkState( 'roles' ) }
+						value={ this.state.roles }
+						onChange={ this.handleChange }
 						onFocus={ this.recordFieldFocus( 'roles' ) }
 					/>
 				);
@@ -151,7 +157,8 @@ var EditUserForm = React.createClass( {
 						<FormTextInput
 							id="first_name"
 							name="first_name"
-							valueLink={ this.linkState( 'first_name' ) }
+							defaultValue={ this.state.first_name }
+							onChange={ this.handleChange }
 							onFocus={ this.recordFieldFocus( 'first_name' ) }
 						/>
 					</FormFieldset>
@@ -166,7 +173,8 @@ var EditUserForm = React.createClass( {
 						<FormTextInput
 							id="last_name"
 							name="last_name"
-							valueLink={ this.linkState( 'last_name' ) }
+							defaultValue={ this.state.last_name }
+							onChange={ this.handleChange }
 							onFocus={ this.recordFieldFocus( 'last_name' ) }
 						/>
 					</FormFieldset>
@@ -181,7 +189,8 @@ var EditUserForm = React.createClass( {
 						<FormTextInput
 							id="name"
 							name="name"
-							valueLink={ this.linkState( 'name' ) }
+							defaultValue={ this.state.name }
+							onChange={ this.handleChange }
 							onFocus={ this.recordFieldFocus( 'name' ) }
 						/>
 					</FormFieldset>
@@ -192,8 +201,8 @@ var EditUserForm = React.createClass( {
 		return returnField;
 	},
 
-	render: function() {
-		var editableFields;
+	render() {
+		let editableFields;
 		if ( ! this.state.ID ) {
 			return null;
 		}
@@ -204,18 +213,18 @@ var EditUserForm = React.createClass( {
 			return null;
 		}
 
+		editableFields = editableFields.map( ( fieldId ) => {
+			return this.renderField( fieldId );
+		} );
+
 		return (
 			<form
-				className="edit-team-member-form__form"
+				className="edit-team-member-form__form" // eslint-disable-line
 				disabled={ this.props.disabled }
 				onSubmit={ this.updateUser }
 				onChange={ this.props.markChanged }
 			>
-				{
-					editableFields.map( function( fieldId ) {
-						return this.renderField( fieldId );
-					}.bind( this ) )
-				}
+				{ editableFields }
 				<FormButtonsBar>
 					<FormButton disabled={ ! this.hasUnsavedSettings() }>
 						{ this.translate( 'Save changes', { context: 'Button label that prompts user to save form' } ) }
@@ -226,19 +235,19 @@ var EditUserForm = React.createClass( {
 	}
 } );
 
-module.exports = React.createClass( {
+module.exports = protectForm( React.createClass( {
 	displayName: 'EditTeamMemberForm',
 
-	mixins: [ PureRenderMixin, protectForm.mixin ],
+	mixins: [ PureRenderMixin ],
 
-	getInitialState: function() {
+	getInitialState() {
 		return ( {
 			user: UsersStore.getUserByLogin( this.props.siteId, this.props.userLogin ),
 			removingUser: false
 		} );
 	},
 
-	componentDidMount: function() {
+	componentDidMount() {
 		UsersStore.on( 'change', this.refreshUser );
 		PeopleLog.on( 'change', this.checkRemoveUser );
 		if ( ! this.state.user && this.props.siteId ) {
@@ -246,41 +255,41 @@ module.exports = React.createClass( {
 		}
 	},
 
-	componentWillUnmount: function() {
+	componentWillUnmount() {
 		UsersStore.removeListener( 'change', this.refreshUser );
 		PeopleLog.removeListener( 'change', this.checkRemoveUser );
 	},
 
-	componentWillReceiveProps: function( nextProps ) {
+	componentWillReceiveProps( nextProps ) {
 		this.refreshUser( nextProps );
 	},
 
-	refreshUser: function( nextProps ) {
-		var siteId = nextProps && nextProps.siteId ? nextProps.siteId : this.props.siteId;
+	refreshUser( nextProps ) {
+		const siteId = nextProps && nextProps.siteId ? nextProps.siteId : this.props.siteId;
 
 		this.setState( {
 			user: UsersStore.getUserByLogin( siteId, this.props.userLogin )
 		} );
 	},
 
-	checkRemoveUser: function() {
+	checkRemoveUser() {
 		if ( ! this.props.siteId ) {
 			return;
 		}
 
-		let removeUserSuccessful = PeopleLog.getCompleted( function( log ) {
+		const removeUserSuccessful = PeopleLog.getCompleted( ( log ) => {
 			return 'RECEIVE_DELETE_SITE_USER_SUCCESS' === log.action &&
 				this.props.siteId === log.siteId &&
 				this.props.userLogin === log.user.login;
-		}.bind( this ) );
+		} );
 
 		if ( removeUserSuccessful.length ) {
-			this.markSaved();
-			let redirect = this.props.siteSlug ? '/people/team/' + this.props.siteSlug : '/people/team';
+			this.props.markSaved();
+			const redirect = this.props.siteSlug ? '/people/team/' + this.props.siteSlug : '/people/team';
 			page.redirect( redirect );
 		}
 
-		let removeUserInProgress = PeopleLog.getInProgress( function( log ) {
+		const removeUserInProgress = PeopleLog.getInProgress( function( log ) {
 			return 'DELETE_SITE_USER' === log.action &&
 				this.props.siteId === log.siteId &&
 				this.props.userLogin === log.user.login;
@@ -293,10 +302,10 @@ module.exports = React.createClass( {
 		}
 	},
 
-	goBack: function() {
+	goBack() {
 		analytics.ga.recordEvent( 'People', 'Clicked Back Button on User Edit' );
 		if ( this.props.siteSlug ) {
-			let teamBack = '/people/team/' + this.props.siteSlug,
+			const teamBack = '/people/team/' + this.props.siteSlug,
 				readersBack = '/people/readers/' + this.props.siteSlug;
 			if ( this.props.prevPath === teamBack ) {
 				page.back( teamBack );
@@ -310,16 +319,16 @@ module.exports = React.createClass( {
 		page( '/people/team' );
 	},
 
-	renderNotices: function() {
+	renderNotices() {
 		if ( ! this.state.user ) {
 			return;
 		}
 		return (
-			<PeopleNotices siteId={ this.props.siteId } user={ this.state.user }/>
+			<PeopleNotices user={ this.state.user } />
 		);
 	},
 
-	render: function() {
+	render() {
 		return (
 			<Main className="edit-team-member-form">
 				<HeaderCake onClick={ this.goBack } isCompact />
@@ -331,20 +340,19 @@ module.exports = React.createClass( {
 						disabled={ this.state.removingUser }
 						siteId={ this.props.siteId }
 						isJetpack={ this.props.isJetpack }
-						markChanged={ this.markChanged }
-						markSaved={ this.markSaved }
+						markChanged={ this.props.markChanged }
+						markSaved={ this.props.markSaved }
 					/>
 				</Card>
 				{
-					this.state.user ?
+					this.state.user &&
 					<DeleteUser
 						{ ...pick( this.props, [ 'siteId', 'isJetpack', 'isMultisite' ] ) }
 						currentUser={ user.get() }
 						user={ this.state.user }
-					/> :
-					null
+					/>
 				}
 			</Main>
 		);
 	}
-} );
+} ) );

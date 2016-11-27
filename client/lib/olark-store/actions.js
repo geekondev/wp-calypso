@@ -45,6 +45,13 @@ const olarkActions = {
 		} );
 	},
 
+	setClosed( isSupportClosed ) {
+		dispatcher.handleServerAction( {
+			isSupportClosed,
+			type: ActionTypes.OLARK_SET_CLOSED
+		} );
+	},
+
 	setExpanded( isOlarkExpanded ) {
 		dispatcher.handleServerAction( {
 			isOlarkExpanded,
@@ -79,6 +86,15 @@ const olarkActions = {
 
 	hideBox() {
 		olarkApi( 'api.box.hide' );
+	},
+
+	focusBox() {
+		if ( ! document ) {
+			return;
+		}
+
+		const chatInput = document.querySelector( '#habla_wcsend_input' );
+		chatInput && chatInput.focus();
 	}
 };
 

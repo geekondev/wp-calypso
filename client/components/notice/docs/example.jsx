@@ -7,8 +7,8 @@ var React = require( 'react' ),
 /**
 * Internal dependencies
 */
-var NoticeAction = require( 'components/notice/notice-action' ),
-	Notice = require( 'components/notice' );
+var NoticeAction = require( 'components/notice/notice-action' );
+import Notice from 'components/notice';
 
 var Notices = React.createClass( {
 	mixins: [ PureRenderMixin ],
@@ -23,17 +23,24 @@ var Notices = React.createClass( {
 		var toggleNoticesText = this.state.compactNotices ? 'Normal Notices' : 'Compact Notices';
 
 		return (
-			<div className="design-assets__group">
-				<h2>
-					<a href="/devdocs/design/notices">Notices</a>
-					<a className="design-assets__toggle button" onClick={ this.toggleNotices }>{ toggleNoticesText }</a>
-				</h2>
-
+			<div>
+				<a className="docs__design-toggle button" onClick={ this.toggleNotices }>{ toggleNoticesText }</a>
 				<div>
 					<Notice
-						text="I'm a notice with no status."
 						showDismiss={ false }
-						isCompact={ this.state.compactNotices ? true : null } />
+						isCompact={ this.state.compactNotices ? true : null }>
+						I'm a notice with no status and <a>a link</a>.
+					</Notice>
+				</div>
+				<div>
+					<Notice
+						text="I'm a notice with no status and an action."
+						showDismiss={ false }
+						isCompact={ this.state.compactNotices ? true : null }>
+						<NoticeAction href="#">
+							{ "Update" }
+						</NoticeAction>
+					</Notice>
 				</div>
 				<div>
 					<Notice
@@ -43,10 +50,30 @@ var Notices = React.createClass( {
 						isCompact={ this.state.compactNotices ? true : null } />
 				</div>
 				<div>
+					<Notice
+						status="is-info"
+						showDismiss={ false }
+						text="I'm an `is-info` notice with custom icon and an action."
+						icon="heart"
+						isCompact={ this.state.compactNotices ? true : null }>
+						<NoticeAction href="#">
+							{ "Update" }
+						</NoticeAction>
+					</Notice>
+				</div>
+				<div>
 					<Notice status="is-success" text="I'm an `is-success` notice." isCompact={ this.state.compactNotices ? true : null } />
 				</div>
 				<div>
-					<Notice status="is-error" text="I'm an `is-error` notice." isCompact={ this.state.compactNotices ? true : null } />
+					<Notice
+						status="is-error"
+						showDismiss={ false }
+						text="I'm an `is-error` notice."
+						isCompact={ this.state.compactNotices ? true : null }>
+						<NoticeAction href="#">
+							{ "Update" }
+						</NoticeAction>
+					</Notice>
 				</div>
 				<div>
 					<Notice

@@ -1,18 +1,18 @@
 /**
  * External dependencies
  */
-const React = require( 'react' ),
-	PureRenderMixin = require( 'react-pure-render/mixin' ),
-	classNames = require( 'classnames' ),
-	omit = require( 'lodash/omit' );
+import React from 'react';
+import PureRenderMixin from 'react-pure-render/mixin';
+import classNames from 'classnames';
+import omit from 'lodash/omit';
 
 /**
  * Internal dependencies
  */
-const CompactCard = require( 'components/card/compact' ),
-	PeopleProfile = require( 'my-sites/people/people-profile' ),
-	analytics = require( 'analytics' ),
-	config = require( 'config' );
+import CompactCard from 'components/card/compact';
+import PeopleProfile from 'my-sites/people/people-profile';
+import analytics from 'lib/analytics';
+import config from 'config';
 
 export default React.createClass( {
 
@@ -48,10 +48,10 @@ export default React.createClass( {
 		const canLinkToProfile = this.canLinkToProfile();
 		return (
 			<CompactCard
-				{ ...omit( this.props, 'className' ) }
+				{ ...omit( this.props, 'className', 'user', 'site', 'isSelectable', 'onRemove' ) }
 				className={ classNames( 'people-list-item', this.props.className ) }
 				tagName="a"
-				href={ canLinkToProfile && '/people/edit/' + this.props.user.login + '/' + this.props.site.slug }
+				href={ canLinkToProfile && '/people/edit/' + this.props.site.slug + '/' + this.props.user.login }
 				onClick={ canLinkToProfile && this.navigateToUser }>
 				<div className="people-list-item__profile-container">
 					<PeopleProfile user={ this.props.user } />

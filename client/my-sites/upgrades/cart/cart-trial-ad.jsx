@@ -2,44 +2,52 @@
  * External dependencies
  */
 import React from 'react';
+import { connect } from 'react-redux';
+import page from 'page';
+import i18n from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
+import CartAd from './cart-ad';
 import { cartItems } from 'lib/cart-values';
-import { addCurrentPlanToCartAndRedirect, getCurrentPlan, getDayOfTrial } from 'lib/plans';
-import i18n from 'lib/mixins/i18n';
+import { getDayOfTrial } from 'lib/plans';
+import { addItem } from 'lib/upgrades/actions';
+import { getSelectedSiteId } from 'state/ui/selectors';
+import { getSiteSlug } from 'state/sites/selectors';
+import { getCurrentPlan, isRequestingSitePlans } from 'state/sites/plans/selectors';
+import QuerySitePlans from 'components/data/query-site-plans';
 
 const CartTrialAd = React.createClass( {
 	propTypes: {
 		cart: React.PropTypes.object.isRequired,
-		sitePlans: React.PropTypes.object.isRequired,
-		selectedSite: React.PropTypes.oneOfType( [
-			React.PropTypes.object,
-			React.PropTypes.bool
-		] ).isRequired
+		// connected props
+		currentPlan: React.PropTypes.object,
+		isRequestingSitePlans: React.PropTypes.bool,
+		siteId: React.PropTypes.number,
+		siteSlug: React.PropTypes.string
 	},
 
 	addPlanAndRedirect( event ) {
 		event.preventDefault();
-
-		addCurrentPlanToCartAndRedirect( this.props.sitePlans, this.props.selectedSite );
+		addItem( cartItems.planItem( this.props.currentPlan.productSlug ) );
+		page( `/checkout/${ this.props.siteSlug }` );
 	},
 
 	render() {
-		const { cart, sitePlans } = this.props,
-			isDataLoading = ! sitePlans.hasLoadedFromServer || ! cart.hasLoadedFromServer,
-			currentPlan = getCurrentPlan( sitePlans.data );
+		const { cart, currentPlan, isRequestingSitePlans: isRequestingPlans, siteId } = this.props,
+			isDataLoading = isRequestingPlans || ! cart.hasLoadedFromServer;
 
 		if ( isDataLoading ||
 			! currentPlan.freeTrial ||
 			cartItems.getDomainRegistrations( cart ).length !== 1 ||
 			cartItems.hasPlan( cart ) ) {
-			return null;
+			return <QuerySitePlans siteId={ siteId } />;
 		}
 
 		return (
-			<div className="popover-cart__cart-trial-ad">
+			<CartAd>
+				<QuerySitePlans siteId={ siteId } />
 				{
 					i18n.translate( 'You are currently on day %(days)d of your {{strong}}%(planName)s trial{{/strong}}.', {
 						components: { strong: <strong /> },
@@ -59,9 +67,19 @@ const CartTrialAd = React.createClass( {
 					onClick={ this.addPlanAndRedirect }>
 						{ i18n.translate( 'Upgrade Now' ) }
 				</a>
-			</div>
+			</CartAd>
 		);
 	}
 } );
 
-export default CartTrialAd;
+export default connect(
+	( state ) => {
+		const siteId = getSelectedSiteId( state );
+		return {
+			currentPlan: getCurrentPlan( state, siteId ),
+			isRequestingSitePlans: isRequestingSitePlans( state, siteId ),
+			siteId,
+			siteSlug: getSiteSlug( state, siteId )
+		};
+	}
+)( CartTrialAd );

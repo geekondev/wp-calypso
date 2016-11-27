@@ -1,51 +1,86 @@
 /**
  * External dependencies
  */
-var React = require( 'react' );
+import React from 'react';
+import { connect } from 'react-redux';
+import page from 'page';
+import { translate } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-var Dialog = require( 'components/dialog' ),
-	PulsingDot = require( 'components/pulsing-dot' ),
-	Helpers = require( './helpers' );
+import Dialog from 'components/dialog';
+import PulsingDot from 'components/pulsing-dot';
+import { getForumUrl, trackClick } from './helpers';
+import { getThemeDetailsUrl, getThemeCustomizeUrl } from 'state/themes/selectors';
+import {
+	isActivating,
+	hasActivated,
+	getCurrentTheme
+} from 'state/themes/current-theme/selectors';
+import { clearActivated } from 'state/themes/actions';
 
-var ThanksModal = React.createClass( {
-	trackClick: Helpers.trackClick.bind( null, 'current theme' ),
+const ThanksModal = React.createClass( {
+	trackClick: trackClick.bind( null, 'current theme' ),
 
 	propTypes: {
-		clearActivated: React.PropTypes.func.isRequired
+		// Where is the modal being used?
+		source: React.PropTypes.oneOf( [ 'details', 'list' ] ).isRequired,
+		// Connected props
+		isActivating: React.PropTypes.bool.isRequired,
+		hasActivated: React.PropTypes.bool.isRequired,
+		currentTheme: React.PropTypes.shape( {
+			name: React.PropTypes.string,
+			id: React.PropTypes.string
+		} ),
+		clearActivated: React.PropTypes.func.isRequired,
 	},
 
-	onCloseModal: function() {
+	onCloseModal() {
 		this.props.clearActivated();
 		this.setState( { show: false } );
 	},
 
-	visitSite: function() {
+	visitSite() {
 		this.trackClick( 'visit site' );
-		window.open( this.props.site.URL );
+		page( this.props.site.URL );
 	},
 
-	goBack: function() {
+	goBack() {
 		this.trackClick( 'go back' );
 		this.onCloseModal();
 	},
 
-	renderWpcomInfo: function() {
+	onLinkClick( link ) {
+		return () => {
+			this.onCloseModal();
+			this.trackClick( link, 'click' );
+		};
+	},
+
+	renderWpcomInfo() {
+		const features = translate( "Discover this theme's {{a}}awesome features.{{/a}}", {
+			components: {
+				a: <a href={ this.props.detailsUrl }
+					onClick={ this.onLinkClick( 'features' ) } />
+			}
+		} );
+		const customize = translate( '{{a}}Customize{{/a}} this design.', {
+			components: {
+				a: <a href={ this.props.customizeUrl }
+					onClick={ this.onLinkClick( 'customize' ) } />
+			}
+		} );
 		return (
 			<ul>
 				<li>
-					{ this.translate( "Discover this theme's {{a}}awesome features.{{/a}}", {
-						components: {
-							a: <a href={ Helpers.getDetailsUrl( this.props.currentTheme, this.props.site ) } target="_blank" />
-						}
-					} ) }
+					{ this.props.source === 'list' ? features : customize }
 				</li>
 			<li>
-				{ this.translate( 'Have questions? Stop by our {{a}}support forums.{{/a}}', {
+				{ translate( 'Have questions? Stop by our {{a}}support forums.{{/a}}', {
 					components: {
-						a: <a href={ Helpers.getForumUrl( this.props.currentTheme ) } target="_blank" />
+						a: <a href={ getForumUrl( this.props.currentTheme ) }
+							onClick={ this.onLinkClick( 'support' ) } />
 					}
 				} ) }
 			</li>
@@ -53,13 +88,14 @@ var ThanksModal = React.createClass( {
 		);
 	},
 
-	renderWporgThemeInfo: function( themeUri ) {
+	renderWporgThemeInfo( themeUri ) {
 		if ( themeUri ) {
 			return (
 				<li>
-					{ this.translate( 'Learn more about this {{a}}awesome theme{{/a}}.', {
+					{ translate( 'Learn more about this {{a}}awesome theme{{/a}}.', {
 						components: {
-							a: <a href={ themeUri } target="_blank" />
+							a: <a href={ themeUri }
+								onClick={ this.onLinkClick( 'org theme' ) } />
 						}
 					} ) }
 				</li>
@@ -67,13 +103,14 @@ var ThanksModal = React.createClass( {
 		}
 	},
 
-	renderWporgAuthorInfo: function( authorUri ) {
+	renderWporgAuthorInfo( authorUri ) {
 		if ( authorUri ) {
 			return (
 				<li>
-					{ this.translate( 'Have questions? {{a}}Contact the theme author.{{/a}}', {
+					{ translate( 'Have questions? {{a}}Contact the theme author.{{/a}}', {
 						components: {
-							a: <a href={ authorUri } target="_blank" />
+							a: <a href={ authorUri }
+								onClick={ this.onLinkClick( 'org author' ) } />
 						}
 					} ) }
 				</li>
@@ -81,21 +118,24 @@ var ThanksModal = React.createClass( {
 		}
 	},
 
-	renderWporgForumInfo: function() {
+	renderWporgForumInfo() {
 		return (
 			<li>
-				{ this.translate( 'If you need support, visit the WordPress.org {{a}}Themes forum{{/a}}.', {
+				{ translate( 'If you need support, visit the WordPress.org {{a}}Themes forum{{/a}}.', {
 					components: {
-						a: <a href="https://wordpress.org/support/forum/themes-and-templates" target="_blank" />
+						a: <a href="https://wordpress.org/support/forum/themes-and-templates"
+							onClick={ this.onLinkClick( 'org forum' ) } />
 					}
 				} ) }
 			</li>
 		);
 	},
 
-	renderJetpackInfo: function() {
-		const themeUri = this.props.currentTheme.theme_uri;
-		const authorUri = this.props.currentTheme.author_uri;
+	renderJetpackInfo() {
+		const {
+			theme_uri: themeUri,
+			author_uri: authorUri
+		} = this.props.currentTheme;
 
 		return (
 			<ul>
@@ -106,29 +146,30 @@ var ThanksModal = React.createClass( {
 		);
 	},
 
-	renderContent: function() {
+	renderContent() {
+		const {
+			name: themeName,
+			author: themeAuthor
+		} = this.props.currentTheme;
+
 		return (
 			<div>
 				<h1>
-					{ this.translate( 'Thanks for choosing {{br/}} %(themeName)s {{br/}} by %(themeAuthor)s', {
-						args: {
-							themeName: this.props.currentTheme.name,
-							themeAuthor: this.props.currentTheme.author
-						},
+					{ translate( 'Thanks for choosing {{br/}} %(themeName)s {{br/}} by %(themeAuthor)s', {
+						args: { themeName, themeAuthor },
 						components: {
 							br: <br />
 						}
 					} ) }
 				</h1>
 				<ul>
-
 					{ this.props.site.jetpack ? this.renderJetpackInfo() : this.renderWpcomInfo() }
 				</ul>
 			</div>
 		);
 	},
 
-	renderLoading: function() {
+	renderLoading() {
 		return (
 			<div>
 				<PulsingDot active={ true } />
@@ -136,12 +177,11 @@ var ThanksModal = React.createClass( {
 		);
 	},
 
-	render: function() {
-		var buttons;
-
-		buttons = [
-			{ action: 'back', label: this.translate( 'Back to themes' ), onClick: this.goBack },
-			{ action: 'visitSite', label: this.translate( 'Visit site' ), isPrimary: true, onClick: this.visitSite },
+	render() {
+		const visitSiteText = this.props.hasActivated ? translate( 'Visit site' ) : translate( 'Activating theme…' );
+		const buttons = [
+			{ action: 'back', label: translate( 'Back to themes' ), onClick: this.goBack },
+			{ action: 'visitSite', label: visitSiteText, isPrimary: true, disabled: ! this.props.hasActivated, onClick: this.visitSite },
 		];
 
 		return (
@@ -152,4 +192,17 @@ var ThanksModal = React.createClass( {
 	},
 } );
 
-module.exports = ThanksModal;
+export default connect(
+	( state, props ) => {
+		const currentTheme = getCurrentTheme( state, props.site && props.site.ID );
+
+		return {
+			currentTheme,
+			detailsUrl: props.site && getThemeDetailsUrl( state, currentTheme, props.site.ID ),
+			customizeUrl: props.site && getThemeCustomizeUrl( state, currentTheme, props.site.ID ),
+			isActivating: isActivating( state ),
+			hasActivated: hasActivated( state ),
+		};
+	},
+	{ clearActivated }
+)( ThanksModal );

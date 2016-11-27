@@ -2,45 +2,51 @@
  * External dependencies
  */
 import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { translate } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
 import Button from 'components/button';
 import Count from 'components/count';
+import QueryPostCounts from 'components/data/query-post-counts';
+import { getSelectedSiteId } from 'state/ui/selectors';
+import { isJetpackSite } from 'state/sites/selectors';
+import { getAllPostCount } from 'state/posts/counts/selectors';
 
-export default React.createClass( {
-	displayName: 'EditorDraftsButton',
+function EditorDraftsButton( { count, onClick, jetpack, siteId, hideText } ) {
+	return (
+		<Button
+			compact borderless
+			className="drafts-button"
+			onClick={ onClick }
+			disabled={ ! count && ! jetpack }
+			aria-label={ translate( 'View all drafts' ) }
+		>
+			{ siteId && (
+				<QueryPostCounts siteId={ siteId } type="post" />
+			) }
+			{ ! hideText && <span>{ translate( 'Drafts' ) }</span> }
+			{ count && ! jetpack ? <Count count={ count } /> : null }
+		</Button>
+	);
+};
 
-	propTypes: {
-		site: PropTypes.object,
-		count: PropTypes.number,
-		onClick: PropTypes.func
-	},
+EditorDraftsButton.propTypes = {
+	count: PropTypes.number,
+	onClick: PropTypes.func,
+	jetpack: PropTypes.bool,
+	siteId: PropTypes.number,
+	hideText: PropTypes.bool
+};
 
-	getDefaultProps() {
-		return {
-			count: 0,
-			onClick: () => {}
-		};
-	},
+export default connect( ( state ) => {
+	const siteId = getSelectedSiteId( state );
 
-	render() {
-		if ( ! this.props.site ) {
-			return null;
-		}
-
-		return (
-			<Button
-				compact borderless
-				className="drafts-button"
-				onClick={ this.props.onClick }
-				disabled={ ! this.props.count }
-				aria-label={ this.translate( 'View all drafts' ) }
-			>
-				<span>{ this.translate( 'Drafts' ) }</span>
-				{ this.props.count ? <Count count={ this.props.count } /> : null }
-			</Button>
-		);
-	}
-} );
+	return {
+		jetpack: isJetpackSite( state, siteId ),
+		count: getAllPostCount( state, siteId, 'post', 'draft' ),
+		siteId
+	};
+} )( EditorDraftsButton );

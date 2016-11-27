@@ -1,37 +1,34 @@
+/* eslint-disable no-console */
+
 /**
  * External dependencies
  */
-import Chai, { expect } from 'chai';
+import { expect } from 'chai';
 import filter from 'lodash/filter';
 import sinon from 'sinon';
-import sinonChai from 'sinon-chai';
 
 /**
  * Internal dependencies
  */
 import createSelector from '../';
+import { useSandbox } from 'test/helpers/use-sinon';
 
-describe( '#createSelector', () => {
+describe( 'index', () => {
 	let selector, getSitePosts;
 
-	before( () => {
-		Chai.use( sinonChai );
-
-		selector = sinon.spy( ( state, siteId ) => {
+	useSandbox( ( sandbox ) => {
+		sandbox.stub( console, 'warn' );
+		selector = sandbox.spy( ( state, siteId ) => {
 			return filter( state.posts, { site_ID: siteId } );
 		} );
+	} );
+
+	before( () => {
 		getSitePosts = createSelector( selector, ( state ) => state.posts );
-		sinon.stub( console, 'warn' );
 	} );
 
 	beforeEach( () => {
-		console.warn.reset();
-		selector.reset();
 		getSitePosts.memoizedSelector.cache.clear();
-	} );
-
-	after( () => {
-		console.warn.restore();
 	} );
 
 	it( 'should expose its memoized function', () => {
@@ -133,6 +130,30 @@ describe( '#createSelector', () => {
 		expect( selector ).to.have.been.calledOnce;
 	} );
 
+	it( 'should accept an array of dependent selectors', () => {
+		const getPosts = ( state ) => state.posts;
+		const getSitePostsWithArrayDependants = createSelector( selector, [ getPosts ] );
+		const state = {
+			posts: {
+				'3d097cb7c5473c169bba0eb8e3c6cb64': {
+					ID: 841,
+					site_ID: 2916284,
+					global_ID: '3d097cb7c5473c169bba0eb8e3c6cb64',
+					title: 'Hello World'
+				}
+			}
+		};
+
+		const nextState = { posts: {} };
+
+		getSitePostsWithArrayDependants( state, 2916284 );
+		getSitePostsWithArrayDependants( state, 2916284 );
+		getSitePostsWithArrayDependants( nextState, 2916284 );
+		getSitePostsWithArrayDependants( nextState, 2916284 );
+
+		expect( selector ).to.have.been.calledTwice;
+	} );
+
 	it( 'should default to watching entire state, returning cached result if no changes', () => {
 		const getSitePostsWithDefaultGetDependants = createSelector( selector );
 		const state = {
@@ -189,5 +210,16 @@ describe( '#createSelector', () => {
 		memoizedSelector( state, 1, 2, 3 );
 
 		expect( getDeps ).to.have.been.calledWithExactly( state, 1, 2, 3 );
+	} );
+
+	it( 'should handle an array of selectors instead of a dependant state getter', () => {
+		const getPosts = sinon.spy();
+		const getQuuxs = sinon.spy();
+		const memoizedSelector = createSelector( () => null, [ getPosts, getQuuxs ] );
+		const state = {};
+
+		memoizedSelector( state, 1, 2, 3 );
+		expect( getPosts ).to.have.been.calledWithExactly( state, 1, 2, 3 );
+		expect( getQuuxs ).to.have.been.calledWithExactly( state, 1, 2, 3 );
 	} );
 } );

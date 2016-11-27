@@ -2,24 +2,27 @@
  * External dependencies
  */
 import { expect } from 'chai';
-import rewire from 'rewire';
 
 /**
  * Internal dependencies
  */
-import setupTestEnv from 'lib/react-test-env-setup';
+import useFakeDom from 'test/helpers/use-fake-dom';
 
 describe( 'restrictSize', () => {
-	let restrictSize;
+	let getMaxWidth, resetImages, setImages;
+
+	useFakeDom();
+
 	before( () => {
-		setupTestEnv();
-		restrictSize = rewire( '../' );
+		const restrictSize = require( '../' );
+		getMaxWidth = restrictSize.getMaxWidth;
+		resetImages = restrictSize.resetImages;
+		setImages = restrictSize.setImages;
 	} );
 
 	describe( '#getMaxWidth()', () => {
-		let getMaxWidth, matchMedia, devicePixelRatio;
+		let matchMedia, devicePixelRatio;
 		before( () => {
-			getMaxWidth = restrictSize.__get__( 'getMaxWidth' );
 			matchMedia = window.matchMedia;
 			devicePixelRatio = window.devicePixelRatio;
 		} );
@@ -49,11 +52,6 @@ describe( 'restrictSize', () => {
 	} );
 
 	describe( '#resetImages()', () => {
-		let resetImages;
-		before( () => {
-			resetImages = restrictSize.__get__( 'resetImages' );
-		} );
-
 		it( 'should restore all instances of replaced images', () => {
 			const value = resetImages( '<p><img src="https://wordpress.com/2015/11/forest.jpg?w=680" data-wpmedia-src="https://wordpress.com/2015/11/forest.jpg?w=1024" class="alignnone size-large wp-image-5823" alt="forest" width="1024" height="683" data-mce-src="https://wordpress.com/2015/11/forest.jpg?w=680" data-mce-selected="1"></p>' );
 			expect( value ).to.equal( '<p><img src="https://wordpress.com/2015/11/forest.jpg?w=1024" class="alignnone size-large wp-image-5823" alt="forest" width="1024" height="683" data-mce-src="https://wordpress.com/2015/11/forest.jpg?w=680" data-mce-selected="1"></p>' );
@@ -71,11 +69,6 @@ describe( 'restrictSize', () => {
 	} );
 
 	describe( '#setImages()', () => {
-		let setImages;
-		before( () => {
-			setImages = restrictSize.__get__( 'setImages' );
-		} );
-
 		it( 'should replace all instances of large images', () => {
 			const value = setImages( '<p><img src="https://wordpress.com/2015/11/forest.jpg?w=1024" class="alignnone size-large wp-image-5823" alt="forest" width="1024" height="683" data-mce-src="https://wordpress.com/2015/11/forest.jpg?w=680" data-mce-selected="1"></p>' );
 			expect( value ).to.equal( '<p><img src="https://wordpress.com/2015/11/forest.jpg?w=680" data-wpmedia-src="https://wordpress.com/2015/11/forest.jpg?w=1024" class="alignnone size-large wp-image-5823" alt="forest" width="1024" height="683" data-mce-src="https://wordpress.com/2015/11/forest.jpg?w=680" data-mce-selected="1"></p>' );

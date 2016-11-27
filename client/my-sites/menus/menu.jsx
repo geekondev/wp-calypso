@@ -7,21 +7,19 @@ var React = require( 'react' ),
 /**
  * Internal dependencies
  */
-var protectForm = require( 'lib/mixins/protect-form' ),
-	observe = require( 'lib/mixins/data-observe' ),
-	assign = require( 'lodash/assign' ),
+var assign = require( 'lodash/assign' ),
+	classNames = require( 'classnames' ),
 	MenuName = require( './menu-name' ),
 	MenuItemList = require( './menu-item-list' ),
-	MenuDeleteButton = require ( './menu-delete-button' ),
+	MenuDeleteButton = require( './menu-delete-button' ),
 	MenuSaveButton = require( './menus-save-button' ),
-	analytics = require( 'analytics' );
+	MenuRevertButton = require( './menus-revert-button' ),
+	analytics = require( 'lib/analytics' );
 
 /**
  * Renders one menu
  */
 var Menu = React.createClass( {
-
-	mixins: [ protectForm.mixin ],
 
 	MOUSE_DRAG_STEP_PIXELS: 16,
 
@@ -30,7 +28,8 @@ var Menu = React.createClass( {
 			moveState: {},
 			addState: {},
 			confirmDeleteItem: null,
-			editItemId: null
+			editItemId: null,
+			editingTitle: false
 		};
 	},
 
@@ -68,7 +67,6 @@ var Menu = React.createClass( {
 		moveOp = this.getMoveOperation( x, y, item );
 
 		if ( moveOp && ! this.operationsEqual( moveOp, this.previousOp ) ) {
-
 			// prevent drop of item into its own subtree
 			if ( menuData.isAncestor( this.draggedItem, item ) ) {
 				return;
@@ -200,10 +198,15 @@ var Menu = React.createClass( {
 	},
 
 	renderAddTip: function() {
-		return ! this.getEditItem() ?
-			<div className="menus__add-item-footer-label">
+		return ! this.getEditItem()
+			? <div className="menus__add-item-footer-label">
 				{ this.translate( 'Add new item' ) }
-			</div> : null;
+			</div>
+			: null;
+	},
+
+	updateTitleEditing: function( editing ) {
+		this.setState( { editingTitle: editing } );
 	},
 
 	render: function() {
@@ -215,6 +218,7 @@ var Menu = React.createClass( {
 					<MenuName
 						className="is-editable"
 						value={ this.props.selectedMenu.name }
+						onTitleEdit={ this.updateTitleEditing }
 						onChange={ this.setMenuName } />
 				</h2>
 			);
@@ -233,15 +237,21 @@ var Menu = React.createClass( {
 			);
 		}
 
+		const classes = classNames( {
+			'menus__menu-header': true,
+			'is-editing-title': this.state.editingTitle
+		} );
+
 		return (
 			<div>
-				<div className="menus__menu-header">
+				<div className={ classes }>
 					{ menuName }
 					<div className="menus__menu-actions">
 						<MenuDeleteButton selectedMenu={ this.props.selectedMenu }
 								selectedLocation={ this.props.selectedLocation }
 								setBusy={ this.props.setBusy }
 								confirmDiscard={ this.props.confirmDiscard } />
+						<MenuRevertButton menuData={ this.props.siteMenus } />
 						<MenuSaveButton menuData={ this.props.siteMenus }
 								selectedMenu={ this.props.selectedMenu } />
 					</div>

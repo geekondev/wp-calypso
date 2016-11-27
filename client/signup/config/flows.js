@@ -1,18 +1,18 @@
 /**
  * External dependencies
  */
-var assign = require( 'lodash/assign' ),
-	includes = require( 'lodash/includes' ),
-	reject = require( 'lodash/reject' );
+import { assign, includes, reject } from 'lodash';
+import i18n from 'i18n-calypso';
 
 /**
-* Internal dependencies
-*/
-var config = require( 'config' ),
-	stepConfig = require( './steps' ),
-	abtest = require( 'lib/abtest' ).abtest,
-	getABTestVariation = require( 'lib/abtest' ).getABTestVariation,
-	user = require( 'lib/user' )();
+ * Internal dependencies
+ */
+import { abtest, getABTestVariation } from 'lib/abtest';
+import config from 'config';
+import stepConfig from './steps';
+import userFactory from 'lib/user';
+
+const user = userFactory();
 
 function getCheckoutUrl( dependencies ) {
 	return '/checkout/' + dependencies.siteSlug;
@@ -27,7 +27,18 @@ function getSiteDestination( dependencies ) {
 		return getCheckoutUrl( dependencies );
 	}
 
-	return 'https://' + dependencies.siteSlug;
+	let protocol = 'https';
+
+	/**
+	 * It is possible that non-wordpress.com sites are not HTTPS ready.
+	 *
+	 * Redirect them
+	 */
+	if ( ! dependencies.siteSlug.match(/wordpress\.[a-z]+$/i) ) {
+		protocol = 'http';
+	}
+
+	return protocol + '://' + dependencies.siteSlug;
 }
 
 function getPostsDestination( dependencies ) {
@@ -39,8 +50,6 @@ function getPostsDestination( dependencies ) {
 }
 
 const flows = {
-	/* Production flows*/
-
 	account: {
 		steps: [ 'user' ],
 		destination: '/',
@@ -49,90 +58,90 @@ const flows = {
 	},
 
 	business: {
-		steps: [ 'themes', 'domains', 'user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'user' ],
 		destination: function( dependencies ) {
 			return '/plans/select/business/' + dependencies.siteSlug;
 		},
 		description: 'Create an account and a blog and then add the business plan to the users cart.',
-		lastModified: '2016-01-21'
+		lastModified: '2016-06-02',
+		meta: {
+			skipBundlingPlan: true
+		}
 	},
 
 	premium: {
-		steps: [ 'themes', 'domains', 'user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'user' ],
 		destination: function( dependencies ) {
 			return '/plans/select/premium/' + dependencies.siteSlug;
 		},
-		description: 'Create an account and a blog and then add the business plan to the users cart.',
-		lastModified: '2016-01-21'
+		description: 'Create an account and a blog and then add the premium plan to the users cart.',
+		lastModified: '2016-06-02',
+		meta: {
+			skipBundlingPlan: true
+		}
 	},
 
-	businessv2: {
-		steps: ['domains', 'user' ],
-		destination: function( dependencies ) {
-			return '/plans/select/business/' + dependencies.siteSlug;
-		},
-		description: 'Made for CT CMO trial project. Create an account and a blog, without theme selection, and then add the business plan to the users cart.',
-		lastModified: '2016-02-26'
-	},
-
-	premiumv2: {
-		steps: ['domains', 'user' ],
-		destination: function( dependencies ) {
-			return '/plans/select/premium/' + dependencies.siteSlug;
-		},
-		description: 'Made for CT CMO trial project. Create an account and a blog, without theme selection, and then add the business plan to the users cart.',
-		lastModified: '2016-02-26'
+	free: {
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'user' ],
+		destination: getSiteDestination,
+		description: 'Create an account and a blog and default to the free plan.',
+		lastModified: '2016-06-02'
 	},
 
 	'with-theme': {
-		steps: [ 'domains', 'plans', 'user' ],
+		steps: [ 'domains-only', 'plans', 'user' ],
 		destination: getSiteDestination,
 		description: 'Preselect a theme to activate/buy from an external source',
 		lastModified: '2016-01-27'
 	},
 
+	subdomain: {
+		steps: [ 'design-type', 'themes', 'domains', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'Provide a vertical for subdomains',
+		lastModified: '2016-10-31'
+	},
+
 	main: {
-		steps: [ 'themes', 'domains', 'plans', 'user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getSiteDestination,
 		description: 'The current best performing flow in AB tests',
-		lastModified: '2015-09-03'
+		lastModified: '2016-05-23'
 	},
 
-	plan: {
-		steps: [ 'themes', 'domains', 'select-plan', 'user' ],
+	sitetitle: {
+		steps: [ 'survey', 'site-title', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getSiteDestination,
-		description: '',
-		lastModified: '2016-02-02'
+		description: 'The current best performing flow in AB tests',
+		lastModified: '2016-05-23'
 	},
 
-	upgrade: {
-		steps: [ 'themes', 'domains', 'select-plan-or-skip', 'user' ],
-		destination: getSiteDestination,
-		description: '',
-		lastModified: '2016-02-02'
-	},
-
-	/* WP.com homepage flows */
 	website: {
-		steps: [ 'survey', 'themes', 'domains', 'plans', 'survey-user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getSiteDestination,
-		description: 'This flow is used for the users who clicked "Create Website" on the two-button homepage.',
-		lastModified: '2016-01-28'
+		description: 'This flow was originally used for the users who clicked "Create Website" on the two-button homepage. It is now linked to from the default homepage CTA as the main flow was slightly behind given translations.',
+		lastModified: '2016-05-23'
 	},
 
 	blog: {
-		steps: [ 'survey', 'themes', 'domains', 'plans', 'survey-user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getSiteDestination,
-		description: 'This flow is used for the users who clicked "Create Blog" on the two-button homepage.',
-		lastModified: '2016-01-28'
+		description: 'This flow was originally used for the users who clicked "Create Blog" on the two-button homepage. It is now used from blog-specific landing pages so that verbiage in survey steps refers to "blog" instead of "website".',
+		lastModified: '2016-05-23'
 	},
 
-	/* On deck flows*/
+	personal: {
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'user' ],
+		destination: function( dependencies ) {
+			return '/plans/select/personal/' + dependencies.siteSlug;
+		},
+		description: 'Create an account and a blog and then add the personal plan to the users cart.',
+		lastModified: '2016-01-21'
+	},
 
-	/* Testing flows */
 	'test-site': {
 		steps: config( 'env' ) === 'development' ? [ 'site', 'user' ] : [ 'user' ],
-		destination: '/me/next/welcome',
+		destination: '/',
 		description: 'This flow is used to test the site step.',
 		lastModified: '2015-09-22'
 	},
@@ -140,57 +149,29 @@ const flows = {
 	'delta-discover': {
 		steps: [ 'user' ],
 		destination: '/',
-		description: 'A copy of the `account` flow for the Delta email campaigns',
-		lastModified: null
+		description: 'A copy of the `account` flow for the Delta email campaigns. Half of users who go through this flow receive a reader-specific drip email series.',
+		lastModified: '2016-05-03'
 	},
 
 	'delta-blog': {
-		steps: [ 'themes', 'domains', 'plans', 'user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getSiteDestination,
-		description: 'A copy of the `main` flow for the Delta email campaigns',
-		lastModified: null
+		description: 'A copy of the `blog` flow for the Delta email campaigns. Half of users who go through this flow receive a blogging-specific drip email series.',
+		lastModified: '2016-03-09'
 	},
 
 	'delta-site': {
-		steps: [ 'themes', 'domains', 'plans', 'user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getSiteDestination,
-		description: 'A copy of the `main` flow for the Delta email campaigns',
-		lastModified: null
-	},
-
-	'delta-bloggingu': {
-		steps: [ 'themes', 'domains', 'plans', 'user' ],
-		destination: getSiteDestination,
-		description: 'A copy of the `main` flow for the Delta Blogging U email campaign',
-		lastModified: null
-	},
-
-	'site-user': {
-		steps: [ 'site', 'user' ],
-		destination: '/me/next?welcome',
-		description: 'Signup flow for free site/account',
-		lastModified: '2015-10-30'
-	},
-
-	headstart: {
-		steps: [ 'themes-headstart', 'domains-with-theme', 'plans', 'user' ],
-		destination: getSiteDestination,
-		description: 'Regular flow but with Headstart enabled to pre-populate site content',
-		lastModified: '2015-02-01'
+		description: 'A copy of the `website` flow for the Delta email campaigns. Half of users who go through this flow receive a website-specific drip email series.',
+		lastModified: '2016-03-09'
 	},
 
 	desktop: {
-		steps: [ 'themes', 'domains', 'plans', 'user' ],
+		steps: [ 'survey', 'design-type', 'themes', 'domains', 'plans', 'user' ],
 		destination: getPostsDestination,
 		description: 'Signup flow for desktop app',
-		lastModified: '2015-11-05'
-	},
-
-	layout: {
-		steps: [ 'design-type', 'themes', 'domains', 'plans', 'user' ],
-		destination: getSiteDestination,
-		description: 'Theme trifurcation flow',
-		lastModified: '2015-12-14'
+		lastModified: '2016-05-30'
 	},
 
 	developer: {
@@ -200,32 +181,34 @@ const flows = {
 		lastModified: '2015-11-23'
 	},
 
+	pressable: {
+		steps: [ 'survey', 'design-type-with-store', 'themes', 'domains', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'Signup flow for testing the pressable-store step',
+		lastModified: '2016-06-27'
+	},
+
 	jetpack: {
 		steps: [ 'jetpack-user' ],
 		destination: '/'
 	},
 
-	'free-trial': {
-		steps: [ 'themes', 'site', 'plans', 'user' ],
+	'get-dot-blog': {
+		steps: [ 'get-dot-blog-themes', 'get-dot-blog-plans' ],
 		destination: getSiteDestination,
-		description: 'Signup flow for free trials',
-		lastModified: '2015-12-18'
-	},
-
-	'website-altthemes': {
-		steps: [ 'survey', 'altthemes', 'domains', 'plans', 'user' ],
-		destination: getSiteDestination,
-		description: 'Alternative theme selection for the users who clicked "Create Website" on the two-button homepage.',
-		lastModified: '2016-02-12'
-	},
-
-	'blog-altthemes': {
-		steps: [ 'survey', 'altthemes', 'domains', 'plans', 'user' ],
-		destination: getSiteDestination,
-		description: 'Alternative theme selection for the users who clicked "Create blog" on the two-button homepage.',
-		lastModified: '2016-02-12'
-	},
+		description: 'Used by `get.blog` users that connect their site to WordPress.com',
+		lastModified: '2016-11-14'
+	}
 };
+
+if ( config( 'env' ) === 'development' ) {
+	flows[ 'test-plans' ] = {
+		steps: [ 'site', 'plans', 'user' ],
+		destination: getSiteDestination,
+		description: 'This flow is used to test plans choice in signup',
+		lastModified: '2016-06-30'
+	};
+}
 
 function removeUserStepFromFlow( flow ) {
 	if ( ! flow ) {
@@ -237,47 +220,155 @@ function removeUserStepFromFlow( flow ) {
 	} );
 }
 
+function filterDesignTypeInFlow( flow ) {
+	if ( ! flow ) {
+		return;
+	}
+
+	if ( ! includes( flow.steps, 'design-type' ) || 'designTypeWithStore' !== abtest( 'signupStore' ) ) {
+		return flow;
+	}
+
+	return assign( {}, flow, {
+		steps: flow.steps.map( stepName => stepName === 'design-type' ? 'design-type-with-store' : stepName )
+	} );
+}
+
 function filterFlowName( flowName ) {
-	const headstartFlows = [ 'blog', 'website' ];
-	if ( includes( headstartFlows, flowName ) && 'headstart' === abtest( 'headstart' ) ) {
-		return 'headstart';
-	}
-
-	const altThemesFlows = [ 'blog', 'website' ];
-	if ( includes( altThemesFlows, flowName ) && 'notTested' === getABTestVariation( 'headstart' ) ) {
-		if ( 'altThemes' === abtest( 'altThemes' ) ) {
-			return ( 'blog' === flowName ) ? 'blog-altthemes' : 'website-altthemes';
-		}
-	}
-
-	let isInPreviousTest = false;
-
-	if ( getABTestVariation( 'headstart' ) && getABTestVariation( 'headstart' ) !== 'notTested' ) {
-		isInPreviousTest = true;
-	}
-
-	if ( getABTestVariation( 'altThemes' ) && getABTestVariation( 'altThemes' ) !== 'notTested' ) {
-		isInPreviousTest = true;
-	}
-
-	const freePlansTestFlows = [ 'blog', 'website', 'main' ];
-	if ( includes( freePlansTestFlows, flowName ) && ! isInPreviousTest ) {
-		return 'skipForFree' === abtest( 'freePlansDefault' ) ? 'upgrade' : flowName;
-	}
-
+	const defaultFlows = [ 'main', 'website' ];
+	// do nothing. No flows to filter at the moment.
 	return flowName;
 }
 
-module.exports = {
-	filterFlowName: filterFlowName,
+function filterDestination( destination, dependencies, flowName ) {
+	return destination;
+}
+
+const Flows = {
+	filterFlowName,
+	filterDestination,
 
 	defaultFlowName: 'main',
+	resumingFlow: false,
 
-	getFlow: function( flowName ) {
-		return user.get() ? removeUserStepFromFlow( flows[ flowName ] ) : flows[ flowName ];
+	/**
+	 * Get certain flow from the flows configuration.
+	 *
+	 * The returned flow is modified according to several filters.
+	 *
+	 * `currentStepName` is the current step in the signup flow. It is used
+	 * to determine if any AB variations should be assigned after it is completed.
+	 * Example use case: To determine if a new signup step should be part of the flow or not.
+	 *
+	 * @param {String} flowName The name of the flow to return
+	 * @param {String} currentStepName The current step. See description above
+	 * @returns {Object} A flow object
+	 */
+	getFlow( flowName, currentStepName = '' ) {
+		let flow = Flows.getFlows()[ flowName ];
+
+		if ( user.get() ) {
+			flow = removeUserStepFromFlow( flow );
+		}
+
+		if ( ! user.get() && 'en' === i18n.getLocaleSlug() ) {
+			flow = filterDesignTypeInFlow( flow );
+		}
+
+		Flows.preloadABTestVariationsForStep( flowName, currentStepName );
+
+		return Flows.getABTestFilteredFlow( flowName, flow );
 	},
 
-	getFlows: function() {
+	getFlows() {
 		return flows;
+	},
+
+	/**
+	 * Preload AB Test variations after a certain step has been completed.
+	 *
+	 * This gives the option to set the AB variation as late as possible in the
+	 * signup flow.
+	 *
+	 * Currently only the `main` flow is whitelisted.
+	 *
+	 * @param {String} flowName The current flow
+	 * @param {String} stepName The step that is being completed right now
+	 */
+	preloadABTestVariationsForStep( flowName, stepName ) {
+		/**
+		 * In cases where the flow is being resumed, the flow must not be changed from what the user
+		 * has seen before.
+		 *
+		 * E.g. A user is resuming signup from before the test was added. There is no need
+		 * to add a step somewhere back in the line.
+		 */
+		if ( Flows.resumingFlow ) {
+			return;
+		}
+
+		if ( 'main' === flowName ) {
+			if ( 'survey' === stepName ) {
+				abtest( 'siteTitleStep' );
+			}
+		}
+	},
+
+	/**
+	 * Return a flow that is modified according to the ABTest rules.
+	 *
+	 * Useful when testing new steps in the signup flows.
+	 *
+	 * Example usage: Inject or remove a step in the flow if a user is part of an ABTest.
+	 *
+	 * @param {String} flowName The current flow name
+	 * @param {Object} flow The flow object
+	 *
+	 * @return {Object} A filtered flow object
+	 */
+	getABTestFilteredFlow( flowName, flow ) {
+		// Only do this on the main flow
+		if ( 'main' === flowName ) {
+			if ( getABTestVariation( 'siteTitleStep' ) === 'showSiteTitleStep' ) {
+				return Flows.insertStepIntoFlow( 'site-title', flow, 'survey' );
+			}
+		}
+
+		return flow;
+	},
+
+	/**
+	 * Insert a step into the flow.
+	 *
+	 * @param {String} stepName The step to insert into the flow
+	 * @param {Object} flow The flow that the step will be inserted into
+	 * @param {String} afterStep After which step to insert the new step.
+	 * 							 If left blank, the step will be added in the beginning.
+	 *
+	 * @returns {Object} A flow object with inserted step
+	 */
+	insertStepIntoFlow( stepName, flow, afterStep = '' ) {
+		if ( -1 === flow.steps.indexOf( stepName ) ) {
+			const steps = flow.steps.slice();
+			const afterStepIndex = steps.indexOf( afterStep );
+
+			/**
+			 * Only insert the step if
+			 * `afterStep` is empty ( insert at start )
+			 * or if `afterStep` is found in the flow. ( insert after `afterStep` )
+			 */
+			if ( afterStepIndex > -1 || '' === afterStep ) {
+				steps.splice( afterStepIndex + 1, 0, stepName );
+
+				return {
+					...flow,
+					steps,
+				};
+			}
+		}
+
+		return flow;
 	}
 };
+
+export default Flows;

@@ -8,12 +8,13 @@ var React = require( 'react' ),
  * Internal dependencies
  */
 var	FormButton = require( 'components/forms/form-button' ),
-	analytics = require( 'analytics' ),
+	analytics = require( 'lib/analytics' ),
 	FormButtonBar = require( 'components/forms/form-buttons-bar' ),
 	FormCheckbox = require( 'components/forms/form-checkbox' ),
 	FormLabel = require( 'components/forms/form-label' ),
-	config = require( 'config' ),
-	Notice = require( 'components/notice' );
+	config = require( 'config' );
+
+import Notice from 'components/notice';
 
 module.exports = React.createClass( {
 
@@ -201,7 +202,7 @@ module.exports = React.createClass( {
 							defaultChecked={ this.state.userAgrees }
 							onChange={ this.onUserAgreesChange }
 						/>
-						{ this.translate( 'I have printed or saved these codes', { context: 'The codes are the backup codes for Two-Step Authentication.' } ) }
+						<span>{ this.translate( 'I have printed or saved these codes', { context: 'The codes are the backup codes for Two-Step Authentication.' } ) }</span>
 					</FormLabel>
 
 					<FormButton

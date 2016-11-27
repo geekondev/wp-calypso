@@ -1,23 +1,23 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	classNames = require( 'classnames' ),
-	noop = require( 'lodash/noop' ),
-	isEmpty = require( 'lodash/isEmpty' ),
-	isEqual = require( 'lodash/isEqual' );
+import React from 'react';
+import classNames from 'classnames';
+import noop from 'lodash/noop';
+import { isEmpty, isEqual } from 'lodash';
 
 /**
  * Internal dependencies
  */
-var Card = require( 'components/card' ),
-	ThemeMoreButton = require( './more-button' ),
-	Gridicon = require( 'components/gridicon' );
+import Card from 'components/card';
+import ThemeMoreButton from './more-button';
+import Gridicon from 'components/gridicon';
+import TrackInteractions from 'components/track-interactions';
 
 /**
  * Component
  */
-var Theme = React.createClass( {
+const Theme = React.createClass( {
 
 	propTypes: {
 		theme: React.PropTypes.shape( {
@@ -29,15 +29,15 @@ var Theme = React.createClass( {
 			screenshot: React.PropTypes.string,
 			// Theme price (pre-formatted string) -- empty string indicates free theme
 			price: React.PropTypes.string,
-			// If true, the user has 'purchased' the theme
-			purchased: React.PropTypes.bool,
-			// If true, highlight this theme as active
-			active: React.PropTypes.bool,
 			author: React.PropTypes.string,
 			author_uri: React.PropTypes.string,
 			demo_uri: React.PropTypes.string,
 			stylesheet: React.PropTypes.string
 		} ),
+		// If true, highlight this theme as active
+		active: React.PropTypes.bool,
+		// If true, the user has 'purchased' the theme
+		purchased: React.PropTypes.bool,
 		// If true, render a placeholder
 		isPlaceholder: React.PropTypes.bool,
 		// URL the screenshot link points to
@@ -61,24 +61,31 @@ var Theme = React.createClass( {
 		actionLabel: React.PropTypes.string
 	},
 
-	shouldComponentUpdate: function( nextProps ) {
-		return ! isEqual( nextProps.theme, this.props.theme );
+	shouldComponentUpdate( nextProps ) {
+		return nextProps.theme.id !== this.props.theme.id ||
+			! isEqual( nextProps.buttonContents, this.props.buttonContents ) ||
+			( nextProps.active !== this.props.active ) ||
+			( nextProps.purchased !== this.props.purchased ) ||
+			( nextProps.screenshotClickUrl !== this.props.screenshotClickUrl ) ||
+			( nextProps.onScreenshotClick !== this.props.onScreenshotClick ) ||
+			( nextProps.onMoreButtonClick !== this.props.onMoreButtonClick );
 	},
 
-	getDefaultProps: function() {
+	getDefaultProps() {
 		return ( {
 			isPlaceholder: false,
 			buttonContents: {},
 			onMoreButtonClick: noop,
-			actionLabel: ''
+			actionLabel: '',
+			active: false
 		} );
 	},
 
-	onScreenshotClick: function() {
+	onScreenshotClick() {
 		this.props.onScreenshotClick( this.props.theme, this.props.index );
 	},
 
-	renderPlaceholder: function() {
+	renderPlaceholder() {
 		return (
 			<Card className="theme is-placeholder">
 				<div className="theme__content" />
@@ -86,10 +93,11 @@ var Theme = React.createClass( {
 		);
 	},
 
-	renderHover: function() {
+	renderHover() {
 		if ( this.props.screenshotClickUrl || this.props.onScreenshotClick ) {
 			return (
 				<a className="theme__active-focus"
+					href={ this.props.screenshotClickUrl }
 					onClick={ this.onScreenshotClick }>
 					<span>
 						{ this.props.actionLabel }
@@ -99,14 +107,16 @@ var Theme = React.createClass( {
 		}
 	},
 
-	render: function() {
+	render() {
 		const {
 			name,
-			active,
 			price,
-			purchased,
 			screenshot
 		} = this.props.theme;
+		const {
+			active,
+			purchased
+		} = this.props;
 		const themeClass = classNames( 'theme', {
 			'is-active': active,
 			'is-actionable': !! ( this.props.screenshotClickUrl || this.props.onScreenshotClick )
@@ -119,7 +129,7 @@ var Theme = React.createClass( {
 			return this.renderPlaceholder();
 		}
 
-		const screenshotWidth = window && window.devicePixelRatio > 1 ? 680 : 340;
+		const screenshotWidth = typeof window !== 'undefined' && window.devicePixelRatio > 1 ? 680 : 340;
 		return (
 			<Card className={ themeClass }>
 				<div className="theme__content">
@@ -129,7 +139,7 @@ var Theme = React.createClass( {
 							? <img className="theme__img"
 								src={ screenshot + '?w=' + screenshotWidth }
 								onClick={ this.onScreenshotClick }
-								id={ screenshotID }/>
+								id={ screenshotID } />
 							: <div className="theme__no-screenshot" >
 								<Gridicon icon="themes" size={ 48 } />
 							</div>
@@ -145,14 +155,15 @@ var Theme = React.createClass( {
 						{ price && ! purchased &&
 							<span className="price">{ price }</span>
 						}
-						{ purchased && ! active &&
-							<span className="price">{ this.translate( 'Purchased' ) }</span>
-						}
-						{ ! isEmpty( this.props.buttonContents ) ? <ThemeMoreButton
-							index={ this.props.index }
-							theme={ this.props.theme }
-							onClick={ this.props.onMoreButtonClick }
-							options={ this.props.buttonContents } /> : null }
+						{ ! isEmpty( this.props.buttonContents )
+							? <TrackInteractions fields="theme.id" >
+								<ThemeMoreButton
+									index={ this.props.index }
+									theme={ this.props.theme }
+									active={ this.props.active }
+									onClick={ this.props.onMoreButtonClick }
+									options={ this.props.buttonContents } />
+							</TrackInteractions> : null }
 					</div>
 				</div>
 			</Card>
@@ -160,4 +171,4 @@ var Theme = React.createClass( {
 	}
 } );
 
-module.exports = Theme;
+export default Theme;

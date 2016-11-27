@@ -7,7 +7,7 @@ var React = require( 'react' ),
 /**
  * Internal dependencies
  */
-var analytics = require( 'analytics' ),
+var analytics = require( 'lib/analytics' ),
 	PluginsActions = require( 'lib/plugins/actions' ),
 	Button = require( 'components/button' ),
 	Gridicon = require( 'components/gridicon' ),
@@ -141,7 +141,7 @@ module.exports = React.createClass( {
 				return (
 					<div className={ classNames( { 'plugin-install-button__install': true, embed: this.props.isEmbed } ) }>
 						<span className="plugin-install-button__warning">{ this.translate( 'Jetpack 3.7 is required' ) }</span>
-						<Button compact={ true } onclick={ this.updateJetpackAction } href={ this.props.selectedSite.options.admin_url + 'plugins.php?plugin_status=upgrade' } >{ this.translate( 'update', { context: 'verb, update plugin button label' } ) }</Button>
+						<Button compact={ true } onClick={ this.updateJetpackAction } href={ this.props.selectedSite.options.admin_url + 'plugins.php?plugin_status=upgrade' } >{ this.translate( 'update', { context: 'verb, update plugin button label' } ) }</Button>
 					</div>
 				);
 			}
@@ -175,7 +175,7 @@ module.exports = React.createClass( {
 					{ this.props.isInstalling
 						? <span className="plugin-install-button__installing">{ label }</span>
 						: <Button compact={ true } onClick={ this.installAction } >
-							<Gridicon key="plus-icon" icon="plus-small" size={ 11 } /><Gridicon icon="plugins" size={ 18 } /> { this.translate( 'Install' ) }
+							<Gridicon key="plus-icon" icon="plus-small" size={ 18 } /><Gridicon icon="plugins" size={ 18 } /> { this.translate( 'Install' ) }
 						</Button>
 					}
 				</span>

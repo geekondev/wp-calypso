@@ -2,62 +2,40 @@
  * External dependencies
  */
 import config from 'config';
-import Hashes from 'jshashes';
 import debugFactory from 'debug';
 
 /**
  * Internal dependencies
  */
 import warn from 'lib/warn';
-import { getLocalForage } from 'lib/localforage';
+import localforage from 'lib/localforage';
 import { isWhitelisted } from './whitelist-handler';
 import { cacheIndex } from './cache-index';
+import { generateKey, generatePageSeriesKey, normalizeRequestParams } from './utils';
 
 /**
  * Module variables
  */
-const localforage = getLocalForage();
 const debug = debugFactory( 'calypso:sync-handler' );
 
 /**
- * Generate a key from the given param object
- *
- * @param {Object} params - request parameters
- * @param {Boolean} applyHash - codificate key when it's true
- * @return {String} request key
- */
-export const generateKey = ( params, applyHash = true ) => {
-	var key = `${params.apiVersion || ''}-${params.method}-${params.path}`;
-
-	if ( params.query ) {
-		key += '-' + params.query;
-	}
-
-	if ( applyHash ) {
-		key = new Hashes.SHA1().hex( key );
-	}
-
-	key = 'sync-record-' + key;
-
-	debug( 'key: %o', key );
-	return key;
-}
-
-/**
  * Detect pagination changes in local vs request response bodies
- * @param  {Object} res - response object as passed from promise
+ * @param  {Object} serverResponseBody - response object as passed from promise
  * @param  {Object} localResponseBody - local response body
  * @return {Boolean} returns whether pagination has changed
  */
-export const hasPaginationChanged = ( res, localResponseBody ) => {
-	if ( ! res || ! res.meta || ! res.meta.next_page ) {
+export const hasPaginationChanged = ( serverResponseBody, localResponseBody ) => {
+	if ( ! serverResponseBody || ! serverResponseBody.meta || ! serverResponseBody.meta.next_page ) {
 		return false;
 	}
-	if ( localResponseBody && localResponseBody.meta && localResponseBody.meta.next_page === res.meta.next_page ) {
+	if ( ! localResponseBody ) {
+		return false;
+	}
+	if ( localResponseBody && localResponseBody.meta && localResponseBody.meta.next_page === serverResponseBody.meta.next_page ) {
 		return false;
 	}
 	return true;
-}
+};
 
 /**
  * SyncHandler class
@@ -94,12 +72,11 @@ export class SyncHandler {
 
 			// whitelist barrier
 			if ( ! isWhitelisted( params ) ) {
-				debug( 'not whitelisted: skip %o request', path );
 				return handler( params, callback );
 			}
 
-			// generate an unique resource key
-			const key = generateKey( reqParams );
+			// generate an unique resource requestKey
+			const requestKey = generateKey( reqParams );
 
 			debug( 'starting to get resource ...' );
 
@@ -108,21 +85,25 @@ export class SyncHandler {
 			 * getting the data locally (localforage)
 			 *
 			 * @param {Object} localRecord - response stored locally
+			 * @returns {Object} localRecord object
 			 */
 			const localResponseHandler = localRecord => {
 				// let's be optimistic
-				if ( localRecord ) {
+				debug( 'localResponseHandler()', localRecord );
+				if ( localRecord && localRecord.body ) {
 					debug( 'local callback run => %o, params (%o), response (%o)', path, reqParams, localRecord );
 					// try/catch in case cached record does not match expected schema
+					localRecord.body.__sync = { requestKey, responseSource: 'local' };
 					try {
 						callback( null, localRecord.body );
 					} catch ( error ) {
-						this.removeRecord( key );
+						this.removeRecord( requestKey );
 						debug( 'Callback failed with localRecord (%o), deleting record.', localRecord, error );
 					}
 				} else {
 					debug( 'No data for [%s] %o - %o', reqParams.method, path, reqParams );
 				}
+				return localRecord;
 			};
 
 			/**
@@ -155,44 +136,40 @@ export class SyncHandler {
 						} );
 
 						debug( 'server callback run => %o, params (%o), response (%o)', path, reqParams, res );
+						if ( res ) {
+							res.__sync = { requestKey, responseSource: 'server' };
+						}
 						callback( null, res );
 					} );
 				} );
 			};
 
 			/**
-			 * Add/Override the data gotten from the
-			 * WP.com server-side response.
+			 * clear pageSeries if pagination out of alignment
 			 *
 			 * @param {Object} combinedResponse - object with local and server responses
+			 * @returns {Object} - combinedResponse object
 			 */
-			const cacheResponse = combinedResponse => {
-				const { serverResponse } = combinedResponse;
-				// get response object without _headers property
-				let responseWithoutHeaders = Object.assign( {}, serverResponse );
-				delete responseWithoutHeaders._headers;
-
-				let storingData = {
-					__sync: {
-						key,
-						synced: Date.now(),
-						syncing: false
-					},
-					body: responseWithoutHeaders,
-					params: reqParams
-				};
-
-				// add/override gotten data from server-side
-				this.storeRecord( key, storingData ).catch( err => {
-					// @TODO error handling
-					warn( err );
-				} );
+			const adjustPagination = combinedResponse => {
+				debug( 'adjustPagination()', combinedResponse );
+				if ( ! combinedResponse ) {
+					return;
+				}
+				const { serverResponse, localResponse } = combinedResponse;
+				const localResponseBody = localResponse ? localResponse.body : null;
+				if ( hasPaginationChanged( serverResponse, localResponseBody ) ) {
+					debug( 'run clearPageSeries()' );
+					cacheIndex.clearPageSeries( reqParams );
+				} else {
+					debug( 'do not clearPageSeries()' );
+				}
+				return combinedResponse;
 			};
 
 			/**
 			 * Handle response gotten form the
 			 * server-side response
-			 *
+			 *AzSX
 			 * @param {Error} err - error object
 			 */
 			const networkErrorHandler = err => {
@@ -204,61 +181,128 @@ export class SyncHandler {
 				}
 			};
 
-			const checkPagination = combinedResponse => {
-				if ( ! combinedResponse ) {
+			/**
+			 * Add/Override the data gotten from the
+			 * WP.com server-side response.
+			 *
+			 * @param {Object} combinedResponse - object with local and server responses
+			 * @returns {Object} - combinedResponse object
+			 */
+			const cacheResponse = combinedResponse => {
+				debug( 'cacheResponse()', combinedResponse );
+				if ( ! combinedResponse || ! combinedResponse.serverResponse ) {
 					return;
 				}
-				const { serverResponse, localResponse } = combinedResponse;
-				if ( hasPaginationChanged( serverResponse, localResponse.body ) ) {
-					// clearPageResultsForSite( reqParams )
-				}
-				return serverResponse;
+
+				const { serverResponse } = combinedResponse;
+				const responseWithoutHeaders = Object.assign( {}, serverResponse );
+
+				const storingData = {
+					__sync: {
+						requestKey,
+						synced: Date.now(),
+						syncing: false
+					},
+					body: responseWithoutHeaders,
+					params: reqParams
+				};
+
+				// add/override gotten data from server-side
+				this.storeRecord( requestKey, storingData ).catch( err => {
+					// @TODO error handling
+					warn( err );
+				} );
+
+				return combinedResponse;
 			};
+
 			// request/response workflow
-			this.retrieveRecord( key )
-				.then( localResponseHandler, recordErrorHandler )
-				.then( networkFetch )
-				.then( cacheResponse, networkErrorHandler )
-				.then( checkPagination );
+			let request;
+			if ( params.__skipLocalSyncRequest ) {
+				debug( 'local request skipped => %o, params (%o)', path, reqParams );
+				request = networkFetch(); // => combinedResponse { localResponse: undefined, serverResponse }
+			} else {
+				request = this.retrieveRecord( requestKey ) // => localforage record
+					.then( localResponseHandler, recordErrorHandler ) // => localforage record
+					.then( networkFetch ); // => combinedResponse { localResponse, serverResponse }
+			}
+
+			request
+				.then( adjustPagination, networkErrorHandler ) // => combinedResponse { localResponse, serverResponse }
+				.then( cacheResponse ); // => combinedResponse { localResponse, serverResponse }
 		};
 	}
 
-	retrieveRecord( key ) {
-		debug( 'getting data from %o key\n', key );
-		return localforage.getItem( key );
+	retrieveRecord( requestKey ) {
+		debug( 'getting data from %o requestKey\n', requestKey );
+		return localforage.getItem( requestKey );
 	}
 
 	/**
 	 * Add/Override a record.
 	 *
-	 * @param {String} key - record key identifier
+	 * @param {String} requestKey - record requestKey identifier
 	 * @param {Object} data - data to store
 	 * @return {Promise} native ES6 promise
 	 */
-	storeRecord( key, data ) {
-		debug( 'storing data in %o key\n', key );
+	storeRecord( requestKey, data ) {
+		debug( 'storing data in %o requestKey\n', requestKey );
+		let pageSeriesKey;
+		const reqParams = normalizeRequestParams( data.params );
+		if ( data && data.body && data.body.meta && data.body.meta.next_page ) {
+			pageSeriesKey = generatePageSeriesKey( data.params );
+		}
 
 		// add this record to history
 		return cacheIndex
-			.addItem( key )
-			.then( localforage.setItem( key, data ) );
+			.addItem( requestKey, reqParams, pageSeriesKey )
+				.then( localforage.setItem( requestKey, data ) );
 	}
 
-	removeRecord( key ) {
-		debug( 'removing %o key\n', key );
+	removeRecord( requestKey ) {
+		debug( 'removing %o requestKey\n', requestKey );
 		return localforage
-			.removeItem( key )
-			.then( cacheIndex.removeItem( key ) );
+			.removeItem( requestKey )
+				.then( cacheIndex.removeItem( requestKey ) );
 	}
 }
 
-export const pruneRecordsFrom = lifetime => {
-	return cacheIndex.pruneRecordsFrom( lifetime );
+/**
+ * Returns a modified wpcom instance including a `skipLocalSyncResult` method
+ * to be used in intentional bypass of local sync handler behavior.
+ *
+ * @param  {Object} wpcom WPCOM instance
+ * @return {Object}       Modified WPCOM instance
+ */
+export function syncOptOut( wpcom ) {
+	const request = wpcom.request.bind( wpcom );
+	return Object.assign( wpcom, {
+		skipLocalSyncResult() {
+			this.__skipLocalSyncRequest = true;
+			return this;
+		},
+
+		request( params, callback ) {
+			if ( this.__skipLocalSyncRequest ) {
+				params = Object.assign( {
+					__skipLocalSyncRequest: true
+				}, params );
+
+				this.__skipLocalSyncRequest = false;
+			}
+
+			return request( params, callback );
+		}
+	} );
 }
+
+export const pruneStaleRecords = lifetime => {
+	return cacheIndex.pruneStaleRecords( lifetime );
+};
 
 export const clearAll = () => {
 	return cacheIndex.clearAll();
-}
+};
 
 // expose `cacheIndex` global var (dev mode)
 if ( 'development' === config( 'env' ) && typeof window !== 'undefined' ) {

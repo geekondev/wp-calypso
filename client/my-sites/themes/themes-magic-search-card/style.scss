@@ -1,0 +1,197 @@
+.themes-magic-search-card {
+	display: flex;
+	align-items: center;
+	background: white;
+	box-shadow: 0 0 0 1px transparentize( lighten( $gray, 20% ), .5 ), 0 1px 2px lighten( $gray, 30% );
+	transition: all 0.15s ease-in-out;
+
+	&.has-highlight {
+		box-shadow: 0 0 0 1px $blue-wordpress, 0 0 0 4px $blue-light;
+	}
+
+	.search {
+		flex: 0 1 auto;
+		margin: 0;
+		&.has-focus {
+			box-shadow: none;
+		}
+	}
+
+	.search.is-expanded-to-container {
+		height: 58px;
+	}
+
+	.section-nav {
+		margin: 0;
+	}
+
+	.search .search-open__icon {
+		color: lighten( $gray, 10% );
+	}
+
+	.segmented-control {
+		flex: 0 0 auto;
+		min-width: 0;
+		padding: 11px 14px 11px;
+
+		.segmented-control__item,
+		.segmented-control__link,
+		.segmented-control__text {
+			min-width: inherit;
+		}
+	}
+
+	.more {
+		flex: 0 1 auto;
+		padding: 8px 14px 8px;
+	}
+
+}
+
+.themes-magic-search-card__token {
+	font: inherit;
+	pointer-events: none;
+	color: rgba(0, 0, 0, 0.2);
+	border-radius: 2px;
+	height: 24px;
+	position: relative;
+	z-index: 21; //needs to be made in a proper way.
+
+		.themes-magic-search-card__token-taxonomy {
+			font: inherit;
+			pointer-events: none;
+			color: inherit;
+			background-color: rgba( $white, 0.2 );
+			border-top-left-radius: 3px;
+			border-bottom-left-radius: 3px;
+			height: 100%;
+			display: inline-block;
+			z-index: 1;
+		}
+
+		.themes-magic-search-card__token-separator {
+			font: inherit;
+			pointer-events: none;
+			color: rgba(0, 0, 0, 0);
+			background: linear-gradient( to right, $white 50%, rgb( 128, 128, 128 ) 50% );
+			height: 100%;
+			display: inline-block;
+			z-index: 1;
+		}
+
+		.themes-magic-search-card__token-filter {
+			font: inherit;
+			pointer-events: none;
+			color: inherit;
+			background-color: rgba( $gray-dark, 0.5 );
+			border-top-right-radius: 3px;
+			border-bottom-right-radius: 3px;
+			height: 100%;
+			display: inline-block;
+			z-index: 1;
+		}
+}
+
+.themes-magic-search-card__token::before {
+	content: '';
+	position: absolute;
+	background-color: transparent;
+	border-radius: 3px;
+	border-width: 0.5px;
+	border-style: solid;
+	border-color: rgba( $gray-dark, 0.5 );
+	box-sizing: border-box;
+ 	left: 0;
+ 	width: 100%;
+	height: 100%;
+	z-index: 25;
+}
+
+.themes-magic-search-card__search-text {
+	font: inherit;
+	pointer-events: none;
+	color: rgba(1, 0, 0, 0.2);
+}
+
+.themes-magic-search-card__search-white-space {
+	font: inherit;
+	pointer-events: none;
+	white-space: pre;
+}
+
+.themes-magic-search {
+
+	.suggestions {
+		display: none;
+	}
+
+	&.has-suggestions {
+		.suggestions {
+			display: block;
+			margin-top: 5px;
+		}
+	}
+
+}
+
+.themes-magic-search-card__welcome {
+	color: $gray;
+	background-color: $white;
+	box-shadow: 0 0 0 1px transparentize( lighten( $gray, 20% ), .5 ), 0 1px 2px lighten( $gray, 30% );
+	display: flex;
+	flex-direction: column;
+	padding: 10px 18px 18px;
+
+	.themes-magic-search-card__welcome-top-searches,
+	.themes-magic-search-card__welcome-taxonomies {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.themes-magic-search-card__welcome-header {
+		font-size: 13px;
+		text-transform: uppercase;
+	}
+}
+
+.themes-magic-search-card__welcome-taxonomy {
+	display: flex;
+	align-items: center;
+	padding: 4px 8px;
+	margin: 10px 10px 0px 0px;
+	box-shadow: 0 0 0 1px transparentize( lighten( $gray, 20% ), .5 ), 0 1px 2px lighten( $gray, 30% );
+	border-radius: 3px;
+	font-size: 13px;
+	line-height: 16px;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition: all 200ms ease-in;
+
+	.gridicon {
+		padding-right: 6px;
+	}
+
+	&:hover {
+		box-shadow: 0 0 0 1px $gray, 0 2px 4px lighten( $gray, 20% );
+	}
+}
+
+.themes-magic-search-card__welcome-taxonomy-type-color {
+	color: rgb( 0, 170, 220 );
+}
+.themes-magic-search-card__welcome-taxonomy-type-column {
+	color: rgb( 144, 19, 254 );
+}
+.themes-magic-search-card__welcome-taxonomy-type-feature {
+	color: rgb( 102, 195, 126 );
+}
+.themes-magic-search-card__welcome-taxonomy-type-layout {
+	color: rgb( 242, 134, 10 );
+}
+.themes-magic-search-card__welcome-taxonomy-type-subject {
+	color: $gray;
+}
+.themes-magic-search-card__welcome-taxonomy-type-style {
+	color: rgb( 241, 56, 59 );
+}

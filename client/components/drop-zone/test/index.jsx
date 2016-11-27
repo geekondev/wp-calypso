@@ -1,34 +1,21 @@
-/* eslint-disable vars-on-top */
-require( 'lib/react-test-env-setup' )( '<html><body><div id="container"></div></body></html>' );
+import { expect } from 'chai';
+import ReactDom from 'react-dom';
+import React from 'react';
+import TestUtils from 'react-addons-test-utils';
+import sinon from 'sinon';
+import { DropZone } from '../';
 
-/**
- * External dependencies
- */
-var expect = require( 'chai' ).expect,
-	ReactDom = require( 'react-dom' ),
-	React = require( 'react' ),
-	TestUtils = require( 'react-addons-test-utils' ),
-	sinon = require( 'sinon' );
-
-/**
- * Internal dependencies
- */
-var DropZone = require( '../' );
-
-/**
- * Module variables
- */
-var Wrapper = React.createClass( {
+const Wrapper = React.createClass( {
 	render: function() {
 		return <div>{ this.props.children }</div>;
 	}
 } );
 
-describe( 'DropZone', function() {
+describe( 'index', function() {
 	var container, sandbox;
+	require( 'test/helpers/use-fake-dom' )( '<html><body><div id="container"></div></body></html>' );
 
 	before( function() {
-		DropZone.prototype.__reactAutoBindMap.translate = sinon.stub().returnsArg( 0 );
 		container = document.getElementById( 'container' );
 		window.MutationObserver = sinon.stub().returns( {
 			observe: sinon.stub(),
@@ -37,8 +24,9 @@ describe( 'DropZone', function() {
 	} );
 
 	after( function() {
-		delete window.MutationObserver;
-		delete DropZone.prototype.__reactAutoBindMap.translate;
+		if ( global.window && global.window.MutationObserver ) {
+			delete global.window.MutationObserver;
+		}
 	} );
 
 	beforeEach( function() {
@@ -83,12 +71,12 @@ describe( 'DropZone', function() {
 
 	it( 'should accept an icon to override the default icon', function() {
 		var tree = ReactDom.render( React.createElement( DropZone, {
-				icon: 'hello-world'
+				icon: 'house'
 			} ), container ), icon;
 
 		icon = TestUtils.findRenderedDOMComponentWithClass( tree, 'drop-zone__content-icon' );
 
-		expect( icon.className ).to.contain( 'hello-world' );
+		expect( icon.className ).to.contain( 'gridicons-house' );
 	} );
 
 	it( 'should highlight the drop zone when dragging over the body', function() {
@@ -144,13 +132,10 @@ describe( 'DropZone', function() {
 	} );
 
 	it( 'should further highlight the drop zone when dragging over the element', function() {
-		var tree, dragEnterEvent;
+		const tree = ReactDom.render( React.createElement( DropZone ), container );
+		sandbox.stub( tree, 'isWithinZoneBounds' ).returns( true );
 
-		sandbox.stub( DropZone.prototype.__reactAutoBindMap, 'isWithinZoneBounds' ).returns( true );
-
-		tree = ReactDom.render( React.createElement( DropZone ), container );
-
-		dragEnterEvent = new window.MouseEvent( 'dragenter' );
+		const dragEnterEvent = new window.MouseEvent( 'dragenter' );
 		window.dispatchEvent( dragEnterEvent );
 
 		expect( tree.state.isDraggingOverDocument ).to.be.ok;

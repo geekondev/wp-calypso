@@ -1,11 +1,8 @@
 /**
  * External dependencies
  */
-var React = require( 'react' ),
-	LinkedStateMixin = require( 'react-addons-linked-state-mixin' ),
-	noop = require( 'lodash/noop' ),
-	head = require( 'lodash/head' ),
-	filter = require( 'lodash/filter' );
+var React = require( 'react' );
+import { noop, find } from 'lodash';
 
 /**
  * Internal dependencies
@@ -21,8 +18,6 @@ var CLEAN_REGEX = /^0|[\s.\-()]+/g;
 
 module.exports = React.createClass( {
 	displayName: 'FormPhoneInput',
-
-	mixins: [ LinkedStateMixin ],
 
 	propTypes: {
 		initialCountryCode: React.PropTypes.string,
@@ -98,9 +93,9 @@ module.exports = React.createClass( {
 
 	_getCountryData: function() {
 		// TODO: move this to country-list or CountrySelect
-		return head( filter( this.props.countriesList.get(), {
+		return find( this.props.countriesList.get(), {
 			code: this.state.countryCode
-		} ) );
+		} );
 	},
 
 	_handleCountryChange: function( newValue ) {

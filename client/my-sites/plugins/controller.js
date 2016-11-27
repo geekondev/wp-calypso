@@ -1,61 +1,71 @@
 /**
  * External Dependencies
  */
-var ReactDom = require( 'react-dom' ),
-	React = require( 'react' ),
-	page = require( 'page' ),
-	some = require( 'lodash/some' ),
-	capitalize = require( 'lodash/capitalize' );
+import ReactDom from 'react-dom';
+import React from 'react';
+import { Provider as ReduxProvider } from 'react-redux';
+import page from 'page';
+import some from 'lodash/some';
+import capitalize from 'lodash/capitalize';
 
 /**
  * Internal Dependencies
  */
-var route = require( 'lib/route' ),
-	i18n = require( 'lib/mixins/i18n' ),
-	notices = require( 'notices' ),
-	sites = require( 'lib/sites-list' )(),
-	analytics = require( 'analytics' ),
-	PlanSetup = require( './plan-setup' ),
-	PluginListComponent = require( './main' ),
-	PluginComponent = require( './plugin' ),
-	PluginBrowser = require( './plugins-browser' ),
-	titleActions = require( 'lib/screen-title/actions' ),
-	renderWithReduxStore = require( 'lib/react-helpers' ).renderWithReduxStore,
-	allowedCategoryNames = [ 'new', 'popular', 'featured' ];
+import route from 'lib/route';
+import notices from 'notices';
+import sitesFactory from 'lib/sites-list';
+import analytics from 'lib/analytics';
+import PlanSetup from './jetpack-plugins-setup';
+import PluginListComponent from './main';
+import PluginComponent from './plugin';
+import PluginBrowser from './plugins-browser';
+import { renderWithReduxStore } from 'lib/react-helpers';
+import { setSection } from 'state/ui/actions';
+import { getSelectedSite, getSection } from 'state/ui/selectors';
 
 /**
  * Module variables
  */
-var lastPluginsListVisited,
-	lastPluginsQuerystring,
-	controller;
+const allowedCategoryNames = [ 'new', 'popular', 'featured' ];
+const sites = sitesFactory();
+
+let lastPluginsListVisited,
+	lastPluginsQuerystring;
 
 function renderSinglePlugin( context, siteUrl ) {
-	var pluginSlug = decodeURIComponent( context.params.plugin ),
-		site = sites.getSelectedSite(),
-		analyticsPageTitle = 'Plugins',
-		baseAnalyticsPath;
+	const pluginSlug = decodeURIComponent( context.params.plugin );
+	const site = getSelectedSite( context.store.getState() );
+	const analyticsPageTitle = 'Plugins';
 
-	baseAnalyticsPath = 'plugins/:plugin';
+	let baseAnalyticsPath = 'plugins/:plugin';
+
 	if ( site ) {
 		baseAnalyticsPath += '/:site';
 	}
 
-	analytics.pageView.record( baseAnalyticsPath, analyticsPageTitle + ' > Plugin Details' );
+	analytics
+	.pageView
+	.record( baseAnalyticsPath, `${ analyticsPageTitle } > Plugin Details` );
 
 	// Scroll to the top
 	window.scrollTo( 0, 0 );
+
+	let prevPath;
+	if ( lastPluginsListVisited ) {
+		prevPath = lastPluginsListVisited;
+	} else if ( context.prevPath ) {
+		prevPath = route.sectionify( context.prevPath );
+	}
 
 	// Render single plugin component
 	renderWithReduxStore(
 		React.createElement( PluginComponent, {
 			path: context.path,
-			prevPath: lastPluginsListVisited || context.prevPath,
 			prevQuerystring: lastPluginsQuerystring,
-			sites: sites,
-			pluginSlug: pluginSlug,
-			siteUrl: siteUrl,
-			onPluginRefresh: title => titleActions.setTitle( title )
+			prevPath,
+			sites,
+			pluginSlug,
+			siteUrl,
 		} ),
 		document.getElementById( 'primary' ),
 		context.store
@@ -70,95 +80,129 @@ function getPathWithoutSiteSlug( context, site ) {
 	return path;
 }
 
-function renderPluginList( context, basePath, siteUrl ) {
-	var search = context.query.s,
-		site = sites.getSelectedSite(),
-		analyticsPageTitle;
+function renderPluginList( context, basePath ) {
+	const search = context.query.s;
+	const site = getSelectedSite( context.store.getState() );
 
 	lastPluginsListVisited = getPathWithoutSiteSlug( context, site );
 	lastPluginsQuerystring = context.querystring;
-	titleActions.setTitle( i18n.translate( 'Plugins', { textOnly: true } ), { siteID: siteUrl } );
 
-	renderWithReduxStore(
-		React.createElement( PluginListComponent, {
-			path: basePath,
-			context: context,
-			filter: context.params.pluginFilter,
-			sites: sites,
-			search: search
-		} ),
-		document.getElementById( 'primary' ),
-		context.store
+	ReactDom.render(
+		React.createElement( ReduxProvider, { store: context.store },
+			React.createElement( PluginListComponent, {
+				path: basePath,
+				context,
+				filter: context.params.pluginFilter,
+				category: context.params.category,
+				sites,
+				search
+			} )
+		),
+		document.getElementById( 'primary' )
 	);
 
 	if ( search ) {
 		analytics.ga.recordEvent( 'Plugins', 'Search', 'Search term', search );
 	}
 
-	analyticsPageTitle = 'Plugins' + ( context.params.pluginFilter ? ' ' + capitalize( context.params.pluginFilter ) : '' );
-	analytics.pageView.record( context.pathname.replace( site.domain, ':site' ), analyticsPageTitle );
+	const analyticsPageTitle = 'Plugins' +
+		( context.params.pluginFilter
+			? ' ' + capitalize( context.params.pluginFilter )
+			: ''
+		);
+
+	let baseAnalyticsPath = 'plugins';
+	if ( site ) {
+		baseAnalyticsPath += '/:site';
+	}
+	analytics
+		.pageView
+		.record( baseAnalyticsPath, analyticsPageTitle );
 }
 
-function renderPluginsBrowser( context, siteUrl ) {
-	var site = sites.getSelectedSite(),
-		category = context.params.category,
-		searchTerm = context.query.s,
-		analyticsPageTitle;
+function renderPluginsBrowser( context ) {
+	const searchTerm = context.query.s;
+	const site = getSelectedSite( context.store.getState() );
+	let { category } = context.params;
 
 	lastPluginsListVisited = getPathWithoutSiteSlug( context, site );
 	lastPluginsQuerystring = context.querystring;
 
-	if ( context.params.siteOrCategory &&
-			allowedCategoryNames.indexOf( context.params.siteOrCategory ) >= 0 ) {
+	if (
+		context.params.siteOrCategory &&
+		allowedCategoryNames.indexOf( context.params.siteOrCategory ) >= 0
+	) {
 		category = context.params.siteOrCategory;
 	}
-	if ( ! site && allowedCategoryNames.indexOf( context.params.siteOrCategory ) < 0 ) {
-		site = { slug: context.params.siteOrCategory };
+
+	const analyticsPageTitle = 'Plugin Browser' + ( category ? ': ' + category : '' );
+	let baseAnalyticsPath = 'plugins/browse' + ( category ? '/' + category : '' );
+	if ( site ) {
+		baseAnalyticsPath += '/:site';
 	}
 
-	titleActions.setTitle( i18n.translate( 'Plugin Browser', { textOnly: true } ), { siteID: siteUrl } );
+	analytics
+	.pageView
+	.record( baseAnalyticsPath, analyticsPageTitle );
 
-	analyticsPageTitle = 'Plugin Browser' + ( category ? ': ' + category : '' );
-	analytics.pageView.record( context.pathname.replace( site.domain, ':site' ), analyticsPageTitle );
-
-	ReactDom.render(
+	renderWithReduxStore(
 		React.createElement( PluginBrowser, {
 			site: site ? site.slug : null,
 			path: context.path,
-			category: category,
-			sites: sites,
+			category,
+			sites,
 			search: searchTerm
 		} ),
-		document.getElementById( 'primary' )
+		document.getElementById( 'primary' ),
+		context.store
 	);
 }
 
-function renderProvisionPlugins() {
-	let site = sites.getSelectedSite();
-	ReactDom.render(
+function renderProvisionPlugins( context ) {
+	const state = context.store.getState();
+	const section = getSection( state );
+	const site = getSelectedSite( state );
+	context.store.dispatch( setSection( Object.assign( {}, section, { secondary: false } ) ) );
+	ReactDom.unmountComponentAtNode( document.getElementById( 'secondary' ) );
+	let baseAnalyticsPath = 'plugins/setup';
+	if ( site ) {
+		baseAnalyticsPath += '/:site';
+	}
+
+	analytics.pageView.record( baseAnalyticsPath, 'Jetpack Plugins Setup' );
+
+	renderWithReduxStore(
 		React.createElement( PlanSetup, {
-			selectedSite: site,
+			whitelist: context.query.only || false
 		} ),
-		document.getElementById( 'primary' )
+		document.getElementById( 'primary' ),
+		context.store
 	);
 }
 
-controller = {
+const controller = {
+	plugins( filter, context, next ) {
+		const siteUrl = route.getSiteFragment( context.path );
+		const basePath = route.sectionify( context.path ).replace( '/' + filter, '' );
 
-	plugins: function( filter, context ) {
-		var basePath = route.sectionify( context.path ),
-			siteUrl = route.getSiteFragment( context.path );
+		// bail if no site is selected and the user has no Jetpack sites.
+		if ( ! siteUrl && sites.getJetpack().length === 0 ) {
+			return next();
+		}
 
 		context.params.pluginFilter = filter;
-		basePath = basePath.replace( '/' + filter, '' );
 		notices.clearNotices( 'notices' );
-		renderPluginList( context, basePath, siteUrl );
+		renderPluginList( context, basePath );
 	},
 
-	plugin: function( context ) {
-		var siteUrl = route.getSiteFragment( context.path );
+	plugin( context ) {
+		const siteUrl = route.getSiteFragment( context.path );
 
-		if ( siteUrl && context.params.plugin && context.params.plugin === siteUrl.toString() ) {
+		if (
+			siteUrl &&
+			context.params.plugin &&
+			context.params.plugin === siteUrl.toString()
+		) {
 			controller.plugins( 'all', context );
 			return;
 		}
@@ -167,15 +211,13 @@ controller = {
 		renderSinglePlugin( context, siteUrl );
 	},
 
-	browsePlugins: function( context ) {
-		var siteUrl = route.getSiteFragment( context.path );
-
-		renderPluginsBrowser( context, siteUrl );
+	browsePlugins( context ) {
+		renderPluginsBrowser( context );
 	},
 
-	jetpackCanUpdate: function( filter, context, next ) {
-		let redirectToPlugins = false,
-			selectedSites = sites.getSelectedOrAllWithPlugins();
+	jetpackCanUpdate( filter, context, next ) {
+		const selectedSites = sites.getSelectedOrAllWithPlugins();
+		let redirectToPlugins = false;
 
 		if ( 'updates' === filter && selectedSites.length ) {
 			redirectToPlugins = ! some( sites.getSelectedOrAllWithPlugins(), function( site ) {
@@ -184,7 +226,7 @@ controller = {
 
 			if ( redirectToPlugins ) {
 				if ( context.params && context.params.site_id ) {
-					page.redirect( '/plugins/' + context.params.site_id );
+					page.redirect( `/plugins/${ context.params.site_id }` );
 					return;
 				}
 				page.redirect( '/plugins' );
@@ -194,10 +236,15 @@ controller = {
 		next();
 	},
 
-	setupPlugins: function() {
-		renderProvisionPlugins();
-	}
+	setupPlugins( context ) {
+		renderProvisionPlugins( context );
+	},
 
+	resetHistory( context, next ) {
+		lastPluginsListVisited = null;
+		lastPluginsQuerystring = null;
+		next();
+	}
 };
 
 module.exports = controller;

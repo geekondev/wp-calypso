@@ -1,9 +1,7 @@
-/** @ssr-ready **/
-
 /**
  * External dependencies
  */
-import React, { PropTypes } from 'react';
+import React, { PropTypes, Component } from 'react';
 import classNames from 'classnames';
 
 /**
@@ -12,41 +10,45 @@ import classNames from 'classnames';
 import Card from 'components/card';
 import HeaderCakeBack from './back';
 
-export default React.createClass( {
-
-	displayName: 'HeaderCake',
-
-	propTypes: {
-		onClick: PropTypes.func.isRequired,
-		onTitleClick: PropTypes.func,
-		backText: PropTypes.string
-	},
-
-	getDefaultProps() {
-		return {
-			isCompact: false
-		};
-	},
-
+export default class HeaderCake extends Component {
 	render() {
-		const { backText } = this.props;
+		const { backText, backHref } = this.props;
 		const classes = classNames(
 			'header-cake',
 			this.props.className,
-			{
-				'is-compact': this.props.isCompact
-			}
+			{ 'is-compact': this.props.isCompact }
 		);
 
 		return (
 			<Card className={ classes }>
-				<HeaderCakeBack text={ backText } onClick={ this.props.onClick } />
-				<div className="header-cake__title" onClick={ this.props.onTitleClick }>
+				<HeaderCakeBack
+					text={ backText }
+					href={ backHref }
+					onClick={ this.props.onClick }
+				/>
+
+				<div
+					className="header-cake__title"
+					onClick={ this.props.onTitleClick }
+				>
 					{ this.props.children }
 				</div>
-				<HeaderCakeBack text={ backText } spacer />
+
+				<HeaderCakeBack text={ backText } href={ backHref } spacer />
 			</Card>
 		);
 	}
+}
 
-} );
+HeaderCake.displayName = 'HeaderCake';
+
+HeaderCake.propTypes = {
+	onClick: PropTypes.func,
+	onTitleClick: PropTypes.func,
+	backText: PropTypes.string,
+	backHref: PropTypes.string,
+};
+
+HeaderCake.defaultProps = {
+	isCompact: false
+};

@@ -76,6 +76,18 @@ button {
 			top: 4px;
 			margin-top: -8px;
 		}
+		// Make the left margin of the small plus icon visually less huge
+		.gridicons-plus-small {
+			margin-left: -4px;
+		}
+		// Reset the left margin if the button contains only the plus icon
+		.gridicons-plus-small:last-of-type {
+			margin-left: 0;
+		}
+		// Make plus icon nudged closer to adjacent icons for add-people and add-plugin type buttons
+		.gridicons-plus-small + .gridicon {
+			margin-left: -4px;
+		}
 	}
 	&.hidden {
 		display: none;
@@ -92,7 +104,7 @@ button {
 // Primary buttons
 .button.is-primary {
 	background: $blue-medium;
-	border-color: $blue-wordpress;
+	border-color: darken( $blue-medium, 8% );
 	color: $white;
 
 	&:hover,
@@ -147,28 +159,27 @@ button {
 
 .button.is-borderless {
 	border: none;
+	background: none;
 	color: darken( $gray, 10% );
 	padding-left: 0;
 	padding-right: 0;
+	border-radius: 0;
 
-	&:hover {
+	&:hover,
+	&:focus {
+		box-shadow: none;
 		color: $gray-dark;
 	}
 
-	&:focus {
-		box-shadow: none;
-	}
-
 	.gridicon {
-		width: auto;
-		height: auto;
+		width: 24px;
+		height: 24px;
 		top: 6px;
 	}
 
 	&[disabled],
 	&:disabled {
 		color: lighten( $gray, 30% );
-		background: $white;
 		cursor: default;
 
 		&:active {
@@ -189,12 +200,21 @@ button {
 	}
 
 	&.is-compact {
-		background: transparent;
-		border-radius: 0;
 		.gridicon {
 			width: 18px;
 			height: 18px;
 			top: 5px;
+		}
+
+		//arrows sit 1px low in their svg bounding box, need a nudge
+		.gridicons-arrow-left {
+			top: 4px;
+			margin-right: 4px;
+		}
+
+		.gridicons-arrow-right {
+			top: 4px;
+			margin-left: 4px;
 		}
 	}
 }
@@ -204,7 +224,7 @@ button {
 // ==========================================================================
 
 // Turn Reset 'buttons' into regular text links
-.wp-content input {
+.layout__content input {
 	&[type=reset],
 	&[type=reset]:hover,
 	&[type=reset]:active,
@@ -218,15 +238,15 @@ button {
 }
 
 // Buttons within sentences sit on the text baseline.
-.wp-content p .button {
+.layout__content p .button {
 	vertical-align: baseline
 }
 
 // Firefox Junk
-.wp-content button::-moz-focus-inner,
-.wp-content input[type=reset]::-moz-focus-inner,
-.wp-content input[type=button]::-moz-focus-inner,
-.wp-content input[type=submit]::-moz-focus-inner {
+.layout__content button::-moz-focus-inner,
+.layout__content input[type=reset]::-moz-focus-inner,
+.layout__content input[type=button]::-moz-focus-inner,
+.layout__content input[type=submit]::-moz-focus-inner {
 	border-width: 1px 0;
 	border-style: solid none;
 	border-color: transparent;

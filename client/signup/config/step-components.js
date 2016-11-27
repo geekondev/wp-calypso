@@ -1,31 +1,33 @@
 /**
  * Internal dependencies
  */
-var UserSignupComponent = require( 'signup/steps/user' ),
-	SiteComponent = require( 'signup/steps/site' ),
-	ThemeSelectionComponent = require( 'signup/steps/theme-selection' ),
-	PaidPlansOnly = require( 'signup/steps/paid-plans-only' ),
-	PaidPlansWithSkip = require( 'signup/steps/paid-plans-with-skip' ),
-	PlansStepComponent = require( 'signup/steps/plans' ),
-	DomainsStepComponent = require( 'signup/steps/domains' ),
+var config = require( 'config' ),
 	DesignTypeComponent = require( 'signup/steps/design-type' ),
+	DesignTypeWithStoreComponent = require( 'signup/steps/design-type-with-store' ),
+	DomainsStepComponent = require( 'signup/steps/domains' ),
+	GetDotBlogPlansStepComponent = require( 'signup/steps/get-dot-blog-plans' ),
+	PlansStepComponent = require( 'signup/steps/plans' ),
+	SiteComponent = require( 'signup/steps/site' ),
+	SiteTitleComponent = require( 'signup/steps/site-title' ),
 	SurveyStepComponent = require( 'signup/steps/survey' ),
-	config = require( 'config' );
+	ThemeSelectionComponent = require( 'signup/steps/theme-selection' ),
+	UserSignupComponent = require( 'signup/steps/user' );
 
 module.exports = {
-	themes: ThemeSelectionComponent,
-	site: SiteComponent,
-	user: UserSignupComponent,
-	test: config( 'env' ) === 'development' ? require( 'signup/steps/test-step' ) : undefined,
-	plans: PlansStepComponent,
-	'select-plan': PaidPlansOnly,
-	'select-plan-or-skip': PaidPlansWithSkip,
+	'design-type': DesignTypeComponent,
+	'design-type-with-store': DesignTypeWithStoreComponent,
 	domains: DomainsStepComponent,
+	'domains-with-plan': DomainsStepComponent,
+	'domains-only': DomainsStepComponent,
+	'jetpack-user': UserSignupComponent,
+	'get-dot-blog-plans': GetDotBlogPlansStepComponent,
+	'get-dot-blog-themes': ThemeSelectionComponent,
+	plans: PlansStepComponent,
+	site: SiteComponent,
+	'site-title': SiteTitleComponent,
 	survey: SurveyStepComponent,
 	'survey-user': UserSignupComponent,
-	'design-type': DesignTypeComponent,
-	'themes-headstart': ThemeSelectionComponent,
-	altthemes: ThemeSelectionComponent,
-	'domains-with-theme': DomainsStepComponent,
-	'jetpack-user': UserSignupComponent
+	test: config( 'env' ) === 'development' ? require( 'signup/steps/test-step' ) : undefined,
+	themes: ThemeSelectionComponent,
+	user: UserSignupComponent
 };

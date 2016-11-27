@@ -19,9 +19,10 @@ var PostListFetcher = require( 'components/post-list-fetcher' ),
 	EmptyContent = require( 'components/empty-content' ),
 	InfiniteList = require( 'components/infinite-list' ),
 	NoResults = require( 'my-sites/no-results' ),
-	config = require( 'config' ),
 	route = require( 'lib/route' ),
 	mapStatus = route.mapPostStatus;
+
+import UpgradeNudge from 'my-sites/upgrade-nudge';
 
 var GUESSED_POST_HEIGHT = 250;
 
@@ -54,7 +55,6 @@ var PostList = React.createClass( {
 		);
 	}
 } );
-
 
 var Posts = React.createClass( {
 
@@ -144,8 +144,7 @@ var Posts = React.createClass( {
 	},
 
 	getNoContentMessage: function() {
-		var selectedSite = this.props.sites.getSelectedSite(),
-			attributes, newPostLink;
+		var attributes, newPostLink;
 
 		if ( this.props.search ) {
 			return <NoResults
@@ -158,18 +157,13 @@ var Posts = React.createClass( {
 					} )	}
 			/>;
 		} else {
-
-			if ( config.isEnabled( 'post-editor' ) ) {
-				newPostLink = this.props.siteID ? '/post/' + this.props.siteID : '/post';
-			} else {
-				newPostLink = selectedSite ? '//wordpress.com/post/' + selectedSite.ID + '/new' : '//wordpress.com/post';
-			}
+			newPostLink = this.props.siteID ? '/post/' + this.props.siteID : '/post';
 
 			if ( this.props.hasRecentError ) {
 				attributes = {
 					title: this.translate( 'Oh, no! We couldn\'t fetch your posts.' ),
 					line: this.translate( 'Please check your internet connection.' )
-				}
+				};
 			} else {
 				switch ( this.props.statusSlug ) {
 					case 'drafts':
@@ -228,10 +222,9 @@ var Posts = React.createClass( {
 		);
 	},
 
-	renderPost: function( post ) {
-		var postImages = this.props.postImages[ post.global_ID ];
-
-		return (
+	renderPost: function( post, index ) {
+		const postImages = this.props.postImages[ post.global_ID ];
+		const renderedPost = (
 			<Post
 				ref={ post.global_ID }
 				key={ post.global_ID }
@@ -242,6 +235,22 @@ var Posts = React.createClass( {
 				path={ route.sectionify( this.props.context.pathname ) }
 			/>
 		);
+
+		if ( index === 2 && this.props.sites.getSelectedSite() && ! this.props.statusSlug ) {
+			return (
+				<div key={ post.global_ID }>
+					<UpgradeNudge
+						title={ this.translate( 'No Ads with WordPress.com Premium' ) }
+						message={ this.translate( 'Prevent ads from showing on your site.' ) }
+						feature="no-adverts"
+						event="published_posts_no_ads"
+					/>
+					{ renderedPost }
+				</div>
+			);
+		} else {
+			return renderedPost;
+		}
 	},
 
 	render: function() {
@@ -267,7 +276,6 @@ var Posts = React.createClass( {
 					renderLoadingPlaceholders={ this.renderLoadingPlaceholders }
 				/>
 			);
-
 		} else {
 			if ( this.props.loading || ! this.props.sites.fetched ) {
 				for ( i = 0; i < placeholderCount; i++ ) {
@@ -283,6 +291,7 @@ var Posts = React.createClass( {
 				</div>
 			);
 		}
+
 		return (
 			<div>
 				{ postList }

@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-var debug = require( 'debug' )( 'calypso:site:jetpack' );
+var debug = require( 'debug' )( 'calypso:site:jetpack' ),
+	i18n = require( 'i18n-calypso' );
 
 /**
  * Internal dependencies
@@ -10,7 +11,6 @@ var wpcom = require( 'lib/wp' ),
 	Site = require( 'lib/site' ),
 	inherits = require( 'inherits' ),
 	notices = require( 'notices' ),
-	i18n = require( 'lib/mixins/i18n' ),
 	versionCompare = require( 'lib/version-compare' ),
 	SiteUtils = require( 'lib/site/utils' ),
 	config = require( 'config' );
@@ -60,16 +60,14 @@ JetpackSite.prototype.canManage = function() {
 };
 
 JetpackSite.prototype.fetchAvailableUpdates = function() {
-	if ( ! this.hasMinimumJetpackVersion || ! this.capabilities.manage_options ) {
+	if ( ! this.hasMinimumJetpackVersion ||
+		! this.capabilities.manage_options ||
+		! this.canUpdateFiles ) {
 		return;
 	}
 	wpcom.undocumented().getAvailableUpdates( this.ID, function( error, data ) {
 		if ( error ) {
 			debug( 'error fetching Updates data from api', error );
-			// 403 is returned when the user does not have manage capabilities.
-			if ( 403 !== error.statusCode && ! ( this.update instanceof Object ) ) {
-				this.set( { update: 'error', unreachable: true } );
-			}
 			return;
 		}
 		this.set( { update: data } );
@@ -246,7 +244,7 @@ JetpackSite.prototype.deactivateModule = function( moduleId, callback ) {
 JetpackSite.prototype.toggleModule = function( moduleId, callback ) {
 	const isActive = this.isModuleActive( moduleId ),
 		method = isActive ? 'jetpackModulesDeactivate' : 'jetpackModulesActivate',
-		prevActiveModules = Object.assign( {}, this.modules );
+		prevActiveModules = [ ...this.modules ];
 
 	if ( isActive ) {
 		this.modules = this.modules.filter( module => module !== moduleId );
@@ -391,6 +389,15 @@ JetpackSite.prototype.setOption = function( query, callback ) {
 	}.bind( this ) );
 
 	this.emit( 'change' );
+};
+
+JetpackSite.prototype.fetchJetpackKeys = function( callback ) {
+	wpcom.undocumented().fetchJetpackKeys( this.ID, function( error, data ) {
+		if ( error ) {
+			debug( 'error getting Jetpack registration keys', error );
+		}
+		callback && callback( error, data );
+	}.bind( this ) );
 };
 
 module.exports = JetpackSite;

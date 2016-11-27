@@ -1,114 +1,115 @@
 /**
 * External dependencies
 */
-import React, { PropTypes } from 'react';
+import React, { Component, PropTypes } from 'react';
 import classNames from 'classnames';
+import { connect } from 'react-redux';
+import pick from 'lodash/pick';
+import { localize, moment } from 'i18n-calypso';
 
 /**
  * Internal dependencies
  */
-import observe from 'lib/mixins/data-observe';
 import Card from 'components/card';
-import User from 'lib/user';
-import toggle from '../mixin-toggle';
-import Gridicon from 'components/gridicon';
 import StatsTabs from '../stats-tabs';
 import StatsTab from '../stats-tabs/tab';
+import SectionHeader from 'components/section-header';
+import QuerySiteStats from 'components/data/query-site-stats';
+import { getSelectedSiteId } from 'state/ui/selectors';
+import {
+	isRequestingSiteStatsForQuery,
+	getSiteStatsNormalizedData
+} from 'state/stats/lists/selectors';
 
-const user = User();
+class StatsAllTime extends Component {
 
-export default React.createClass( {
-	displayName: 'StatsAllTime',
-
-	mixins: [ toggle( 'allTimeList' ), observe( 'allTimeList' ) ],
-
-	propTypes: {
-		allTimeList: PropTypes.object.isRequired
-	},
+	static propTypes = {
+		translate: PropTypes.func,
+		siteId: PropTypes.number,
+		requesting: PropTypes.bool,
+		query: PropTypes.object,
+		posts: PropTypes.number,
+		views: PropTypes.number,
+		viewsBestDay: PropTypes.string,
+		viewsBestDayTotal: PropTypes.number
+	};
 
 	render() {
-		const infoIcon = this.state.showInfo ? 'info' : 'info-outline';
-		const allTimeList = this.props.allTimeList.response;
-		const { showInfo, showModule } = this.state;
-		const isLoading = this.props.allTimeList.isLoading();
+		const {
+			translate,
+			siteId,
+			requesting,
+			posts,
+			views,
+			visitors,
+			viewsBestDay,
+			viewsBestDayTotal,
+			query
+		} = this.props;
+		const isLoading = requesting && ! views;
 
 		let bestDay;
 
-		if ( allTimeList['best-views'] && allTimeList['best-views'].day ) {
-			bestDay = this.moment( allTimeList['best-views'].day ).format( 'LL' );
+		if ( viewsBestDay && ! isLoading ) {
+			bestDay = moment( viewsBestDay ).format( 'LL' );
 		}
 
 		const classes = {
-			'is-expanded': showModule,
-			'is-showing-info': showInfo,
-			'is-loading': this.props.allTimeList.isLoading(),
-			'is-non-en': user.data.localeSlug && ( user.data.localeSlug !== 'en' )
+			'is-loading': requesting
 		};
 
-		const bestViews = allTimeList['best-views'] ? allTimeList['best-views'].count : null;
-
 		return (
-			<Card className={ classNames( 'stats-module', 'stats-all-time', classes ) }>
-				<div className="module-header">
-				<h1 className="module-header-title">{ this.translate( 'All-time posts, views, and visitors' ) }</h1>
-					<ul className="module-header-actions">
-						<li className="module-header-action toggle-info">
-							<a
-								href="#"
-								className="module-header-action-link"
-								aria-label={
-									this.translate(
-										'Show or hide panel information',
-										{ context: 'Stats panel action' }
-									)
-								}
-								title={
-									this.translate(
-										'Show or hide panel information',
-										{ context: 'Stats panel action' }
-									)
-								}
-								onClick={
-									this.toggleInfo
-								}
-							>
-								<Gridicon icon={ infoIcon } />
-							</a>
-						</li>
-					</ul>
-				</div>
-				<div className="module-content">
-					<div className="module-content-text module-content-text-info">
-						<p>{ this.translate( 'These are your site\'s overall total number of Posts, Views and Visitors as well as the day when you had the most number of Views.' ) }</p>
-					</div>
-
-					<StatsTabs>
+			<div>
+				{ siteId && <QuerySiteStats siteId={ siteId } statType="stats" query={ query } /> }
+				<SectionHeader label={ translate( 'All-time posts, views, and visitors' ) } />
+				<Card className={ classNames( 'stats-module', 'all-time', classes ) }>
+					<StatsTabs borderless>
 						<StatsTab
 							gridicon="posts"
-							label={ this.translate( 'Posts' ) }
+							label={ translate( 'Posts' ) }
 							loading={ isLoading }
-							value={ allTimeList.posts } />
+							value={ posts } />
 						<StatsTab
 							gridicon="visible"
-							label={ this.translate( 'Views' ) }
+							label={ translate( 'Views' ) }
 							loading={ isLoading }
-							value={ allTimeList.views } />
+							value={ views } />
 						<StatsTab
 							gridicon="user"
-							label={ this.translate( 'Visitors' ) }
+							label={ translate( 'Visitors' ) }
 							loading={ isLoading }
-							value={ allTimeList.visitors } />
+							value={ visitors } />
 						<StatsTab
-							className="is-best"
+							className="all-time__is-best"
 							gridicon="trophy"
-							label={ this.translate( 'Best Views Ever' ) }
+							label={ translate( 'Best Views Ever' ) }
 							loading={ isLoading }
-							value={ bestViews }>
-							<span className="stats-all-time__best-day">{ bestDay }</span>
+							value={ viewsBestDayTotal }>
+							<span className="all-time__best-day">{ bestDay }</span>
 						</StatsTab>
 					</StatsTabs>
-				</div>
-			</Card>
+				</Card>
+			</div>
 		);
 	}
-} );
+}
+
+export default connect( ( state ) => {
+	const siteId = getSelectedSiteId( state );
+	const query = {};
+	const allTimeData = getSiteStatsNormalizedData( state, siteId, 'stats', query ) || {};
+	const allTimeStats = pick( allTimeData, [
+		'posts',
+		'views',
+		'visitors',
+		'viewsBestDay',
+		'viewsBestDayTotal'
+	] );
+
+	return {
+		requesting: isRequestingSiteStatsForQuery( state, siteId, 'stats', query ),
+		query,
+		siteId,
+		...allTimeStats
+	};
+} )( localize( StatsAllTime ) );

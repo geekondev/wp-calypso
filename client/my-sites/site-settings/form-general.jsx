@@ -1,42 +1,49 @@
 /**
  * External dependencies
  */
-var React = require( 'react' );
+import React from 'react';
+import page from 'page';
 
 /**
  * Internal dependencies
  */
-var Card = require( 'components/card' ),
-	Button = require( 'components/button' ),
-	formBase = require( './form-base' ),
-	RelatedContentPreview = require( 'my-sites/site-settings/related-content-preview' ),
-	LanguageSelector = require( 'components/forms/language-selector' ),
-	DisconnectJetpackButton = require( 'my-sites/plugins/disconnect-jetpack/disconnect-jetpack-button' ),
-	SectionHeader = require( 'components/section-header' ),
-	config = require( 'config' ),
-	protectForm = require( 'lib/mixins/protect-form' ),
-	notices = require( 'notices' ),
-	analytics = require( 'analytics' ),
-	dirtyLinkedState = require( 'lib/mixins/dirty-linked-state' ),
-	Button = require( 'components/button' ),
-	Gridicon = require( 'components/gridicon' ),
-	FormInput = require( 'components/forms/form-text-input' ),
-	FormFieldset = require( 'components/forms/form-fieldset' ),
-	FormLabel = require( 'components/forms/form-label' ),
-	FormRadio = require( 'components/forms/form-radio' ),
-	FormCheckbox = require( 'components/forms/form-checkbox' ),
-	FormSettingExplanation = require( 'components/forms/form-setting-explanation' );
+import Card from 'components/card';
+import CompactCard from 'components/card/compact';
+import Button from 'components/button';
+import formBase from './form-base';
+import RelatedContentPreview from 'my-sites/site-settings/related-content-preview';
+import LanguageSelector from 'components/forms/language-selector';
+import DisconnectJetpackButton from 'my-sites/plugins/disconnect-jetpack/disconnect-jetpack-button';
+import SectionHeader from 'components/section-header';
+import config from 'config';
+import { protectForm } from 'lib/protect-form';
+import notices from 'notices';
+import analytics from 'lib/analytics';
+import dirtyLinkedState from 'lib/mixins/dirty-linked-state';
+import Gridicon from 'components/gridicon';
+import FormInput from 'components/forms/form-text-input';
+import FormFieldset from 'components/forms/form-fieldset';
+import FormLabel from 'components/forms/form-label';
+import FormRadio from 'components/forms/form-radio';
+import FormCheckbox from 'components/forms/form-checkbox';
+import FormToggle from 'components/forms/form-toggle';
+import FormSettingExplanation from 'components/forms/form-setting-explanation';
+import Timezone from 'components/timezone';
+import JetpackSyncPanel from './jetpack-sync-panel';
+import SiteIconSetting from './site-icon-setting';
+import UpgradeNudge from 'my-sites/upgrade-nudge';
+import { isBusiness } from 'lib/products-values';
+import { FEATURE_NO_BRANDING } from 'lib/plans/constants';
 
-module.exports = React.createClass( {
-
+const FormGeneral = React.createClass( {
 	displayName: 'SiteSettingsFormGeneral',
 
-	mixins: [ dirtyLinkedState, protectForm.mixin, formBase ],
+	mixins: [ dirtyLinkedState, formBase ],
 
-	getSettingsFromSite: function( site ) {
-		var settings;
+	getSettingsFromSite( site ) {
 		site = site || this.props.site;
-		settings = {
+
+		const settings = {
 			blogname: site.name,
 			blogdescription: site.description,
 			fetchingSettings: site.fetchingSettings
@@ -46,8 +53,12 @@ module.exports = React.createClass( {
 			settings.lang_id = site.settings.lang_id;
 			settings.blog_public = site.settings.blog_public;
 			settings.admin_url = site.settings.admin_url;
+			settings.timezone_string = site.settings.timezone_string;
 			settings.jetpack_relatedposts_allowed = site.settings.jetpack_relatedposts_allowed;
 			settings.jetpack_sync_non_public_post_stati = site.settings.jetpack_sync_non_public_post_stati;
+
+			settings.amp_is_supported = site.settings.amp_is_supported;
+			settings.amp_is_enabled = site.settings.amp_is_enabled;
 
 			if ( settings.jetpack_relatedposts_allowed ) {
 				settings.jetpack_relatedposts_enabled = ( site.settings.jetpack_relatedposts_enabled ) ? 1 : 0;
@@ -58,25 +69,39 @@ module.exports = React.createClass( {
 			if ( site.settings.holidaysnow ) {
 				settings.holidaysnow = site.settings.holidaysnow;
 			}
+
+			// handling `gmt_offset` and `timezone_string` values
+			const gmt_offset = site.settings.gmt_offset;
+
+			if (
+				! settings.timezone_string &&
+				typeof gmt_offset === 'string' &&
+				gmt_offset.length
+			) {
+				settings.timezone_string = 'UTC' +
+					( /\-/.test( gmt_offset ) ? '' : '+' ) +
+					gmt_offset;
+			}
 		}
 
 		return settings;
 	},
 
-	componentWillMount: function() {
+	componentWillMount() {
 		this._showWarning( this.props.site );
 	},
 
-	componentWillReceiveProps: function( nextProps ) {
+	componentWillReceiveProps( nextProps ) {
 		this._showWarning( nextProps.site );
 	},
 
-	resetState: function() {
+	resetState() {
 		this.replaceState( {
 			fetchingSettings: true,
 			blogname: '',
 			blogdescription: '',
 			lang_id: '',
+			timezone_string: '',
 			blog_public: '',
 			admin_url: '',
 			jetpack_relatedposts_allowed: false,
@@ -84,45 +109,62 @@ module.exports = React.createClass( {
 			jetpack_relatedposts_show_headline: false,
 			jetpack_relatedposts_show_thumbnails: false,
 			jetpack_sync_non_public_post_stati: false,
-			holidaysnow: false
+			holidaysnow: false,
+			amp_is_supported: false,
+			amp_is_enabled: false,
 		} );
 	},
 
-	siteOptions: function() {
+	onTimezoneSelect( timezone ) {
+		this.setState( { timezone_string: timezone } );
+	},
+
+	onRecordEvent( eventAction ) {
+		return this.recordEvent.bind( this, eventAction );
+	},
+
+	onRecordEventOnce( key, eventAction ) {
+		return this.recordEventOnce.bind( this, key, eventAction );
+	},
+
+	siteOptions() {
 		return (
-			<div>
-				<FormFieldset>
-					<FormLabel htmlFor="blogname">{ this.translate( 'Site Title' ) }</FormLabel>
-					<FormInput
-						name="blogname"
-						id="blogname"
-						type="text"
-						valueLink={ this.linkState( 'blogname' ) }
-						disabled={ this.state.fetchingSettings }
-						onClick={ this.recordEvent.bind( this, 'Clicked Site Title Field' ) }
-						onKeyPress={ this.recordEventOnce.bind( this, 'typedTitle', 'Typed in Site Title Field' ) } />
-				</FormFieldset>
-				<FormFieldset>
-					<FormLabel htmlFor="blogdescription">{ this.translate( 'Site Tagline' ) }</FormLabel>
-					<FormInput
-						name="blogdescription"
-						type="text"
-						id="blogdescription"
-						valueLink={ this.linkState( 'blogdescription' ) }
-						disabled={ this.state.fetchingSettings }
-						onClick={ this.recordEvent.bind( this, 'Clicked Site Site Tagline Field' ) }
-						onKeyPress={ this.recordEventOnce.bind( this, 'typedTagline', 'Typed in Site Site Tagline Field' ) } />
-					<FormSettingExplanation>
-						{ this.translate( 'In a few words, explain what this site is about.' ) }
-					</FormSettingExplanation>
-				</FormFieldset>
+			<div className="site-settings__site-options">
+				<div className="site-settings__site-title-tagline">
+					<FormFieldset>
+						<FormLabel htmlFor="blogname">{ this.translate( 'Site Title' ) }</FormLabel>
+						<FormInput
+							name="blogname"
+							id="blogname"
+							type="text"
+							valueLink={ this.linkState( 'blogname' ) }
+							disabled={ this.state.fetchingSettings }
+							onClick={ this.onRecordEvent( 'Clicked Site Title Field' ) }
+							onKeyPress={ this.onRecordEventOnce( 'typedTitle', 'Typed in Site Title Field' ) } />
+					</FormFieldset>
+					<FormFieldset>
+						<FormLabel htmlFor="blogdescription">{ this.translate( 'Site Tagline' ) }</FormLabel>
+						<FormInput
+							name="blogdescription"
+							type="text"
+							id="blogdescription"
+							valueLink={ this.linkState( 'blogdescription' ) }
+							disabled={ this.state.fetchingSettings }
+							onClick={ this.onRecordEvent( 'Clicked Site Site Tagline Field' ) }
+							onKeyPress={ this.onRecordEventOnce( 'typedTagline', 'Typed in Site Site Tagline Field' ) } />
+						<FormSettingExplanation>
+							{ this.translate( 'In a few words, explain what this site is about.' ) }
+						</FormSettingExplanation>
+					</FormFieldset>
+				</div>
+				<SiteIconSetting />
 			</div>
 		);
 	},
 
-	blogAddress: function() {
-		var site = this.props.site,
-			customAddress = '',
+	blogAddress() {
+		const { site } = this.props;
+		let customAddress = '',
 			addressDescription = '';
 
 		if ( site.jetpack ) {
@@ -139,21 +181,32 @@ module.exports = React.createClass( {
 			addressDescription =
 				<FormSettingExplanation>
 					{
-						this.translate( 'Buy a {{domainSearchLink}}custom domain{{/domainSearchLink}}, {{mapDomainLink}}map{{/mapDomainLink}} a domain you already own, or {{redirectLink}}redirect{{/redirectLink}} this site.', {
-							components: {
-								domainSearchLink: <a href={ '/domains/add/' + site.slug } onClick={ this.trackUpgradeClick } />,
-								mapDomainLink: <a href={ '/domains/add/mapping/' + site.slug } onClick={ this.trackUpgradeClick } />,
-								redirectLink: <a href={ '/domains/add/site-redirect/' + site.slug } onClick={ this.trackUpgradeClick } />
+						this.translate(
+							'Buy a {{domainSearchLink}}custom domain{{/domainSearchLink}}, ' +
+							'{{mapDomainLink}}map{{/mapDomainLink}} a domain you already own, ' +
+							'or {{redirectLink}}redirect{{/redirectLink}} this site.',
+							{
+								components: {
+									domainSearchLink: (
+										<a href={ '/domains/add/' + site.slug } onClick={ this.trackUpgradeClick } />
+									),
+									mapDomainLink: (
+										<a href={ '/domains/add/mapping/' + site.slug } onClick={ this.trackUpgradeClick } />
+									),
+									redirectLink: (
+										<a href={ '/domains/add/site-redirect/' + site.slug } onClick={ this.trackUpgradeClick } />
+									)
+								}
 							}
-						} )
+						)
 					}
 				</FormSettingExplanation>;
 		}
 
 		return (
-			<FormFieldset className="site-settings__blog-address-container">
+			<FormFieldset className="site-settings__has-divider">
 				<FormLabel htmlFor="blogaddress">{ this.translate( 'Site Address' ) }</FormLabel>
-				<div className="blogaddress-settings">
+				<div className="site-settings__blogaddress-settings">
 					<FormInput
 						name="blogaddress"
 						type="text"
@@ -167,11 +220,11 @@ module.exports = React.createClass( {
 		);
 	},
 
-	trackUpgradeClick: function() {
+	trackUpgradeClick() {
 		analytics.tracks.recordEvent( 'calypso_upgrade_nudge_cta_click', { cta_name: 'settings_site_address' } );
 	},
 
-	languageOptions: function() {
+	languageOptions() {
 		if ( this.props.site.jetpack ) {
 			return null;
 		}
@@ -184,7 +237,7 @@ module.exports = React.createClass( {
 					languages={ config( 'languages' ) }
 					valueLink={ this.linkState( 'lang_id' ) }
 					disabled={ this.state.fetchingSettings }
-					onClick={ this.recordEvent.bind( this, 'Clicked Language Field' ) } />
+					onClick={ this.onRecordEvent( 'Clicked Language Field' ) } />
 				<FormSettingExplanation>
 					{ this.translate( 'Language this blog is primarily written in.' ) }&nbsp;
 					<a href={ config.isEnabled( 'me/account' ) ? '/me/account' : '/settings/account/' }>
@@ -195,8 +248,8 @@ module.exports = React.createClass( {
 		);
 	},
 
-	visibilityOptions: function() {
-		var site = this.props.site;
+	visibilityOptions() {
+		const { site } = this.props;
 
 		return (
 			<FormFieldset>
@@ -207,8 +260,11 @@ module.exports = React.createClass( {
 						checked={ 1 === parseInt( this.state.blog_public, 10 ) }
 						onChange={ this.handleRadio }
 						disabled={ this.state.fetchingSettings }
-						onClick={ this.recordEvent.bind( this, 'Clicked Site Visibility Radio Button' ) } />
-					<span>{ this.translate( 'Allow search engines to index this site' ) }</span>
+						onClick={ this.onRecordEvent( 'Clicked Site Visibility Radio Button' ) } />
+					<span>{ this.translate( 'Public' ) }</span>
+					<FormSettingExplanation isIndented>
+						{ this.translate( 'Your site is visible to everyone, and it may be indexed by search engines.' ) }
+					</FormSettingExplanation>
 				</FormLabel>
 
 				<FormLabel>
@@ -218,10 +274,10 @@ module.exports = React.createClass( {
 						checked={ 0 === parseInt( this.state.blog_public, 10 ) }
 						onChange={ this.handleRadio }
 						disabled={ this.state.fetchingSettings }
-						onClick={ this.recordEvent.bind( this, 'Clicked Site Visibility Radio Button' ) } />
-					<span>{ this.translate( 'Discourage search engines from indexing this site' ) }</span>
-					<FormSettingExplanation className="inside-list is-indented">
-						{ this.translate( 'Note: This option does not block access to your site — it is up to search engines to honor your request.' ) }
+						onClick={ this.onRecordEvent( 'Clicked Site Visibility Radio Button' ) } />
+					<span>{ this.translate( 'Hidden' ) }</span>
+					<FormSettingExplanation isIndented>
+						{ this.translate( 'Your site is visible to everyone, but we ask search engines to not index your site.' ) }
 					</FormSettingExplanation>
 				</FormLabel>
 
@@ -230,11 +286,14 @@ module.exports = React.createClass( {
 						<FormRadio
 							name="blog_public"
 							value="-1"
-							checked={ - 1 === parseInt( this.state.blog_public, 10 ) }
+							checked={ -1 === parseInt( this.state.blog_public, 10 ) }
 							onChange={ this.handleRadio }
 							disabled={ this.state.fetchingSettings }
-							onClick={ this.recordEvent.bind( this, 'Clicked Site Visibility Radio Button' ) } />
-						<span>{ this.translate( 'I would like my site to be private, visible only to users I choose' ) }</span>
+							onClick={ this.onRecordEvent( 'Clicked Site Visibility Radio Button' ) } />
+						<span>{ this.translate( 'Private' ) }</span>
+						<FormSettingExplanation isIndented>
+							{ this.translate( 'Your site is only visible to you and users you approve.' ) }
+						</FormSettingExplanation>
 					</FormLabel>
 				}
 
@@ -242,7 +301,74 @@ module.exports = React.createClass( {
 		);
 	},
 
-	relatedPostsOptions: function() {
+	handleAmpToggle() {
+		this.setState( { amp_is_enabled: ! this.state.amp_is_enabled }, () => {
+			this.submitForm();
+			this.onRecordEvent( 'Clicked AMP Toggle' );
+		} );
+	},
+
+	handleAmpCustomize() {
+		this.onRecordEvent( 'Clicked AMP Customize button' );
+		page( '/customize/amp/' + this.props.site.slug );
+	},
+
+	renderAmpSection() {
+		const { site } = this.props;
+
+		if ( site.jetpack ) {
+			return;
+		}
+
+		const {
+			fetchingSettings,
+			submittingForm,
+			amp_is_supported,
+			amp_is_enabled,
+		} = this.state;
+
+		const isDisabled = fetchingSettings || submittingForm;
+		const isCustomizeDisabled = isDisabled || ! amp_is_enabled;
+
+		if ( ! amp_is_supported ) {
+			return null;
+		}
+
+		return (
+			<div className="site-settings__amp">
+				<SectionHeader label={ this.translate( 'AMP' ) }>
+					<Button
+						compact
+						disabled={ isCustomizeDisabled }
+						onClick={ this.handleAmpCustomize }>
+						{ this.translate( 'Edit Design' ) }
+					</Button>
+					<FormToggle
+						checked={ amp_is_enabled }
+						onChange={ this.handleAmpToggle }
+						disabled={ isDisabled } />
+				</SectionHeader>
+				<Card className="site-settings__amp-explanation">
+					<p>
+						{ this.translate(
+							'Your WordPress.com site supports {{a}}Accelerated Mobile Pages (AMP){{/a}}, ' +
+							'a new Google-led initiative that dramatically improves loading speeds ' +
+							'on phones and tablets. {{a}}Learn More{{/a}}.',
+							{
+								components: {
+									a: <a
+										href="https://support.wordpress.com/google-amp-accelerated-mobile-pages/"
+										target="_blank" rel="noopener noreferrer" />
+								}
+							}
+						) }
+					</p>
+				</Card>
+			</div>
+		);
+	},
+
+	relatedPostsOptions() {
 		if ( ! this.state.jetpack_relatedposts_allowed ) {
 			return null;
 		}
@@ -255,10 +381,9 @@ module.exports = React.createClass( {
 							<FormRadio
 								name="jetpack_relatedposts_enabled"
 								value="0"
-								className="tog"
 								checked={ 0 === parseInt( this.state.jetpack_relatedposts_enabled, 10 ) }
 								onChange={ this.handleRadio }
-								onClick={ this.recordEvent.bind( this, 'Clicked Related Posts Radio Button' ) } />
+								onClick={ this.onRecordEvent( 'Clicked Related Posts Radio Button' ) } />
 							<span>{ this.translate( 'Hide related content after posts' ) }</span>
 						</FormLabel>
 					</li>
@@ -267,59 +392,88 @@ module.exports = React.createClass( {
 							<FormRadio
 								name="jetpack_relatedposts_enabled"
 								value="1"
-								className="tog"
 								checked={ 1 === parseInt( this.state.jetpack_relatedposts_enabled, 10 ) }
 								onChange={ this.handleRadio }
-								onClick={ this.recordEvent.bind( this, 'Clicked Related Posts Radio Button' ) } />
+								onClick={ this.onRecordEvent( 'Clicked Related Posts Radio Button' ) } />
 							<span>{ this.translate( 'Show related content after posts' ) }</span>
 						</FormLabel>
-						<ul id="settings-reading-relatedposts-customize" className={ 1 === parseInt( this.state.jetpack_relatedposts_enabled, 10 ) ? null : 'disabled-block' }>
+						<ul
+							id="settings-reading-relatedposts-customize"
+							className={ 1 === parseInt( this.state.jetpack_relatedposts_enabled, 10 ) ? null : 'disabled-block' }>
 							<li>
 								<FormLabel>
-									<FormCheckbox name="jetpack_relatedposts_show_headline" checkedLink={ this.linkState( 'jetpack_relatedposts_show_headline' ) }/>
-									<span>{ this.translate( 'Show a "Related" header to more clearly separate the related section from posts' ) }</span>
+									<FormCheckbox
+										name="jetpack_relatedposts_show_headline"
+										checkedLink={ this.linkState( 'jetpack_relatedposts_show_headline' ) }/>
+									<span>
+										{ this.translate(
+											'Show a "Related" header to more clearly separate the related section from posts'
+										) }
+									</span>
 								</FormLabel>
 							</li>
 							<li>
 								<FormLabel>
-									<FormCheckbox name="jetpack_relatedposts_show_thumbnails" checkedLink={ this.linkState( 'jetpack_relatedposts_show_thumbnails' ) }/>
+									<FormCheckbox
+										name="jetpack_relatedposts_show_thumbnails"
+										checkedLink={ this.linkState( 'jetpack_relatedposts_show_thumbnails' ) }/>
 									<span>{ this.translate( 'Use a large and visually striking layout' ) }</span>
 								</FormLabel>
 							</li>
 						</ul>
-						<RelatedContentPreview enabled={ 1 === parseInt( this.state.jetpack_relatedposts_enabled, 10 ) } showHeadline={ this.state.jetpack_relatedposts_show_headline } showThumbnails={ this.state.jetpack_relatedposts_show_thumbnails } />
+						<RelatedContentPreview
+							enabled={ 1 === parseInt( this.state.jetpack_relatedposts_enabled, 10 ) }
+							showHeadline={ this.state.jetpack_relatedposts_show_headline }
+							showThumbnails={ this.state.jetpack_relatedposts_show_thumbnails } />
 					</li>
 				</ul>
 			</FormFieldset>
 		);
 	},
 
-	syncNonPublicPostTypes: function() {
+	showPublicPostTypesCheckbox() {
 		if ( ! config.isEnabled( 'manage/option_sync_non_public_post_stati' ) ) {
+			return false;
+		}
+
+		const { site } = this.props;
+		if ( site.jetpack && site.versionCompare( '4.1.1', '>' ) ) {
+			return false;
+		}
+
+		return true;
+	},
+
+	syncNonPublicPostTypes() {
+		if ( ! this.showPublicPostTypesCheckbox() ) {
 			return null;
 		}
+
 		return (
-			<Card className="is-compact">
-				<form onChange={ this.markChanged }>
-					<ul id="settings-jetpack" className="settings-jetpack">
+			<CompactCard>
+				<form onChange={ this.props.markChanged }>
+					<ul id="settings-jetpack">
 						<li>
 							<FormLabel>
-								<FormCheckbox name="jetpack_sync_non_public_post_stati" checkedLink={ this.linkState( 'jetpack_sync_non_public_post_stati' ) }/>
+								<FormCheckbox
+									name="jetpack_sync_non_public_post_stati"
+									checkedLink={ this.linkState( 'jetpack_sync_non_public_post_stati' ) }
+								/>
 								<span>{ this.translate( 'Allow synchronization of Posts and Pages with non-public post statuses' ) }</span>
-								<FormSettingExplanation className="is-indented">
+								<FormSettingExplanation isIndented>
 									{ this.translate( '(e.g. drafts, scheduled, private, etc\u2026)' ) }
 								</FormSettingExplanation>
 							</FormLabel>
 						</li>
 					</ul>
 				</form>
-			</Card>
+			</CompactCard>
 		);
 	},
 
-	jetpackDisconnectOption: function() {
-		var site = this.props.site,
-			disconnectText;
+	jetpackDisconnectOption() {
+		const { site } = this.props;
+		let disconnectText;
 
 		if ( ! site.jetpack ) {
 			return null;
@@ -336,9 +490,9 @@ module.exports = React.createClass( {
 				linkDisplay={ false } />;
 	},
 
-	holidaySnowOption: function() {
+	holidaySnowOption() {
 		// Note that years and months below are zero indexed
-		let site = this.props.site,
+		const site = this.props.site,
 			today = this.moment(),
 			startDate = this.moment( { year: today.year(), month: 11, day: 1 } ),
 			endDate = this.moment( { year: today.year(), month: 0, day: 4 } );
@@ -366,8 +520,48 @@ module.exports = React.createClass( {
 		);
 	},
 
-	render: function() {
-		var site = this.props.site;
+	Timezone() {
+		if ( this.props.site.jetpack ) {
+			return;
+		}
+
+		return (
+			<FormFieldset>
+				<FormLabel htmlFor="blogtimezone">
+					{ this.translate( 'Site Timezone' ) }
+				</FormLabel>
+
+				<Timezone
+					valueLink={ this.linkState( 'timezone_string' ) }
+					selectedZone={ this.linkState( 'timezone_string' ).value }
+					disabled={ this.state.fetchingSettings }
+					onSelect={ this.onTimezoneSelect }
+				/>
+
+				<FormSettingExplanation>
+					{ this.translate( 'Choose a city in your timezone.' ) }
+				</FormSettingExplanation>
+			</FormFieldset>
+		);
+	},
+
+	renderJetpackSyncPanel() {
+		if ( ! config.isEnabled( 'jetpack/sync-panel' ) ) {
+			return null;
+		}
+
+		const { site } = this.props;
+		if ( ! site.jetpack || this.props.site.versionCompare( '4.2-alpha', '<' ) ) {
+			return null;
+		}
+
+		return (
+			<JetpackSyncPanel />
+		);
+	},
+
+	render() {
+		const { site } = this.props;
 		if ( site.jetpack && ! site.hasMinimumJetpackVersion ) {
 			return this.jetpackDisconnectOption();
 		}
@@ -377,7 +571,7 @@ module.exports = React.createClass( {
 				<SectionHeader label={ this.translate( 'Site Profile' ) }>
 					<Button
 						compact={ true }
-						onClick={ this.submitForm }
+						onClick={ this.handleSubmitForm }
 						primary={ true }
 
 						type="submit"
@@ -389,17 +583,19 @@ module.exports = React.createClass( {
 					</Button>
 				</SectionHeader>
 				<Card>
-					<form onChange={ this.markChanged }>
+					<form onChange={ this.props.markChanged }>
 						{ this.siteOptions() }
 						{ this.blogAddress() }
 						{ this.languageOptions() }
+						{ this.Timezone() }
 						{ this.holidaySnowOption() }
 					</form>
 				</Card>
-				<SectionHeader label={ this.translate( 'Visibility' ) }>
+
+				<SectionHeader label={ this.translate( 'Privacy' ) }>
 					<Button
 						compact={ true }
-						onClick={ this.submitForm }
+						onClick={ this.handleSubmitForm }
 						primary={ true }
 
 						type="submit"
@@ -411,19 +607,63 @@ module.exports = React.createClass( {
 					</Button>
 				</SectionHeader>
 				<Card>
-					<form onChange={ this.markChanged }>
-
+					<form onChange={ this.props.markChanged }>
 						{ this.visibilityOptions() }
 					</form>
 				</Card>
+
+				{ this.renderAmpSection() }
+
+				{
+					! this.props.site.jetpack && <div className="site-settings__footer-credit-container">
+						<SectionHeader label={ this.translate( 'Footer Credit' ) } />
+						<CompactCard className="site-settings__footer-credit-explanation">
+							<p>
+								{ this.translate( 'You can customize your website by changing the footer credit in customizer.' ) }
+							</p>
+							<div>
+								<Button className="site-settings__footer-credit-change" href={ '/customize/identity/' + site.slug }>
+									{ this.translate( 'Change footer credit' ) }
+								</Button>
+							</div>
+						</CompactCard>
+						{ ! isBusiness( site.plan ) && <UpgradeNudge
+							className="site-settings__footer-credit-nudge"
+							feature={ FEATURE_NO_BRANDING }
+							title={ this.translate( 'Remove the footer credit entirely with WordPress.com Business' ) }
+							message={ this.translate( 'Upgrade to remove the footer credit, add Google Analytics and more' ) }
+							icon="customize"
+						/> }
+					</div>
+				}
+				<SectionHeader label={ this.translate( 'Related Posts' ) }>
+					<Button
+						compact={ true }
+						onClick={ this.handleSubmitForm }
+						primary={ true }
+
+						type="submit"
+						disabled={ this.state.fetchingSettings || this.state.submittingForm }>
+							{ this.state.submittingForm
+								? this.translate( 'Saving…' )
+								: this.translate( 'Save Settings' )
+							}
+					</Button>
+				</SectionHeader>
+				<Card>
+					<form onChange={ this.props.markChanged }>
+						{ this.relatedPostsOptions() }
+					</form>
+				</Card>
+
 				{ this.props.site.jetpack
 					? <div>
 						<SectionHeader label={ this.translate( 'Jetpack' ) }>
 							{ this.jetpackDisconnectOption() }
-							{ config.isEnabled( 'manage/option_sync_non_public_post_stati' )
+							{ this.showPublicPostTypesCheckbox()
 								? <Button
 									compact={ true }
-									onClick={ this.submitForm }
+									onClick={ this.handleSubmitForm }
 									primary={ true }
 									type="submit"
 									disabled={ this.state.fetchingSettings || this.state.submittingForm }>
@@ -436,40 +676,22 @@ module.exports = React.createClass( {
 							}
 						</SectionHeader>
 
+						{ this.renderJetpackSyncPanel() }
 						{ this.syncNonPublicPostTypes() }
 
-						<Card href={ '../security/' + site.slug } className="is-compact">
+						<CompactCard href={ '../security/' + site.slug }>
 							{ this.translate( 'View Jetpack Monitor Settings' ) }
-						</Card>
-						<Card href={ 'https://wordpress.com/manage/' + site.ID } className="is-compact">
+						</CompactCard>
+						<CompactCard href={ 'https://wordpress.com/manage/' + site.ID }>
 							{ this.translate( 'Migrate followers from another WordPress.com blog' ) }
-						</Card>
+						</CompactCard>
 					</div>
 					: null }
-				<SectionHeader className="after-compact" label={ this.translate( 'Related Posts' ) }>
-					<Button
-						compact={ true }
-						onClick={ this.submitForm }
-						primary={ true }
-
-						type="submit"
-						disabled={ this.state.fetchingSettings || this.state.submittingForm }>
-							{ this.state.submittingForm
-								? this.translate( 'Saving…' )
-								: this.translate( 'Save Settings' )
-							}
-					</Button>
-				</SectionHeader>
-				<Card>
-					<form onChange={ this.markChanged }>
-						{ this.relatedPostsOptions() }
-					</form>
-				</Card>
 			</div>
 		);
 	},
 
-	_showWarning: function( site ) {
+	_showWarning( site ) {
 		if ( ! site || ! site.options ) {
 			return;
 		}
@@ -486,3 +708,5 @@ module.exports = React.createClass( {
 		}
 	}
 } );
+
+export default protectForm( FormGeneral );
